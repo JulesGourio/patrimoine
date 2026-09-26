@@ -205,6 +205,25 @@ def cmd_peg(args: argparse.Namespace, settings: Settings) -> None:
         print(f"  ESOP {e['date']} : +{e['quantity']:.4f} ({e['type']})")
 
 
+def cmd_cmb_csv(args: argparse.Namespace, settings: Settings) -> None:
+    import shutil
+    from pathlib import Path
+
+    from . import sync
+
+    folder = settings.data_dir / "raw" / "cmb_csv"
+    folder.mkdir(parents=True, exist_ok=True)
+    if args.dossier:  # bring the CMB exports (RELEVE_*.csv) over from e.g. the Downloads folder
+        for f in Path(args.dossier).expanduser().glob("RELEVE_*.csv"):
+            if not (folder / f.name).exists():
+                shutil.copyfile(f, folder / f.name)
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        done = sync.import_cmb_csv(con, sorted(folder.glob("RELEVE_*.csv")))
+    for acc, (new, updated, first, last) in done.items():
+        print(f"{acc} : {new} nouvelles, {updated} mises à jour ({first} → {last})")
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -251,6 +270,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--sans-sync", action="store_true")
     p.set_defaults(func=cmd_report)
     sub.add_parser("taches", help="Installer les tâches planifiées Windows").set_defaults(func=cmd_tasks)
+    p = sub.add_parser("cmb-csv", help="Importer les exports CSV de la CMB (RELEVE_*.csv)")
+    p.add_argument("dossier", nargs="?", help="Dossier où prendre les RELEVE_*.csv (ex. Téléchargements)")
+    p.set_defaults(func=cmd_cmb_csv)
     p = sub.add_parser("peg", help="Importer les relevés Amundi (AVO*.pdf) du PEG Airbus")
     p.add_argument("dossier", nargs="?", help="Dossier où prendre les nouveaux AVO*.pdf (ex. Téléchargements)")
     p.set_defaults(func=cmd_peg)

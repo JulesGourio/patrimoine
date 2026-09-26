@@ -15,7 +15,7 @@ from typing import Any
 from .tr_parse import Row, words
 
 # Labels that move money between Jules's own accounts (Trade Republic, CMB savings).
-INTERNAL = re.compile(r"LIVRET CMB|TRADE ?REPUBLIC|GOURIO TRADER|JULES GOURIO TRADER", re.I)
+INTERNAL = re.compile(r"LIVRET|COMPTE CHEQUES|TRADE ?REPUBLIC|GOURIO TRADER", re.I)
 TAX = re.compile(r"DIRECTION GENERALE DES FINA|DGFIP|IMPOT", re.I)
 
 

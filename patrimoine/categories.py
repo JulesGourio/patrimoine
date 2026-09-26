@@ -40,10 +40,11 @@ SPENDING = [
     "Cadeaux et dons",
     "Services et administratif",
     "Impôts et taxes",
+    "Études",
     "Retraits d'espèces",
     "Divers",
 ]
-INCOME = ["Salaire", "Remboursements", "Autres revenus"]
+INCOME = ["Salaire", "Aides et allocations", "Famille", "Remboursements", "Autres revenus"]
 # Flows that bring securities without moving cash: their amount is the value received.
 NON_CASH_FLOWS = {"saveback", "titres_offerts", "operation_titres", "transfert_titres"}
 CATEGORIES = SPENDING + INCOME
@@ -163,12 +164,18 @@ DEFAULT_RULES: dict[str, str] = {
     "NESPRESSO": "Courses", "MAXICOFFEE": "Courses",
     "TREATWELL": "Services et administratif", "HELLOASSO": "Cadeaux et dons", "GITHUB": "Abonnements et télécom",
     "TELECONSULTATION": "Santé",
+    # Older CMB history (2020-2025)
+    "DANIELLE": "Logement et énergie", "IZLY": "Cantine", "LYC ": "Études", "CONCOURS": "Études",
+    "SCEI": "Études", "EN VOITURE SIMON": "Transports", "EVA AIR": "Voyages", "MSA": "Aides et allocations",
+    "ACTION LOGEMENT": "Aides et allocations", "GOURIO SYLVAIN": "Famille", "VIOT": "Famille",
+    "CHLOE GOURIO": "Famille", "WINAMAX": "Autres revenus", "DELL": "Shopping", "MI.COM": "Shopping",
+    "LIBRAIRIE": "Shopping", "SMONEY": "Cantine",
     # Told by Jules
     "CSE AIRBUS": "Cantine", "COOP CE AIRBUS": "Cantine", "MONEWEB": "Cantine", "GALAXIE": "Cantine",
     "MA VILLE MON SHOPPING": "Sport et loisirs", "CHEQUES VACANCE": "Voyages",
     # Revenus
     "AIRBUS": "Salaire", "SALAIRE": "Salaire", "CPAM": "Remboursements",
-    "AMELI": "Remboursements", "CAF": "Autres revenus", "LYDIA": "Remboursements",
+    "AMELI": "Remboursements", "CAF": "Aides et allocations", "LYDIA": "Remboursements",
 }
 
 

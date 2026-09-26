@@ -51,6 +51,30 @@ def _cmb(settings: Settings, con, lines: list[str]) -> None:
             db.set_meta(con, "cmb_consent_warned", until)
 
 
+def _investors(con, lines: list[str], send: bool) -> None:
+    """New 13F filings of the followed investors: at most one check a day, one notification per filing."""
+    from . import investors
+    from .sources import sec13f
+
+    last = db.get_meta(con, "last_13f_check")
+    if last and last[:10] == date.today().isoformat():
+        return
+    new = sec13f.sync(con)
+    lines.append(f"13F : {len(new)} nouvelle(s) déclaration(s)")
+    for f in new if send else []:
+        m, meta = investors.portfolio(con, f["cik"])
+        m = m[m.put_call == ""]
+        moves = m[m.change.isin(["nouvelle", "renforcée", "allégée", "vendue"])]
+        moves = moves.assign(v=moves[["value_usd", "value_usd_prev"]].max(axis=1)).sort_values("v", ascending=False)
+        text = "
+".join(f"- {r.change} : {r.ticker or r.issuer} ({r.weight:.1%} du portefeuille)" for r in
+                         moves.head(8).itertuples())
+        notify.send(f"13F {f['name']} ({f['period']})", f"Nouvelle déclaration, {f['positions']} lignes, "
+                    f"{f['total_usd'] / 1e9:.1f} Md$.
+Principaux mouvements :
+{text}", priority=3)
+
+
 def run(settings: Settings | None = None, interactive: bool = False, send_alerts: bool = True) -> list[str]:
     settings = settings or Settings()
     lines: list[str] = []
@@ -77,6 +101,11 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
         except Exception as e:  # noqa: BLE001
             log.error("valuation: %s", traceback.format_exc())
             lines.append(f"Valorisation : ÉCHEC — {e}")
+        try:
+            _investors(con, lines, send_alerts)
+        except Exception as e:  # noqa: BLE001
+            log.error("13F: %s", traceback.format_exc())
+            lines.append(f"13F : ÉCHEC — {e}")
         fired = alerts.run(con, send=send_alerts)
         lines.append(f"Alertes : {len(fired)} nouvelle(s)" + "".join(f"\n  - {f.title}" for f in fired))
         db.set_meta(con, "last_sync", {"at": db.now_iso(), "summary": lines})

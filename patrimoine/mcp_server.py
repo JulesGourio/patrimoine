@@ -373,6 +373,74 @@ def synchroniser() -> dict:
     return {"resume": pipeline.run()}
 
 
+# ---------- famous investors (13F) ----------
+
+@server.tool()
+def investisseurs() -> dict:
+    """Investisseurs suivis via leurs déclarations 13F (SEC) : dernier trimestre déclaré, encours, nombre de lignes,
+    poids des 10 premières, 3 plus grosses lignes. Les 13F ont jusqu'à 45 jours de retard et ne montrent que les
+    positions longues cotées aux États-Unis (ni ventes à découvert, ni liquidités, ni actions hors US)."""
+    from . import investors
+    from .sources import sec13f
+
+    con = _con()
+    sec13f.init(con)
+    return {"investisseurs": _records(investors.overview(con))}
+
+
+@server.tool()
+def investisseur(nom: str, lignes: int = 30) -> dict:
+    """Portefeuille d'un investisseur suivi (nom ou gérant, ex. 'Buffett', 'Coatue') au dernier trimestre, avec les
+    changements depuis le trimestre précédent : nouvelle, renforcée, allégée, vendue (et variation du nombre d'actions)."""
+    from . import investors
+
+    con = _con()
+    row = con.execute("SELECT cik FROM investors WHERE name LIKE ? OR manager LIKE ?",
+                      (f"%{nom}%", f"%{nom}%")).fetchone()
+    if not row:
+        return {"erreur": "investisseur non suivi ; voir `investisseurs` ou `suivre_investisseur`"}
+    m, meta = investors.portfolio(con, row["cik"])
+    cols = ["issuer", "ticker", "put_call", "weight", "value_usd", "shares", "change", "shares_change", "weight_prev"]
+    moves = m[m.change != "="]
+    return {"meta": _clean(meta), "positions": _records(m[m.change != "vendue"][cols].head(lignes)),
+            "mouvements": _records(moves[cols].sort_values("value_usd", ascending=False).head(lignes))}
+
+
+@server.tool()
+def consensus_investisseurs(min_detenteurs: int = 3) -> dict:
+    """Actions détenues par plusieurs investisseurs suivis au dernier trimestre, avec combien les ont achetées ou
+    renforcées et combien les ont allégées ou vendues. Utile pour repérer les convictions partagées."""
+    from . import investors
+
+    return {"consensus": _records(investors.consensus(_con(), min_detenteurs).head(40))}
+
+
+@server.tool()
+def recoupement_investisseurs() -> dict:
+    """Parmi les sociétés que Jules détient (en direct), lesquelles sont aussi chez les investisseurs suivis."""
+    from . import investors
+
+    con = _con()
+    pos = queries.positions(con)
+    symbols = [r[0] for r in con.execute("SELECT symbol FROM instruments WHERE symbol IS NOT NULL")]
+    return {"recoupement": _records(investors.overlap(con, list(pos["name"]), [s.split(".")[0] for s in symbols]))}
+
+
+@server.tool()
+def suivre_investisseur(cik: int, nom: str, gerant: str = "", style: str = "", actif: bool = True) -> dict:
+    """Ajoute (ou désactive, actif=False) un investisseur à suivre par son CIK SEC ; ses 13F sont téléchargés."""
+    from .sources import sec13f
+
+    con = _con()
+    sec13f.init(con)
+    con.execute("INSERT INTO investors (cik, name, manager, style, active) VALUES (?, ?, ?, ?, ?) ON CONFLICT(cik)"
+                " DO UPDATE SET name = excluded.name, manager = excluded.manager, style = excluded.style,"
+                " active = excluded.active", (cik, nom, gerant or None, style or None, int(actif)))
+    con.commit()
+    new = sec13f.sync(con) if actif else []
+    return {"ok": True, "nouvelles_declarations": len(new)}
+
+
 def main() -> None:
     server.run()
 
