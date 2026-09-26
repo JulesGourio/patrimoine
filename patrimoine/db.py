@@ -77,6 +77,16 @@ CREATE TABLE IF NOT EXISTS balances (
     source TEXT,                        -- reported, reconstruit
     PRIMARY KEY (account_id, date)
 );
+CREATE TABLE IF NOT EXISTS valuations (      -- rebuilt from the transactions (portfolio.py)
+    date TEXT NOT NULL,
+    account_id TEXT NOT NULL REFERENCES accounts(id),
+    cash_cents INTEGER NOT NULL,
+    securities_cents INTEGER NOT NULL,  -- market value
+    cost_cents INTEGER NOT NULL,        -- cost basis of what is still held
+    realised_cents INTEGER NOT NULL,    -- cumulative realised gains
+    deposits_cents INTEGER NOT NULL,    -- cumulative money moved in from Jules's other accounts
+    PRIMARY KEY (date, account_id)
+);
 CREATE TABLE IF NOT EXISTS category_rules (
     pattern TEXT PRIMARY KEY,           -- matched, case-insensitive, in label/counterparty
     category TEXT NOT NULL,

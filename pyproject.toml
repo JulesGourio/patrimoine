@@ -9,6 +9,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "pytr>=0.4.10",
     "tzdata>=2026.4",
+    "yfinance>=1.7.0",
 ]
 
 [project.scripts]

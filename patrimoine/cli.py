@@ -63,6 +63,25 @@ def cmd_tr(args: argparse.Namespace, settings: Settings) -> None:
     print(f"Trade Republic ({path.name}) : " + "\n".join(report.lines()))
 
 
+def cmd_history(args: argparse.Namespace, settings: Settings) -> None:
+    from . import portfolio, prices
+
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        if not args.sans_prix:
+            for isin, got in prices.update(con).items():
+                print(f"  {isin} : {got}")
+        df, book = portfolio.valuations(con)
+        portfolio.store(con, df)
+        last = df[df.date == df.date.max()].set_index("account_id")
+        print(f"Historique reconstruit du {df.date.min()} au {df.date.max()} :")
+        for acc, r in last.iterrows():
+            print(f"  {acc:<11} espèces {r.cash:>10.2f}  titres {r.securities:>10.2f}  coût {r.cost:>10.2f}"
+                  f"  +/- réalisées {r.realised:>9.2f}")
+        for year, t in portfolio.tax_summary(con, book).items():
+            print(f"  {year} (compte-titres) : " + ", ".join(f"{k} {v:.2f}" for k, v in t.items()))
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -82,6 +101,9 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("tr", help="Trade Republic")
     p.add_argument("action", choices=["login", "sync", "import"])
     p.set_defaults(func=cmd_tr)
+    p = sub.add_parser("historique", help="Cours, valorisation quotidienne et plus-values")
+    p.add_argument("--sans-prix", action="store_true", help="Ne pas retélécharger les cours")
+    p.set_defaults(func=cmd_history)
     args = parser.parse_args(argv)
     args.func(args, Settings())
 
