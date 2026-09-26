@@ -2,7 +2,7 @@
   "mcpServers": {
     "patrimoine": {
       "command": "uv",
-      "args": ["run", "patrimoine-mcp"]
+      "args": ["run", "--no-sync", "python", "-m", "patrimoine.mcp_server"]
     }
   }
 }
