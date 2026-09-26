@@ -83,9 +83,10 @@ def find_bank(settings: Settings) -> dict[str, Any]:
 def start_consent(settings: Settings, days: int = 180) -> str:
     """URL where Jules signs in to CMB; the bank then redirects to REDIRECT_URL?code=…"""
     bank = find_bank(settings)
-    days = min(days, int((bank.get("maximum_consent_validity") or days * 86400) // 86400) or days)
+    # The bank rejects anything beyond its maximum, to the second: keep an hour of margin.
+    seconds = min(days * 86400, int(bank.get("maximum_consent_validity") or days * 86400)) - 3600
     body = {
-        "access": {"valid_until": (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()},
+        "access": {"valid_until": (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat()},
         "aspsp": {"name": bank["name"], "country": "FR"},
         "state": uuid.uuid4().hex,
         "redirect_url": REDIRECT_URL,

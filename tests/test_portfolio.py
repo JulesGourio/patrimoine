@@ -95,3 +95,18 @@ def test_losses_carry_forward():
     tax = portfolio.tax_summary(con, book)
     assert tax[2024]["moins_values_reportables"] == 300
     assert tax[2025]["plus_values_imposables"] == 200 and tax[2025]["pfu_estime"] == 60
+
+
+def test_bank_cash_is_anchored_on_the_reported_balance():
+    # The feed starts mid-history: lines sum to -50, but the bank says 191.41 today.
+    con = con_with([
+        {"date": "2026-09-01", "flow": "revenu", "amount_cents": 100_00, "isin": None,
+         "account_id": "cmb_courant", "holding_account_id": None},
+        {"date": "2026-09-10", "flow": "depense", "amount_cents": -150_00, "isin": None,
+         "account_id": "cmb_courant", "holding_account_id": None},
+    ])
+    con.execute("INSERT INTO balances (account_id, date, cash_cents, source) VALUES ('cmb_courant', '2026-09-10', 19141, 'reported')")
+    df, _ = portfolio.valuations(con, end=date(2026, 9, 11))
+    cmb = df[df.account_id == "cmb_courant"].set_index("date").cash
+    assert cmb["2026-09-10"] == 191.41 and cmb["2026-09-01"] == 341.41
+    assert cmb.index.min() == "2026-09-01"

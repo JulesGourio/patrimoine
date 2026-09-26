@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 IN_FLOWS = {"achat_titre", "saveback", "titres_offerts", "transfert_titres"}
 OUT_FLOWS = {"vente_titre"}
-CASH_ACCOUNTS = {"tr_especes", "tr_pea"}
+CASH_ACCOUNTS = {"tr_especes", "tr_pea", "cmb_courant", "cmb_livret_a", "cmb_livret_jeune"}
 SPLIT_TOLERANCE = 1.25  # a trade/close ratio beyond this means Yahoo's scale differs (split, wrong line)
 
 
@@ -227,7 +227,39 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
                         "securities": round(value[acc], 2), "cost": round(cost[acc], 2),
                         "realised": round(realised[acc], 2), "deposits": round(deposits[acc], 2)})
         day += timedelta(days=1)
-    return pd.DataFrame(out), book
+    return anchor_to_balances(con, pd.DataFrame(out), txs), book
+
+
+def anchor_to_balances(con: sqlite3.Connection, df: pd.DataFrame, txs: list[sqlite3.Row]) -> pd.DataFrame:
+    """Shift each account's cash so it matches the latest balance its bank reported (or Jules typed).
+
+    Bank feeds only reach back ~13 months, so the running sum of the lines misses the opening balance;
+    the reported balance fixes it. Days before the first known line of such an account are dropped.
+    """
+    first_line: dict[str, str] = {}
+    for r in txs:
+        first_line.setdefault(r["account_id"], r["date"])
+    latest = con.execute(
+        "SELECT b.account_id, b.date, b.cash_cents FROM balances b JOIN (SELECT account_id, MAX(date) d FROM"
+        " balances WHERE cash_cents IS NOT NULL GROUP BY account_id) m ON m.account_id = b.account_id AND m.d = b.date"
+    ).fetchall()
+    for acc, d, cents in latest:
+        mask = df.account_id == acc
+        if not mask.any():
+            start = first_line.get(acc) or d
+            days = pd.date_range(max(start, df.date.min()), df.date.max()).strftime("%Y-%m-%d")
+            df = pd.concat([df, pd.DataFrame({"date": days, "account_id": acc, "cash": 0.0, "securities": 0.0,
+                                              "cost": 0.0, "realised": 0.0, "deposits": 0.0})])
+            mask = df.account_id == acc
+        at = df[mask & (df.date <= d)].sort_values("date")
+        if at.empty:
+            continue
+        offset = cents / 100 - at.iloc[-1].cash
+        if abs(offset) > 0.005:
+            df.loc[mask, "cash"] = (df.loc[mask, "cash"] + offset).round(2)
+            if acc in first_line:
+                df = df[~(mask & (df.date < first_line[acc]))]
+    return df.sort_values(["date", "account_id"]).reset_index(drop=True)
 
 
 def store(con: sqlite3.Connection, df: pd.DataFrame) -> None:

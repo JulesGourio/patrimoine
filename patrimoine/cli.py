@@ -59,7 +59,8 @@ def cmd_tr(args: argparse.Namespace, settings: Settings) -> None:
     parsed = tr_parse.parse(json.loads(path.read_text(encoding="utf-8")))
     with db.session(settings.db_path) as con:
         db.init(con)
-        report = sync.import_trade_republic(con, parsed, as_of=path.stem)
+        owner = (json.loads(path.read_text(encoding="utf-8")).get("account") or {}).get("name")
+        report = sync.import_trade_republic(con, parsed, as_of=path.stem, owner=owner)
     print(f"Trade Republic ({path.name}) : " + "\n".join(report.lines()))
 
 
@@ -100,8 +101,18 @@ def cmd_cmb(args: argparse.Namespace, settings: Settings) -> None:
             accounts = eb.finish_consent(settings, input("Colle ici l'adresse complète de cette page : "))
             print(f"Connecté : {len(accounts)} compte(s).")
         else:
-            path = eb.dump(settings)
-            print(f"Données brutes écrites dans {path}")
+            from . import sync
+
+            if args.action == "sync":
+                path = eb.dump(settings)
+            else:  # import: every raw dump, oldest first (the bank only serves ~13 months)
+                path = None
+            dumps = sorted((settings.data_dir / "raw" / "cmb").glob("*.json"))
+            with db.session(settings.db_path) as con:
+                db.init(con)
+                for p in dumps if path is None else [path]:
+                    report = sync.import_cmb(con, json.loads(p.read_text(encoding="utf-8")))
+                    print(f"CMB ({p.name}) : " + "\n".join(report.lines()))
     except eb.ConsentRequired as e:
         raise SystemExit(str(e)) from None
 
@@ -126,7 +137,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("action", choices=["login", "sync", "import"])
     p.set_defaults(func=cmd_tr)
     p = sub.add_parser("cmb", help="Comptes CMB via Enable Banking")
-    p.add_argument("action", choices=["cle", "connect", "dump"])
+    p.add_argument("action", choices=["cle", "connect", "sync", "import"])
     p.add_argument("chemin", nargs="?", help="Pour `cle` : le fichier .pem de l'application")
     p.set_defaults(func=cmd_cmb)
     p = sub.add_parser("historique", help="Cours, valorisation quotidienne et plus-values")

@@ -39,6 +39,8 @@ SPENDING = [
     "Voyages",
     "Cadeaux et dons",
     "Services et administratif",
+    "Impôts et taxes",
+    "Retraits d'espèces",
     "Divers",
 ]
 INCOME = ["Salaire", "Remboursements", "Autres revenus"]
@@ -69,7 +71,7 @@ DEFAULT_RULES: dict[str, str] = {
     "AUTOROUTE": "Transports", "VINCI": "Transports", "SANEF": "Transports",
     "PARKING": "Transports", "TRAINLINE": "Transports", "OUIGO": "Transports",
     # Logement et énergie
-    "LOYER": "Logement et énergie", "EDF": "Logement et énergie", "ENGIE": "Logement et énergie",
+    "LOYER": "Logement et énergie", "DANIELLE PROPRIO": "Logement et énergie", "EDF": "Logement et énergie", "ENGIE": "Logement et énergie",
     "VEOLIA": "Logement et énergie", "IKEA": "Logement et énergie",
     "LEROY MERLIN": "Logement et énergie", "CASTORAMA": "Logement et énergie",
     # Abonnements et télécom
@@ -98,7 +100,9 @@ DEFAULT_RULES: dict[str, str] = {
     "AIRBNB": "Voyages", "BOOKING": "Voyages", "RYANAIR": "Voyages", "EASYJET": "Voyages",
     "AIR FRANCE": "Voyages", "TRANSAVIA": "Voyages", "VOLOTEA": "Voyages", "HOTEL": "Voyages",
     # Services et administratif
-    "IMPOTS": "Services et administratif", "DGFIP": "Services et administratif",
+    "IMPOT": "Impôts et taxes", "IMPOTS": "Impôts et taxes", "DGFIP": "Impôts et taxes",
+    "DIRECTION GENERALE DES FINA": "Impôts et taxes", "RET DAB": "Retraits d'espèces",
+    "VELO TOULOUSE": "Transports", "PAYE": "Salaire", "WERO": "Remboursements",
     "LA POSTE": "Services et administratif", "ANTS": "Services et administratif",
     # Generic words, matched at word starts ("PIZZ" -> "PIZZERIA")
     "CAFE": "Restaurants et sorties", "COFFEE": "Restaurants et sorties", "RAMEN": "Restaurants et sorties",
