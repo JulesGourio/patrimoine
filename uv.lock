@@ -772,6 +772,7 @@ dependencies = [
     { name = "pandas" },
     { name = "python-dotenv" },
     { name = "pytr" },
+    { name = "tzdata" },
 ]
 
 [package.dev-dependencies]
@@ -785,6 +786,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pytr", specifier = ">=0.4.10" },
+    { name = "tzdata", specifier = ">=2026.4" },
 ]
 
 [package.metadata.requires-dev]

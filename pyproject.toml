@@ -8,6 +8,7 @@ dependencies = [
     "keyring>=25",
     "python-dotenv>=1.0",
     "pytr>=0.4.10",
+    "tzdata>=2026.4",
 ]
 
 [project.scripts]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import sys
 
 from . import db, vault
@@ -38,14 +39,28 @@ def cmd_secret(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_tr(args: argparse.Namespace, settings: Settings) -> None:
-    from .sources import trade_republic
+    from . import sync
+    from .sources import tr_parse, trade_republic
 
-    if args.action == "login":
-        trade_republic.connect(settings, interactive=True)
-        print("Connecté ; la session est gardée pour les prochaines synchronisations.")
-    else:
-        path = trade_republic.dump(settings, interactive=True)
-        print(f"Données brutes écrites dans {path}")
+    try:
+        if args.action == "login":
+            trade_republic.connect(settings, interactive=True)
+            print("Connecté ; la session est gardée pour les prochaines synchronisations.")
+            return
+        if args.action == "sync":
+            path = trade_republic.dump(settings, interactive=True)
+        else:  # import: the latest raw dump, without calling Trade Republic
+            dumps = sorted((settings.data_dir / "raw" / "tr").glob("*.json"))
+            if not dumps:
+                raise SystemExit("Aucune donnée brute : lance `patrimoine tr sync`.")
+            path = dumps[-1]
+    except trade_republic.LoginRequired as e:
+        raise SystemExit(str(e)) from None
+    parsed = tr_parse.parse(json.loads(path.read_text(encoding="utf-8")))
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        report = sync.import_trade_republic(con, parsed, as_of=path.stem)
+    print(f"Trade Republic ({path.name}) : " + "\n".join(report.lines()))
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -65,7 +80,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("name", nargs="?")
     p.set_defaults(func=cmd_secret)
     p = sub.add_parser("tr", help="Trade Republic")
-    p.add_argument("action", choices=["login", "dump"])
+    p.add_argument("action", choices=["login", "sync", "import"])
     p.set_defaults(func=cmd_tr)
     args = parser.parse_args(argv)
     args.func(args, Settings())

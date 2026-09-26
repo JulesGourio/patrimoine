@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any
 
+import requests
 from pytr.api import TradeRepublicApi, TradeRepublicError
 
 from .. import vault
@@ -23,10 +25,26 @@ class LoginRequired(RuntimeError):
     """The saved session is gone; Jules must run `patrimoine tr login` and confirm in the app."""
 
 
+def normalize_phone(raw: str) -> str:
+    """Trade Republic wants the international format without spaces: 06 12 34 56 78 -> +33612345678."""
+    phone = re.sub(r"[\s.\-()]", "", raw)
+    if phone.startswith("00"):
+        phone = "+" + phone[2:]
+    elif phone.startswith("0"):
+        phone = "+33" + phone[1:]
+    if not re.fullmatch(r"\+\d{8,15}", phone):
+        raise LoginRequired("Numéro Trade Republic mal formé : ressaisis-le au format +33612345678 "
+                            "(`patrimoine secret set tr_phone`).")
+    return phone
+
+
 def api(settings: Settings) -> TradeRepublicApi:
     phone, pin = vault.get("tr_phone"), vault.get("tr_pin")
     if not (phone and pin):
         raise LoginRequired("Numéro ou PIN absent : `patrimoine secret set tr_phone` puis `tr_pin`.")
+    phone, pin = normalize_phone(phone), pin.strip()
+    if not re.fullmatch(r"\d{4}", pin):
+        raise LoginRequired("Le PIN Trade Republic fait 4 chiffres : `patrimoine secret set tr_pin`.")
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     return TradeRepublicApi(
         phone_no=phone,
@@ -44,7 +62,11 @@ def connect(settings: Settings, interactive: bool = False) -> TradeRepublicApi:
         return tr
     if not interactive:
         raise LoginRequired("Session Trade Republic expirée : lance `uv run patrimoine tr login`.")
-    tr.initiate_weblogin()
+    try:
+        tr.initiate_weblogin()
+    except requests.HTTPError as e:
+        raise LoginRequired(f"Trade Republic refuse la connexion ({e.response.status_code}) : "
+                            f"{_error_codes(e.response)}") from None
     code = None
     if tr.weblogin_needs_authenticator:
         code = input("Code de l'application d'authentification : ")
@@ -52,6 +74,15 @@ def connect(settings: Settings, interactive: bool = False) -> TradeRepublicApi:
         print("Confirme la connexion dans l'appli Trade Republic (2 min max)…")
     tr.complete_weblogin(code)
     return tr
+
+
+def _error_codes(response: requests.Response) -> str:
+    """The error codes Trade Republic sends back; never echoes the request (it holds the PIN)."""
+    try:
+        errors = response.json().get("errors") or []
+        return ", ".join(f"{e.get('errorCode')} {e.get('errorField') or ''}".strip() for e in errors) or "sans détail"
+    except ValueError:
+        return "réponse vide"
 
 
 async def request(tr: TradeRepublicApi, payload: dict[str, Any], timeout: float = 20) -> Any:
@@ -93,21 +124,22 @@ async def fetch_all(tr: TradeRepublicApi) -> dict[str, Any]:
         except (TradeRepublicError, asyncio.TimeoutError):
             details[item["id"]] = None
     out["details"] = details
-    # One securities account per product (compte-titres, PEA): ask for each one we can see.
-    sec_accounts = {account.get("securitiesAccountNumber")}
-    for acc in account.get("securitiesAccounts") or []:
-        if isinstance(acc, dict):
-            sec_accounts.add(acc.get("securitiesAccountNumber") or acc.get("number"))
+    # The account settings only give the compte-titres number; the PEA is a sibling number
+    # (compte-titres + 1 for Jules). Try the neighbours and keep those that answer.
     out["portfolios"] = {}
-    for no in filter(None, sec_accounts):
-        try:
-            out["portfolios"][no] = await request(tr, {"type": "compactPortfolioByType", "secAccNo": no})
-        except (TradeRepublicError, asyncio.TimeoutError) as e:
-            out["portfolios"][no] = {"error": str(e)}
+    cto = account.get("securitiesAccountNumber")
+    if cto and cto.isdigit():
+        width = len(cto)
+        for delta in (0, 1, -1, 2):
+            no = str(int(cto) + delta).zfill(width)
+            try:
+                out["portfolios"][no] = await request(
+                    tr, {"type": "compactPortfolioByType", "secAccNo": no}, timeout=20 if delta == 0 else 8)
+            except (TradeRepublicError, asyncio.TimeoutError):
+                pass
     for key, payload in {
         "cash": {"type": "cash"},
         "savings_plans": {"type": "savingsPlans"},
-        "history_max": {"type": "portfolioAggregateHistory", "range": "max"},
     }.items():
         try:
             out[key] = await request(tr, payload)

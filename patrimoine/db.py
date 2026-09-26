@@ -32,28 +32,32 @@ CREATE TABLE IF NOT EXISTS instruments (
 );
 CREATE TABLE IF NOT EXISTS transactions (
     id TEXT PRIMARY KEY,                -- source id, or a hash of the bank line
-    account_id TEXT NOT NULL REFERENCES accounts(id),
-    date TEXT NOT NULL,                 -- YYYY-MM-DD (booking date)
-    amount_cents INTEGER NOT NULL,      -- signed, seen from the account
+    account_id TEXT NOT NULL REFERENCES accounts(id),  -- where the cash moved
+    holding_account_id TEXT REFERENCES accounts(id),   -- where securities moved (trades only)
+    date TEXT NOT NULL,                 -- YYYY-MM-DD, Paris time
+    amount_cents INTEGER NOT NULL,      -- signed cash movement; for non-cash flows, the value received
     label TEXT,
     counterparty TEXT,
     flow TEXT NOT NULL,                 -- see categories.FLOWS
     category TEXT,                      -- spending/income category, rules-based
     category_override TEXT,             -- set by hand, always wins
     isin TEXT REFERENCES instruments(isin),
-    quantity REAL,
+    quantity REAL,                      -- always positive; the flow gives the direction
+    price REAL,                         -- EUR per share
     fees_cents INTEGER,
     tax_cents INTEGER,
+    event_type TEXT,                    -- source event type (ex: CARD_TRANSACTION)
     raw_json TEXT,
     imported_at TEXT
 );
 CREATE INDEX IF NOT EXISTS transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS transactions_account ON transactions(account_id, date);
+CREATE INDEX IF NOT EXISTS transactions_isin ON transactions(isin);
 CREATE TABLE IF NOT EXISTS positions (
     account_id TEXT NOT NULL REFERENCES accounts(id),
     isin TEXT NOT NULL REFERENCES instruments(isin),
     quantity REAL NOT NULL,
-    avg_cost_cents INTEGER,             -- per share, NULL when unknown (PEG)
+    avg_cost REAL,                      -- EUR per share, NULL when unknown (PEG)
     as_of TEXT NOT NULL,
     source TEXT NOT NULL,               -- trade_republic, manuel
     PRIMARY KEY (account_id, isin)
@@ -162,7 +166,7 @@ def init(con: sqlite3.Connection) -> None:
     )
     con.execute("INSERT OR IGNORE INTO instruments VALUES (?, ?, ?, ?, ?)", AIRBUS)
     con.execute(
-        "INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost_cents, as_of, source)"
+        "INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
         " VALUES ('peg_airbus', ?, ?, NULL, ?, 'manuel')",
         (AIRBUS[0], PEG_AIRBUS_SHARES, now_iso()[:10]),
     )

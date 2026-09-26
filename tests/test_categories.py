@@ -16,7 +16,7 @@ def test_longest_pattern_wins():
 
 def test_word_boundaries():
     assert categorize("depense", "PAIEMENT TRANSACTION 123", None, R) == "Divers"  # not "ACTION"
-    assert categorize("depense", "BARBIER DU COIN", None, R) == "Divers"  # not "BAR "
+    assert categorize("depense", "BARRIQUE DU COIN", None, R) == "Divers"  # not "BAR "
     assert categorize("depense", "LE BAR", None, R) == "Restaurants et sorties"
 
 
