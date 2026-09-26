@@ -62,7 +62,7 @@ with col1, st.container(border=True):
     fig.for_each_trace(lambda t: t.update(line_dash="dot") if t.name == "Net investi" else None)
     ui.plotly_layout(fig, 360)
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
     if bench is not None:
         gap = inv.value.iloc[-1] - bench.iloc[-1]
         st.caption(f"Si chaque achat et chaque vente avait porté sur le {bench_name}, tu aurais "
@@ -76,7 +76,7 @@ with col2, st.container(border=True):
                       hovertemplate="%{y:.1%}")
     ui.plotly_layout(fig, 360)
     fig.update_yaxes(tickformat=".0%")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
 # ---------- positions ----------
 with st.container(border=True):
@@ -111,7 +111,7 @@ for col, (title, key) in zip(cols, [("Par type", "kind"), ("Par zone", "region")
                                hovertemplate="%{x:,.0f} €<extra></extra>"))
         ui.plotly_layout(fig, 70 + 40 * len(g))
         fig.update_xaxes(ticksuffix=" €", tickformat=",.0f")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
 # ---------- one line in detail ----------
 with st.container(border=True):
@@ -151,7 +151,7 @@ with st.container(border=True):
         ui.plotly_layout(fig, 320)
         fig.update_layout(hovermode="closest")
         fig.update_yaxes(ticksuffix=" €")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
         st.caption("Cours historiques Yahoo, remis à l'échelle après une division d'actions.")
 
 # ---------- every line ever held ----------
@@ -166,7 +166,7 @@ with col1, st.container(border=True):
                            hovertemplate="%{x:+,.0f} €<extra></extra>"))
     ui.plotly_layout(fig, 60 + 26 * len(g))
     fig.update_xaxes(ticksuffix=" €", tickformat="+,.0f")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 with col2, st.container(border=True):
     st.markdown("**Toutes les lignes détenues**")
     st.dataframe(hist_lines[["name", "account", "kind", "open", "invested", "received", "value", "gain", "gain_pct",
@@ -197,7 +197,7 @@ with col1, st.container(border=True):
     ui.plotly_layout(fig, 280)
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
     fig.update_xaxes(type="category")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 with col2, st.container(border=True):
     st.markdown("**Plus-values réalisées par année**")
     real = ui.realised()
@@ -209,6 +209,6 @@ with col2, st.container(border=True):
         ui.plotly_layout(fig, 280)
         fig.update_yaxes(ticksuffix=" €", tickformat=",.0f", zeroline=True)
         fig.update_xaxes(type="category")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
 st.caption("Cours Yahoo Finance (clôture de la veille), convertis en euros. Turbos valorisés au prix de tes ordres.")

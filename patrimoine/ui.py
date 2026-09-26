@@ -11,6 +11,7 @@ from .config import Settings
 # Same order as chartCategoricalColors in .streamlit/config.toml; "Autres" is always the neutral grey.
 CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
 OTHER = "#8a8983"
+PLOT_CONFIG = {"displayModeBar": False, "locale": "fr"}
 
 
 def connect():
@@ -76,6 +77,8 @@ def plotly_layout(fig, height: int = 360):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, title=None),
         separators=", ", xaxis_title=None, yaxis_title=None,
     )
+    if any(getattr(t, "type", "") == "bar" and getattr(t, "orientation", None) == "h" for t in fig.data):
+        fig.update_layout(hovermode="y unified")  # the hover header then names the bar under the mouse
     return fig
 
 

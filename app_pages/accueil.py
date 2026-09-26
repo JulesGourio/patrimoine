@@ -66,7 +66,7 @@ with col1, st.container(border=True):
     fig.update_traces(line=dict(width=1.5), hovertemplate="%{y:,.0f} €")
     ui.plotly_layout(fig, 400)
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
 with col2, st.container(border=True):
     st.markdown("**Comptes**")
@@ -107,7 +107,7 @@ with col1, st.container(border=True):
                            cliponaxis=False, hovertemplate="%{x:,.0f} €<extra></extra>"))
     ui.plotly_layout(fig, 60 + 42 * len(a))
     fig.update_xaxes(ticksuffix=" €", tickformat=",.0f")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
 with col2, st.container(border=True):
     st.markdown("**D'où vient la variation de chaque mois**")
@@ -127,7 +127,7 @@ with col2, st.container(border=True):
     fig.update_traces(hovertemplate="%{y:+,.0f} €", marker_line_width=1, marker_line_color="white")
     ui.plotly_layout(fig, 60 + 42 * max(len(a), 5))
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f", zeroline=True)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
     st.caption("Mois complets. Épargne = revenus moins dépenses du mois ; le reste de la variation vient des "
                "marchés (et, avant août 2025, des comptes CMB dont l'historique manque).")
 
@@ -145,7 +145,7 @@ with st.container(border=True):
     fig.update_traces(line=dict(width=2), hovertemplate="%{y:,.0f} €")
     ui.plotly_layout(fig, 320)
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
 sync = ui.last_sync()
 st.caption(
