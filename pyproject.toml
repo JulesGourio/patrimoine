@@ -12,6 +12,8 @@ dependencies = [
     "yfinance>=1.7.0",
     "pyjwt[crypto]>=2.15.0",
     "requests>=2.34.2",
+    "streamlit>=1.57",
+    "plotly>=7.1.0",
 ]
 
 [project.scripts]

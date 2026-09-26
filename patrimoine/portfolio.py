@@ -172,6 +172,15 @@ class Prices:
         return past[-1] if past else None
 
 
+def replay(con: sqlite3.Connection) -> tuple[Book, Prices]:
+    """Holdings and realised gains as of today, without the daily valuation."""
+    txs = rows(con)
+    book = Book()
+    for r in txs:
+        book.apply(r)
+    return book, Prices(con, txs)
+
+
 # ---------- daily valuation ----------
 
 def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.DataFrame, Book]:
