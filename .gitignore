@@ -5,3 +5,5 @@ __pycache__/
 .env
 data/
 .playwright-mcp/
+scripts/*.ps1
+.serena/
