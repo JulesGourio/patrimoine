@@ -9,7 +9,7 @@ if hist.empty:
     st.warning("Pas encore d'historique : lance `uv run patrimoine historique`.", icon=":material/info:")
     st.stop()
 
-ORDER = ["PEA", "Compte-titres", "Trade Republic espèces", "PEG Airbus", "CMB courant", "Livret A", "Livret Jeune"]
+ORDER = ["PEA", "Compte-titres", "Trade Republic espèces", "PEG Airbus", "CMB courant", "Livret CMB", "Livret Jeune"]
 
 with st.container(horizontal=True, vertical_alignment="center"):
     st.subheader("Patrimoine", icon=":material/account_balance:")

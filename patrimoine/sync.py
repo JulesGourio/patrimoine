@@ -99,6 +99,7 @@ def import_cmb(con: sqlite3.Connection, dump: dict) -> Report:
     name = db.get_meta(con, "owner") or {}
     owner = set(words(name.get("last")) + words(name.get("first"))[:1])
     rows, _ = cmb_parse.parse(dump, owner)
+    rows += cmb_parse.livret_mirror(rows)
     new, updated = import_rows(con, rows, cmb_parse.raw_json)
     bal = cmb_parse.balance(dump)
     if bal:

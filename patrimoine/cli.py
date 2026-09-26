@@ -117,6 +117,18 @@ def cmd_cmb(args: argparse.Namespace, settings: Settings) -> None:
         raise SystemExit(str(e)) from None
 
 
+def cmd_balance(args: argparse.Namespace, settings: Settings) -> None:
+    from datetime import date
+
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        if not con.execute("SELECT 1 FROM accounts WHERE id = ?", (args.compte,)).fetchone():
+            raise SystemExit(f"Compte inconnu : {args.compte} (voir `patrimoine comptes`)")
+        db.set_balance(con, args.compte, args.date or date.today().isoformat(),
+                       round(float(args.montant.replace(",", ".")) * 100))
+    print(f"Solde de {args.compte} enregistré : {args.montant} €")
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -140,6 +152,11 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("action", choices=["cle", "connect", "sync", "import"])
     p.add_argument("chemin", nargs="?", help="Pour `cle` : le fichier .pem de l'application")
     p.set_defaults(func=cmd_cmb)
+    p = sub.add_parser("solde", help="Saisir le solde d'un compte absent des flux bancaires (livrets)")
+    p.add_argument("compte")
+    p.add_argument("montant")
+    p.add_argument("--date", help="AAAA-MM-JJ, aujourd'hui par défaut")
+    p.set_defaults(func=cmd_balance)
     p = sub.add_parser("historique", help="Cours, valorisation quotidienne et plus-values")
     p.add_argument("--sans-prix", action="store_true", help="Ne pas retélécharger les cours")
     p.set_defaults(func=cmd_history)

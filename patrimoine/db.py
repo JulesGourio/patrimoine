@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS meta (
 ACCOUNTS = [
     ("cmb_courant", "CMB", "Compte courant", "courant", "banque"),
     ("cmb_livret_jeune", "CMB", "Livret Jeune", "livret", "banque"),
-    ("cmb_livret_a", "CMB", "Livret A", "livret", "banque"),
+    ("cmb_livret_a", "CMB", "Livret CMB", "livret", "banque"),
     ("tr_especes", "TR", "Espèces et carte", "especes", "trade_republic"),
     ("tr_cto", "TR", "Compte-titres", "cto", "trade_republic"),
     ("tr_pea", "TR", "PEA", "pea", "trade_republic"),
@@ -174,6 +174,7 @@ def init(con: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, ?, ?, ?, ?)",
         ACCOUNTS,
     )
+    con.execute("UPDATE accounts SET name = 'Livret CMB' WHERE id = 'cmb_livret_a'")
     con.execute("INSERT OR IGNORE INTO instruments VALUES (?, ?, ?, ?, ?)", AIRBUS)
     con.execute(
         "INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
@@ -211,3 +212,11 @@ def set_rule(con: sqlite3.Connection, pattern: str, category: str) -> None:
         " ON CONFLICT(pattern) DO UPDATE SET category = excluded.category, origin = 'utilisateur'",
         (pattern.upper(), category),
     )
+
+
+def set_balance(con: sqlite3.Connection, account_id: str, day: str, cents: int, source: str = "manuel") -> None:
+    con.execute(
+        "INSERT INTO balances (account_id, date, cash_cents, source) VALUES (?, ?, ?, ?)"
+        " ON CONFLICT(account_id, date) DO UPDATE SET cash_cents = excluded.cash_cents, source = excluded.source",
+        (account_id, day, cents, source))
+    con.commit()

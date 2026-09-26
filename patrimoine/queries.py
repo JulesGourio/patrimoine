@@ -15,7 +15,7 @@ ACCOUNT_LABELS = {
     "peg_airbus": "PEG Airbus",
     "cmb_courant": "CMB courant",
     "cmb_livret_jeune": "Livret Jeune",
-    "cmb_livret_a": "Livret A",
+    "cmb_livret_a": "Livret CMB",
 }
 
 

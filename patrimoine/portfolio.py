@@ -246,7 +246,8 @@ def anchor_to_balances(con: sqlite3.Connection, df: pd.DataFrame, txs: list[sqli
     for acc, d, cents in latest:
         mask = df.account_id == acc
         if not mask.any():
-            start = first_line.get(acc) or d
+            # No line at all (Livret Jeune): flat since the bank feed begins.
+            start = first_line.get(acc) or first_line.get("cmb_courant") or d
             days = pd.date_range(max(start, df.date.min()), df.date.max()).strftime("%Y-%m-%d")
             df = pd.concat([df, pd.DataFrame({"date": days, "account_id": acc, "cash": 0.0, "securities": 0.0,
                                               "cost": 0.0, "realised": 0.0, "deposits": 0.0})])

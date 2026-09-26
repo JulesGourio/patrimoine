@@ -76,6 +76,17 @@ def parse(dump: dict[str, Any], owner: set[str], account_id: str = "cmb_courant"
     return rows, kinds
 
 
+def livret_mirror(rows: list[Row], livret: str = "cmb_livret_a") -> list[Row]:
+    """The Livret CMB is not in the bank feed: mirror every transfer the current account makes with it."""
+    out = []
+    for r in rows:
+        if r.flow == "interne" and "LIVRET CMB" in (r.label or "").upper():
+            out.append(Row(id=r.id + ":livret", account_id=livret, date=r.date, amount_cents=-r.amount_cents,
+                           flow="interne", event_type=r.event_type, label=r.label, counterparty="Compte courant CMB",
+                           raw=r.raw))
+    return out
+
+
 def balance(dump: dict[str, Any]) -> tuple[str, int] | None:
     for acc in dump.get("accounts", []):
         for b in acc.get("balances", []):
