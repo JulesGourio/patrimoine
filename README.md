@@ -32,11 +32,26 @@ uv run pytest
 - **Aucun secret dans un fichier** : keyring (`patrimoine/vault.py`).
 - **Aucun ordre de bourse automatique** : Claude prépare, Jules exécute dans l'appli Trade Republic.
 
+## Commandes
+
+```bash
+uv run patrimoine tr sync        # télécharge Trade Republic (confirmation dans l'appli si la session a expiré) et importe
+uv run patrimoine tr import      # réimporte le dernier téléchargement sans appeler Trade Republic
+uv run patrimoine historique     # cours, valorisation jour par jour, plus-values et fiscalité
+```
+
+## Limites connues
+
+- Trade Republic ne donne plus d'historique de cours : cours Yahoo, turbos valorisés au prix des ordres.
+- Le PEG est valorisé à sa quantité actuelle sur tout l'historique (dates d'acquisition inconnues).
+- Le prix de revient Trade Republic ignore les divisions d'actions : on recalcule le nôtre (PMP, frais inclus).
+
 ## Feuille de route
 
 1. Socle : base, comptes, catégories, secrets, tests. ✅
-2. Trade Republic en lecture (pytr) : timeline, positions, import idempotent, tests sur réponses réelles.
-3. Historique : valorisation quotidienne reconstruite, contrôlée contre la valeur actuelle.
+2. Trade Republic en lecture (pytr) : timeline, positions, import idempotent, tests sur réponses réelles. ✅
+3. Historique : cours Yahoo (meilleure cotation par ISIN, contrôlée contre les prix des ordres), valorisation
+   quotidienne, PMP, plus-values, report des moins-values, PFU estimé. ✅
 4. CMB : API DSP2 via un agrégateur (Enable Banking), sinon import CSV/OFX.
 5. Patrimoine net : tous comptes + PEG.
 6. Serveur MCP local pour les analyses de Claude.
