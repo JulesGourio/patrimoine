@@ -9,6 +9,7 @@ page = st.navigation(
         st.Page("app_pages/portefeuille.py", title="Portefeuille", icon=":material/candlestick_chart:"),
         st.Page("app_pages/fiscalite.py", title="Fiscalité", icon=":material/gavel:"),
         st.Page("app_pages/suivi.py", title="Suivi", icon=":material/notifications:"),
+        st.Page("app_pages/reglages.py", title="Réglages", icon=":material/settings:"),
     ],
     position="top",
 )

@@ -15,6 +15,7 @@ dependencies = [
     "streamlit>=1.57",
     "plotly>=7.1.0",
     "mcp>=2.2",
+    "markdown>=3.11",
 ]
 
 [project.scripts]

@@ -48,9 +48,10 @@ def positions(con: sqlite3.Connection) -> pd.DataFrame:
         value = qty * price if price is not None else None
         rows.append({
             "account": ACCOUNT_LABELS.get(acc, acc), "isin": isin, "name": names.get(isin) or isin,
-            "quantity": qty, "unit_cost": cost / qty if cost else None, "price": price, "value": value,
-            "cost": cost, "gain": value - cost if value is not None and cost else None,
-            "gain_pct": (value / cost - 1) if value is not None and cost else None,
+            "quantity": qty, "unit_cost": cost / qty if cost else float("nan"), "price": price, "value": value,
+            "cost": cost if cost else float("nan"),
+            "gain": value - cost if value is not None and cost else float("nan"),
+            "gain_pct": (value / cost - 1) if value is not None and cost else float("nan"),
         })
     df = pd.DataFrame(rows)
     if not df.empty:
@@ -80,7 +81,8 @@ def spending(con: sqlite3.Connection) -> pd.DataFrame:
         " FROM transactions WHERE flow = 'depense' ORDER BY date DESC", con, parse_dates=["date"])
     df["amount"] = -df.pop("amount_cents") / 100
     df["category"] = df["category_override"].fillna(df["category"])
-    df["merchant"] = df["counterparty"].fillna(df["label"])
+    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^(vers|VIR|PRLV)\s+", "", regex=True)
+                      .str.strip())
     df["account"] = df["account_id"].map(ACCOUNT_LABELS)
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
     return df

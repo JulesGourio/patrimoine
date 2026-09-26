@@ -353,7 +353,7 @@ def enregistrer_rapport(titre: str, contenu_markdown: str, type: str = "demande"
     if notifier:
         from . import notify
 
-        notify.send(titre, contenu_markdown[:3800], priority=3, tags=["memo"])
+        notify.send(titre, contenu_markdown, priority=3, tags=["memo"], markdown_body=True)
     return {"ok": True, "id": cur.lastrowid}
 
 

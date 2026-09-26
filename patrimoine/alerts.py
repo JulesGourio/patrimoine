@@ -174,7 +174,7 @@ def run(con: sqlite3.Connection, send: bool = True, today: date | None = None) -
         sent = notify.send(f.title, f.message, priority=f.priority, tags=["chart_with_downwards_trend"]
                            if f.priority >= 4 else ["bell"]) if send else False
         con.execute("INSERT INTO alert_events (rule_id, key, triggered_at, message, sent_to) VALUES (?, ?, ?, ?, ?)",
-                    (f.rule_id, f.key, db.now_iso(), f"{f.title} — {f.message}", "ntfy+mail" if sent else None))
+                    (f.rule_id, f.key, db.now_iso(), f"{f.title} — {f.message}", sent or None))
         new.append(f)
     con.commit()
     return new
