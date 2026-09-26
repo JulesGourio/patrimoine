@@ -157,6 +157,19 @@ def cmd_alerts(args: argparse.Namespace, settings: Settings) -> None:
                 print(dict(r))
 
 
+def cmd_report(args: argparse.Namespace, settings: Settings) -> None:
+    from . import tasks
+
+    raise SystemExit(tasks.weekly_report(settings, sync_first=not args.sans_sync))
+
+
+def cmd_tasks(args: argparse.Namespace, settings: Settings) -> None:
+    from . import tasks
+
+    for line in tasks.install():
+        print(line)
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -199,6 +212,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--note")
     p.add_argument("--mail", action="store_true")
     p.set_defaults(func=cmd_alerts)
+    p = sub.add_parser("rapport", help="Rapport hebdomadaire rédigé par Claude Code")
+    p.add_argument("--sans-sync", action="store_true")
+    p.set_defaults(func=cmd_report)
+    sub.add_parser("taches", help="Installer les tâches planifiées Windows").set_defaults(func=cmd_tasks)
     p = sub.add_parser("historique", help="Cours, valorisation quotidienne et plus-values")
     p.add_argument("--sans-prix", action="store_true", help="Ne pas retélécharger les cours")
     p.set_defaults(func=cmd_history)

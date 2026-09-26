@@ -217,9 +217,17 @@ def marche(titre: str, periode: str = "1y") -> dict:
         row = con.execute("SELECT symbol FROM instruments WHERE isin = ?", (titre,)).fetchone()
         symbol = (row["symbol"] if row and row["symbol"] else None) or next(iter(candidates(titre)), titre)
     t = yf.Ticker(symbol)
-    h = t.history(period=periode, auto_adjust=True)
+    h = t.history(period=periode, auto_adjust=True).dropna(subset=["Close"])
+    if h.empty and len(titre) == 12:
+        # The listing kept for the portfolio may have no recent quote on Yahoo: try the other listings.
+        for alt in candidates(titre):
+            t = yf.Ticker(alt)
+            h = t.history(period=periode, auto_adjust=True).dropna(subset=["Close"])
+            if not h.empty:
+                symbol = alt
+                break
     if h.empty:
-        return {"erreur": f"pas de cours pour {symbol}"}
+        return {"erreur": f"pas de cours Yahoo pour {symbol}"}
     close = h["Close"]
     rets = close.pct_change().dropna()
     info: dict[str, Any] = {}

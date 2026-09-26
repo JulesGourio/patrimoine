@@ -33,7 +33,9 @@ et la feuille de route.
 - Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
   session Trade Republic a expiré, une notification demande à Jules de confirmer dans l'appli.
 - Rapport hebdo : tâche « Patrimoine - rapport hebdo » (dimanche 18 h) qui lance Claude Code en mode `-p` avec
-  `scripts/rapport_hebdo.md`. `scripts/taches.ps1 installer` recrée les tâches.
+  `scripts/rapport_hebdo.md` (`uv run patrimoine rapport`). `uv run patrimoine taches` recrée les tâches
+  (appel direct de `uvw`, pas de script PowerShell : l'antivirus avait mis le .ps1 en quarantaine). Si la
+  commande bloque, enregistrer les tâches avec `Register-ScheduledTask` depuis l'outil PowerShell de Claude.
 - Notifications : ntfy (sujet secret dans le keyring, `patrimoine.notify`) avec copie mail relayée par ntfy.
 - CMB via Enable Banking : seul le compte courant est exposé (DSP2). Accès valable 180 jours (meta
   `cmb_consent_until`) ; pour le renouveler, `eb.start_consent` puis ouvrir le lien dans le navigateur de Jules
