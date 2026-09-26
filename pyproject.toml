@@ -10,6 +10,8 @@ dependencies = [
     "pytr>=0.4.10",
     "tzdata>=2026.4",
     "yfinance>=1.7.0",
+    "pyjwt[crypto]>=2.15.0",
+    "requests>=2.34.2",
 ]
 
 [project.scripts]

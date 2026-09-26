@@ -82,6 +82,30 @@ def cmd_history(args: argparse.Namespace, settings: Settings) -> None:
             print(f"  {year} (compte-titres) : " + ", ".join(f"{k} {v:.2f}" for k, v in t.items()))
 
 
+def cmd_cmb(args: argparse.Namespace, settings: Settings) -> None:
+    from pathlib import Path
+
+    from .sources import enable_banking as eb
+
+    try:
+        if args.action == "cle":
+            if not args.chemin:
+                raise SystemExit("Donne le chemin du fichier .pem téléchargé.")
+            app_id = eb.install_key(settings, Path(args.chemin).expanduser())
+            print(f"Clé de l'application {app_id[:8]}… rangée dans {eb.key_dir(settings)}")
+        elif args.action == "connect":
+            print("Ouvre ce lien, connecte-toi à la CMB et valide l'accès à tes comptes :\n")
+            print(eb.start_consent(settings))
+            print("\nLe navigateur finira sur une page introuvable (https://localhost/patrimoine?…) : c'est normal.")
+            accounts = eb.finish_consent(settings, input("Colle ici l'adresse complète de cette page : "))
+            print(f"Connecté : {len(accounts)} compte(s).")
+        else:
+            path = eb.dump(settings)
+            print(f"Données brutes écrites dans {path}")
+    except eb.ConsentRequired as e:
+        raise SystemExit(str(e)) from None
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -101,6 +125,10 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("tr", help="Trade Republic")
     p.add_argument("action", choices=["login", "sync", "import"])
     p.set_defaults(func=cmd_tr)
+    p = sub.add_parser("cmb", help="Comptes CMB via Enable Banking")
+    p.add_argument("action", choices=["cle", "connect", "dump"])
+    p.add_argument("chemin", nargs="?", help="Pour `cle` : le fichier .pem de l'application")
+    p.set_defaults(func=cmd_cmb)
     p = sub.add_parser("historique", help="Cours, valorisation quotidienne et plus-values")
     p.add_argument("--sans-prix", action="store_true", help="Ne pas retélécharger les cours")
     p.set_defaults(func=cmd_history)

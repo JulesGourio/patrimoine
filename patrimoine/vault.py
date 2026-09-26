@@ -9,6 +9,7 @@ SERVICE = "patrimoine"
 KNOWN = {
     "tr_phone": "Numéro de téléphone Trade Republic (+33…)",
     "tr_pin": "Code PIN Trade Republic",
+    "cmb_session": "Session Enable Banking (accès aux comptes CMB)",
     "ntfy_topic": "Sujet ntfy pour les notifications téléphone",
     "smtp_password": "Mot de passe d'application du mail d'alertes",
 }
