@@ -37,6 +37,17 @@ def cmd_secret(args: argparse.Namespace, settings: Settings) -> None:
         print("Supprimé.")
 
 
+def cmd_tr(args: argparse.Namespace, settings: Settings) -> None:
+    from .sources import trade_republic
+
+    if args.action == "login":
+        trade_republic.connect(settings, interactive=True)
+        print("Connecté ; la session est gardée pour les prochaines synchronisations.")
+    else:
+        path = trade_republic.dump(settings, interactive=True)
+        print(f"Données brutes écrites dans {path}")
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -53,6 +64,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("action", choices=["list", "set", "delete"])
     p.add_argument("name", nargs="?")
     p.set_defaults(func=cmd_secret)
+    p = sub.add_parser("tr", help="Trade Republic")
+    p.add_argument("action", choices=["login", "dump"])
+    p.set_defaults(func=cmd_tr)
     args = parser.parse_args(argv)
     args.func(args, Settings())
 
