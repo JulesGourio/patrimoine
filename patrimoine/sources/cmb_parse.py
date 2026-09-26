@@ -15,7 +15,8 @@ from typing import Any
 from .tr_parse import Row, words
 
 # Labels that move money between Jules's own accounts (Trade Republic, CMB savings).
-INTERNAL = re.compile(r"LIVRET|COMPTE CHEQUES|TRADE ?REPUBLIC|GOURIO TRADER", re.I)
+# Jules's own accounts; Revolut was one (closed, empty) that mostly relayed money to Trade Republic.
+INTERNAL = re.compile(r"LIVRET|COMPTE CHEQUES|TRADE ?REPUBLIC|GOURIO TRADER|REVOLU", re.I)
 TAX = re.compile(r"DIRECTION GENERALE DES FINA|DGFIP|IMPOT", re.I)
 
 

@@ -165,7 +165,7 @@ DEFAULT_RULES: dict[str, str] = {
     "TREATWELL": "Services et administratif", "HELLOASSO": "Cadeaux et dons", "GITHUB": "Abonnements et télécom",
     "TELECONSULTATION": "Santé",
     # Older CMB history (2020-2025)
-    "DANIELLE": "Logement et énergie", "IZLY": "Cantine", "LYC ": "Études", "CONCOURS": "Études",
+    "DANIELLE": "Logement et énergie", "METGE": "Logement et énergie", "FAUX JEAN": "Logement et énergie", "IZLY": "Cantine", "LYC ": "Études", "CONCOURS": "Études",
     "SCEI": "Études", "EN VOITURE SIMON": "Transports", "EVA AIR": "Voyages", "MSA": "Aides et allocations",
     "ACTION LOGEMENT": "Aides et allocations", "GOURIO SYLVAIN": "Famille", "VIOT": "Famille",
     "CHLOE GOURIO": "Famille", "WINAMAX": "Autres revenus", "DELL": "Shopping", "MI.COM": "Shopping",
