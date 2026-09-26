@@ -171,7 +171,9 @@ def init(con: sqlite3.Connection) -> None:
         (AIRBUS[0], PEG_AIRBUS_SHARES, now_iso()[:10]),
     )
     con.executemany(
-        "INSERT OR IGNORE INTO category_rules (pattern, category, origin) VALUES (?, ?, 'defaut')",
+        # Default rules follow the code; rules Jules set himself are never touched.
+        "INSERT INTO category_rules (pattern, category, origin) VALUES (?, ?, 'defaut')"
+        " ON CONFLICT(pattern) DO UPDATE SET category = excluded.category WHERE origin = 'defaut'",
         DEFAULT_RULES.items(),
     )
     con.commit()

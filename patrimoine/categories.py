@@ -28,6 +28,7 @@ FLOWS = {
 
 SPENDING = [
     "Courses",
+    "Cantine",
     "Restaurants et sorties",
     "Transports",
     "Logement et énergie",
@@ -158,6 +159,9 @@ DEFAULT_RULES: dict[str, str] = {
     "NESPRESSO": "Courses", "MAXICOFFEE": "Courses",
     "TREATWELL": "Services et administratif", "HELLOASSO": "Cadeaux et dons", "GITHUB": "Abonnements et télécom",
     "TELECONSULTATION": "Santé",
+    # Told by Jules
+    "CSE AIRBUS": "Cantine", "COOP CE AIRBUS": "Cantine", "MONEWEB": "Cantine", "GALAXIE": "Cantine",
+    "MA VILLE MON SHOPPING": "Sport et loisirs", "CHEQUES VACANCE": "Voyages",
     # Revenus
     "AIRBUS": "Salaire", "SALAIRE": "Salaire", "CPAM": "Remboursements",
     "AMELI": "Remboursements", "CAF": "Autres revenus", "LYDIA": "Remboursements",
