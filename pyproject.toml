@@ -14,10 +14,13 @@ dependencies = [
     "requests>=2.34.2",
     "streamlit>=1.57",
     "plotly>=7.1.0",
+    "mcp>=2.2",
 ]
 
 [project.scripts]
 patrimoine = "patrimoine.cli:main"
+patrimoine-mcp = "patrimoine.mcp_server:main"
+patrimoine-sync = "patrimoine.pipeline:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

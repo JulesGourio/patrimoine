@@ -129,6 +129,34 @@ def cmd_balance(args: argparse.Namespace, settings: Settings) -> None:
     print(f"Solde de {args.compte} enregistré : {args.montant} €")
 
 
+def cmd_sync(args: argparse.Namespace, settings: Settings) -> None:
+    from . import pipeline
+
+    for line in pipeline.run(settings, send_alerts=not args.sans_alertes):
+        print(line)
+
+
+def cmd_alerts(args: argparse.Namespace, settings: Settings) -> None:
+    from . import alerts
+
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        if args.action == "ajouter":
+            con.execute("INSERT INTO alert_rules (kind, isin, target, threshold, window_days, note)"
+                        " VALUES (?, ?, ?, ?, ?, ?)", (args.type, args.isin, args.categorie, args.seuil,
+                                                       args.jours, args.note))
+            print("Règle ajoutée.")
+        elif args.action == "tester":
+            from . import notify
+
+            ok = notify.send("Test Patrimoine", "Les notifications fonctionnent.", email=args.mail)
+            print("Envoyée." if ok else "Échec de l'envoi.")
+        else:
+            alerts.seed(con)
+            for r in con.execute("SELECT id, kind, isin, target, threshold, window_days, active, note FROM alert_rules"):
+                print(dict(r))
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -157,6 +185,20 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("montant")
     p.add_argument("--date", help="AAAA-MM-JJ, aujourd'hui par défaut")
     p.set_defaults(func=cmd_balance)
+    p = sub.add_parser("sync", help="Tout synchroniser (Trade Republic, CMB, cours, historique, alertes)")
+    p.add_argument("--sans-alertes", action="store_true")
+    p.set_defaults(func=cmd_sync)
+    p = sub.add_parser("alertes", help="Règles d'alerte")
+    p.add_argument("action", choices=["liste", "ajouter", "tester"])
+    p.add_argument("--type", choices=["baisse_ligne", "hausse_ligne", "baisse_portefeuille", "seuil_bas",
+                                      "seuil_haut", "concentration", "budget"])
+    p.add_argument("--isin")
+    p.add_argument("--categorie")
+    p.add_argument("--seuil", type=float)
+    p.add_argument("--jours", type=int)
+    p.add_argument("--note")
+    p.add_argument("--mail", action="store_true")
+    p.set_defaults(func=cmd_alerts)
     p = sub.add_parser("historique", help="Cours, valorisation quotidienne et plus-values")
     p.add_argument("--sans-prix", action="store_true", help="Ne pas retélécharger les cours")
     p.set_defaults(func=cmd_history)

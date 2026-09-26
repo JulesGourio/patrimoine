@@ -23,3 +23,21 @@ et la feuille de route.
 - Secrets uniquement via `patrimoine.vault` (keyring) ; jamais dans le code, `.env` ou la base.
 - Montants en centimes entiers ; quantités de titres en REAL.
 - Lancer `uv run pytest` avant de committer.
+
+## Outils
+
+- Serveur MCP local `patrimoine` (`.mcp.json`) : `patrimoine`, `positions`, `historique`, `depenses`, `flux`,
+  `fiscalite`, `ventes_realisees`, `operations`, `categoriser`, `marche` (cours, fondamentaux, actualités Yahoo),
+  `alertes`, `regle_alerte`, `budget`, `preparer_ordre`, `ordres_proposes`, `enregistrer_rapport`, `rapports`,
+  `synchroniser`. Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
+- Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
+  session Trade Republic a expiré, une notification demande à Jules de confirmer dans l'appli.
+- Rapport hebdo : tâche « Patrimoine - rapport hebdo » (dimanche 18 h) qui lance Claude Code en mode `-p` avec
+  `scripts/rapport_hebdo.md`. `scripts/taches.ps1 installer` recrée les tâches.
+- Notifications : ntfy (sujet secret dans le keyring, `patrimoine.notify`) avec copie mail relayée par ntfy.
+- CMB via Enable Banking : seul le compte courant est exposé (DSP2). Accès valable 180 jours (meta
+  `cmb_consent_until`) ; pour le renouveler, `eb.start_consent` puis ouvrir le lien dans le navigateur de Jules
+  (il se connecte à la CMB), récupérer l'URL `https://localhost/patrimoine?code=…` et `eb.finish_consent`.
+  Les livrets ne sont pas exposés : soldes saisis avec `patrimoine solde <compte> <montant>`.
+- Fais le maximum toi-même (commandes, navigateur) ; Jules n'intervient que pour ses identifiants et les
+  confirmations bancaires.

@@ -99,7 +99,8 @@ CREATE TABLE IF NOT EXISTS budgets (
 CREATE TABLE IF NOT EXISTS alert_rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     kind TEXT NOT NULL,                 -- baisse_pct, hausse_pct, seuil_prix, budget, concentration
-    isin TEXT,                          -- NULL: whole portfolio / not security-specific
+    isin TEXT,                          -- NULL: every line / whole portfolio
+    target TEXT,                        -- budget rules: one category (NULL: all budgets)
     threshold REAL NOT NULL,
     window_days INTEGER,
     channels TEXT NOT NULL DEFAULT 'ntfy,mail',
@@ -109,6 +110,7 @@ CREATE TABLE IF NOT EXISTS alert_rules (
 CREATE TABLE IF NOT EXISTS alert_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     rule_id INTEGER REFERENCES alert_rules(id),
+    key TEXT,                           -- what makes it the same alert (line + day, category + month…)
     triggered_at TEXT NOT NULL,
     message TEXT NOT NULL,
     sent_to TEXT
@@ -119,6 +121,20 @@ CREATE TABLE IF NOT EXISTS reports (
     kind TEXT NOT NULL,                 -- hebdo, demande
     title TEXT,
     body_md TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS order_ideas (      -- orders Claude prepares; Jules places them himself
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    account_id TEXT REFERENCES accounts(id),
+    isin TEXT,
+    name TEXT,
+    side TEXT NOT NULL,                 -- achat, vente
+    quantity REAL,
+    amount_eur REAL,
+    limit_price REAL,
+    rationale TEXT NOT NULL,
+    risks TEXT,
+    status TEXT NOT NULL DEFAULT 'proposé'  -- proposé, passé, abandonné
 );
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
@@ -163,6 +179,20 @@ def session(path: Path | str) -> Generator[sqlite3.Connection]:
         con.close()
 
 
+# Columns added after the first release: (table, column, declaration).
+MIGRATIONS = [
+    ("alert_rules", "target", "TEXT"),
+    ("alert_events", "key", "TEXT"),
+]
+
+
+def migrate(con: sqlite3.Connection) -> None:
+    for table, column, decl in MIGRATIONS:
+        cols = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+        if column not in cols:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
 def init(con: sqlite3.Connection) -> None:
     """Create the schema and seed the fixed accounts, the PEG holding and the default rules.
 
@@ -170,6 +200,7 @@ def init(con: sqlite3.Connection) -> None:
     by hand survives a re-run).
     """
     con.executescript(SCHEMA)
+    migrate(con)
     con.executemany(
         "INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, ?, ?, ?, ?)",
         ACCOUNTS,

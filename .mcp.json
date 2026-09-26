@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "patrimoine": {
+      "command": "uv",
+      "args": ["run", "patrimoine-mcp"]
+    }
+  }
+}
