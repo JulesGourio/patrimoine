@@ -36,7 +36,8 @@ et la feuille de route.
   `scripts/rapport_hebdo.md` (`uv run patrimoine rapport`). `uv run patrimoine taches` recrée les tâches
   (appel direct de `uvw`, pas de script PowerShell : l'antivirus avait mis le .ps1 en quarantaine). Si la
   commande bloque, enregistrer les tâches avec `Register-ScheduledTask` depuis l'outil PowerShell de Claude.
-- Notifications : ntfy (sujet secret dans le keyring, `patrimoine.notify`) avec copie mail relayée par ntfy.
+- Notifications (`patrimoine.notify`) : push ntfy (sujet secret dans le keyring) et mail via Gmail SMTP avec un
+  mot de passe d'application (`smtp_password`, saisi par Jules dans la page Réglages). ntfy.sh refuse le mail anonyme.
 - CMB via Enable Banking : seul le compte courant est exposé (DSP2). Accès valable 180 jours (meta
   `cmb_consent_until`) ; pour le renouveler, `eb.start_consent` puis ouvrir le lien dans le navigateur de Jules
   (il se connecte à la CMB), récupérer l'URL `https://localhost/patrimoine?code=…` et `eb.finish_consent`.

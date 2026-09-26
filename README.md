@@ -53,12 +53,13 @@ uv run streamlit run streamlit_app.py   # tableau de bord
 ## Feuille de route
 
 1. Socle : base, comptes, catégories, secrets, tests. ✅
-2. Trade Republic en lecture (pytr) : timeline, positions, import idempotent, tests sur réponses réelles. ✅
-3. Historique : cours Yahoo (meilleure cotation par ISIN, contrôlée contre les prix des ordres), valorisation
-   quotidienne, PMP, plus-values, report des moins-values, PFU estimé. ✅
-4. CMB : API DSP2 via un agrégateur (Enable Banking), sinon import CSV/OFX.
-5. Patrimoine net : tous comptes + PEG.
-6. Serveur MCP local pour les analyses de Claude.
-7. Dashboard Streamlit : Patrimoine, Dépenses (reclassement en place), Portefeuille, Fiscalité. ✅ (Alertes à venir)
-8. Alertes (ntfy + mail), budgets, rapport hebdo, suivi fiscal (plus-values, PFU, dividendes).
-9. Synchronisation planifiée (tâche Windows).
+2. Trade Republic en lecture (pytr) : timeline, positions, import idempotent. ✅
+3. Historique : cours Yahoo contrôlés contre les ordres, valorisation quotidienne, PMP, fiscalité. ✅
+4. CMB via Enable Banking (compte courant) + livrets saisis. ✅
+5. Patrimoine net : tous comptes + PEG. ✅
+6. Serveur MCP local `patrimoine` pour les analyses de Claude. ✅
+7. Dashboard : Patrimoine, Dépenses (filtres au clic), Portefeuille (TWR, TRI, indices), Fiscalité, Suivi, Réglages. ✅
+8. Alertes (ntfy + mail Gmail), budgets, rapport hebdo rédigé par Claude, ordres préparés. ✅
+9. Synchronisation planifiée (tâches Windows, 7 h 30 et dimanche 18 h). ✅
+
+Idées suivantes : historique d'achat du PEG, suivi de portefeuilles modèles / investisseurs (13F), crypto.
