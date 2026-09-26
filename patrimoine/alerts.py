@@ -90,7 +90,7 @@ def check(con: sqlite3.Connection, today: date | None = None) -> list[Fired]:
     for (_, isin), line in book.lines.items():
         if line.quantity > 1e-6:
             held[isin] = held.get(isin, 0) + line.quantity
-    for isin, qty in con.execute("SELECT isin, quantity FROM positions WHERE account_id = 'peg_airbus'"):
+    for isin, qty in portfolio.peg_without_history(con):
         held[isin] = held.get(isin, 0) + qty
     month = today_ts.strftime("%Y-%m")
     fired: list[Fired] = []

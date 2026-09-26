@@ -150,5 +150,5 @@ with st.container(border=True):
 sync = ui.last_sync()
 st.caption(
     f"Dernière synchronisation Trade Republic : {sync[:16].replace('T', ' ') if sync else 'jamais'} (UTC). "
-    "Le PEG est compté à sa quantité actuelle sur toute la période ; l'historique CMB commence en août 2025."
+    "PEG reconstitué depuis les relevés Amundi (ESOP converti en équivalent actions) ; l'historique CMB commence en août 2025."
 )

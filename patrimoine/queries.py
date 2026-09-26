@@ -40,7 +40,7 @@ def positions(con: sqlite3.Connection) -> pd.DataFrame:
     for (acc, isin), line in book.lines.items():
         if line.quantity > 1e-6:
             out.append((acc, isin, line.quantity, line.cost))
-    for isin, qty in con.execute("SELECT isin, quantity FROM positions WHERE account_id = 'peg_airbus'"):
+    for isin, qty in portfolio.peg_without_history(con):
         out.append(("peg_airbus", isin, qty, None))
     rows = []
     for acc, isin, qty, cost in out:

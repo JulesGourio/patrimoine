@@ -25,7 +25,7 @@ start = {"3 mois": end - pd.DateOffset(months=3), "6 mois": end - pd.DateOffset(
          "1 an": end - pd.DateOffset(years=1)}.get(period, inv.index.min())
 
 # ---------- KPIs (Trade Republic: compte-titres + PEA) ----------
-st.caption("Performance des placements Trade Republic (compte-titres et PEA). Le PEG n'a pas d'historique d'achat.")
+st.caption("Performance des placements Trade Republic (compte-titres et PEA). Le PEG Airbus est dans le tableau des positions ; son prix de revient ESOP est estimé.")
 with st.container(horizontal=True):
     st.metric("Valeur", ui.eur(st_["valeur"]), ui.eur(st_["valeur"] - inv.value.asof(end - pd.Timedelta(days=30)),
               sign=True) + " sur 30 j", border=True,

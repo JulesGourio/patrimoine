@@ -172,6 +172,13 @@ class Prices:
         return past[-1] if past else None
 
 
+def peg_without_history(con: sqlite3.Connection) -> list[tuple[str, float]]:
+    """PEG lines typed by hand, used only while no Amundi statement has been imported."""
+    if con.execute("SELECT 1 FROM transactions WHERE holding_account_id = 'peg_airbus' LIMIT 1").fetchone():
+        return []
+    return [tuple(r) for r in con.execute("SELECT isin, quantity FROM positions WHERE account_id = 'peg_airbus'")]
+
+
 def replay(con: sqlite3.Connection) -> tuple[Book, Prices]:
     """Holdings and realised gains as of today, without the daily valuation."""
     txs = rows(con)
@@ -189,7 +196,7 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
     if not txs:
         return pd.DataFrame(), Book()
     prices = Prices(con, txs)
-    peg = con.execute("SELECT isin, quantity FROM positions WHERE account_id = 'peg_airbus'").fetchall()
+    peg = peg_without_history(con)
     start, end = date.fromisoformat(txs[0]["date"]), end or date.today()
     by_day: dict[str, list[sqlite3.Row]] = defaultdict(list)
     for r in txs:

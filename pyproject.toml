@@ -16,6 +16,7 @@ dependencies = [
     "plotly>=7.1.0",
     "mcp>=2.2",
     "markdown>=3.11",
+    "pypdf>=6.19.0",
 ]
 
 [project.scripts]

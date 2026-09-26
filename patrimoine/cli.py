@@ -170,6 +170,41 @@ def cmd_tasks(args: argparse.Namespace, settings: Settings) -> None:
         print(line)
 
 
+def cmd_peg(args: argparse.Namespace, settings: Settings) -> None:
+    import shutil
+    from datetime import date
+    from pathlib import Path
+
+    import pandas as pd
+
+    from . import sync
+    from .prices import history
+    from .sources import amundi
+
+    folder = settings.data_dir / "raw" / "amundi"
+    folder.mkdir(parents=True, exist_ok=True)
+    if args.dossier:  # copy new statements (AVO*.pdf) from e.g. the Downloads folder
+        for pdf in Path(args.dossier).expanduser().glob("AVO*.pdf"):
+            target = folder / pdf.name
+            if not target.exists() or target.stat().st_size != pdf.stat().st_size:
+                shutil.copyfile(pdf, target)
+    statements = amundi.load(folder)
+    if not statements:
+        raise SystemExit(f"Aucun relevé Amundi dans {folder}")
+    closes, _ = history("AIR.PA", date.fromisoformat(min(s.date for s in statements)) - pd.Timedelta(days=10))
+    rows, summary = amundi.rows(statements, lambda d: float(closes.asof(pd.Timestamp(d))) if len(closes) else None)
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        new, updated = sync.import_rows(con, rows, amundi.raw_json)
+        con.execute("UPDATE positions SET quantity = ?, as_of = ?, source = 'amundi' WHERE account_id = 'peg_airbus'",
+                    (summary["total_actions"], summary["as_of"]))
+        db.set_meta(con, "peg_summary", summary)
+    print(f"{len(statements)} relevés, {new} nouvelles opérations, {updated} mises à jour : "
+          f"{summary['total_actions']:.4f} actions Airbus au {summary['as_of']}")
+    for e in summary["esop_events"]:
+        print(f"  ESOP {e['date']} : +{e['quantity']:.4f} ({e['type']})")
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -216,6 +251,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--sans-sync", action="store_true")
     p.set_defaults(func=cmd_report)
     sub.add_parser("taches", help="Installer les tâches planifiées Windows").set_defaults(func=cmd_tasks)
+    p = sub.add_parser("peg", help="Importer les relevés Amundi (AVO*.pdf) du PEG Airbus")
+    p.add_argument("dossier", nargs="?", help="Dossier où prendre les nouveaux AVO*.pdf (ex. Téléchargements)")
+    p.set_defaults(func=cmd_peg)
     p = sub.add_parser("historique", help="Cours, valorisation quotidienne et plus-values")
     p.add_argument("--sans-prix", action="store_true", help="Ne pas retélécharger les cours")
     p.set_defaults(func=cmd_history)

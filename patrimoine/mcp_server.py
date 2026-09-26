@@ -73,7 +73,7 @@ def patrimoine() -> dict:
         "cout_investi": inv.cost.sum(),
         "plus_values_realisees_cumul": now.realised.sum(),
         "derniere_synchro": db.get_meta(con, "last_sync"),
-        "limites": "PEG valorisé à sa quantité actuelle sur tout l'historique ; turbos au prix des ordres.",
+        "limites": "PEG reconstitué depuis les relevés Amundi (ESOP en équivalent actions, coût ESOP estimé) ; turbos au prix des ordres.",
     })
 
 

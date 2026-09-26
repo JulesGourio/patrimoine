@@ -45,7 +45,8 @@ uv run streamlit run streamlit_app.py   # tableau de bord
 ## Limites connues
 
 - Trade Republic ne donne plus d'historique de cours : cours Yahoo, turbos valorisés au prix des ordres.
-- Le PEG est valorisé à sa quantité actuelle sur tout l'historique (dates d'acquisition inconnues).
+- PEG : reconstitué depuis les relevés Amundi (`uv run patrimoine peg ~/Downloads` pour les nouveaux AVO*.pdf).
+  L'ESOP n'a que des valeurs : converti en équivalent actions Airbus, coût de souscription estimé.
 - La CMB ne partage que le compte courant (DSP2) : le Livret CMB suit les virements vus sur le courant à partir
   du solde saisi (`patrimoine solde cmb_livret_a …`), le Livret Jeune reste au solde saisi. Resaisir après les intérêts.
 - Le prix de revient Trade Republic ignore les divisions d'actions : on recalcule le nôtre (PMP, frais inclus).

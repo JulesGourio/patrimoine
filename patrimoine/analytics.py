@@ -161,7 +161,7 @@ def lines(con: sqlite3.Connection) -> pd.DataFrame:
         put = -sum(v for _, v in flows if v < 0)
         got = sum(v for _, v in flows if v > 0)
         rows.append({
-            "account": {"tr_cto": "Compte-titres", "tr_pea": "PEA"}.get(acc, acc), "isin": isin,
+            "account": {"tr_cto": "Compte-titres", "tr_pea": "PEA", "peg_airbus": "PEG Airbus"}.get(acc, acc), "isin": isin,
             "name": names.get(isin) or isin, "open": qty > 1e-6, "invested": put, "received": got, "value": value,
             "gain": value + got - put, "gain_pct": (value + got - put) / put if put else None,
             "tri": xirr(flows + [(today.date(), value)]) if (value or got) else None,
