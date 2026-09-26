@@ -29,7 +29,8 @@ et la feuille de route.
 - Serveur MCP local `patrimoine` (`.mcp.json`) : `patrimoine`, `positions`, `historique`, `depenses`, `flux`,
   `fiscalite`, `ventes_realisees`, `operations`, `categoriser`, `marche` (cours, fondamentaux, actualités Yahoo),
   `alertes`, `regle_alerte`, `budget`, `preparer_ordre`, `ordres_proposes`, `enregistrer_rapport`, `rapports`,
-  `synchroniser`. Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
+  `synchroniser`, et pour les investisseurs connus (13F) `investisseurs`, `investisseur`,
+  `consensus_investisseurs`, `recoupement_investisseurs`, `suivre_investisseur`. Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
 - Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
   session Trade Republic a expiré, une notification demande à Jules de confirmer dans l'appli.
 - Rapport hebdo : tâche « Patrimoine - rapport hebdo » (dimanche 18 h) qui lance Claude Code en mode `-p` avec
@@ -44,3 +45,10 @@ et la feuille de route.
   Les livrets ne sont pas exposés : soldes saisis avec `patrimoine solde <compte> <montant>`.
 - Fais le maximum toi-même (commandes, navigateur) ; Jules n'intervient que pour ses identifiants et les
   confirmations bancaires.
+- Historique CMB complet : exports CSV du site CMB (« Recherche et export d'opérations », fichiers
+  `RELEVE_*.csv` dans Téléchargements) importés avec `uv run patrimoine cmb-csv ~/Downloads` : compte courant
+  depuis 2020 (avant le début du flux DSP2) et livrets depuis 2016.
+- PEG : relevés Amundi `AVO*.pdf` importés avec `uv run patrimoine peg ~/Downloads`. L'ESOP n'a que des valeurs :
+  converti en équivalent actions Airbus avec le prix implicite du support « Airbus en actions ».
+- 13F : EDGAR (SEC), vérifié une fois par jour pendant la synchronisation ; notification à chaque nouvelle
+  déclaration. Liste par défaut dans `patrimoine/sources/sec13f.py` (`INVESTORS`).
