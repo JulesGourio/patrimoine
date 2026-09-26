@@ -6,6 +6,19 @@ import sqlite3
 import pandas as pd
 
 
+SUFFIXES = {"INC", "CORP", "CORPORATION", "CO", "COMPANY", "LTD", "LIMITED", "PLC", "NV", "N", "V", "SA", "AG", "SE",
+            "HLDGS", "HLDG", "HOLDINGS", "HOLDING", "GROUP", "THE", "CL", "A", "B", "C", "NEW", "DEL", "COM"}
+
+
+def company(issuer: str) -> str:
+    """Issuer name without legal suffixes, so 'NVIDIA Corp' and 'NVIDIA CORPORATION' match."""
+    import re
+
+    words = re.sub(r"[^A-Z0-9 ]", " ", (issuer or "").upper()).split()
+    kept = [w for w in words if w not in SUFFIXES]
+    return " ".join(kept) or " ".join(words)
+
+
 def _filings(con: sqlite3.Connection) -> pd.DataFrame:
     """One filing per investor and quarter: the latest (an amendment restating the table wins)."""
     f = pd.read_sql_query("SELECT f.*, i.name, i.manager, i.style FROM f13_filings f JOIN investors i USING (cik)"
@@ -99,18 +112,20 @@ def consensus(con: sqlite3.Connection, min_holders: int = 2) -> pd.DataFrame:
                          "weight": r.weight, "change": r.change, "value_usd": r.value_usd})
     d = pd.DataFrame(rows)
     # One company, several share classes (Alphabet A and C): group on the issuer name, not the CUSIP.
-    d["company"] = d.issuer.str.upper().str.replace(r"[^A-Z0-9 ]", "", regex=True).str.strip()
+    d["company"] = d.issuer.map(company)
     held = d[d.change != "vendue"]
     g = held.groupby("company").agg(
         issuer=("issuer", "first"), ticker=("ticker", "first"), cusip=("cusip", "first"),
         holders=("investor", "nunique"),
-        investors=("investor", lambda s: ", ".join(sorted(s))), avg_weight=("weight", "mean"),
+        investors=("investor", lambda s: ", ".join(sorted(set(s)))), avg_weight=("weight", "mean"),
         max_weight=("weight", "max"), value_usd=("value_usd", "sum"))
     moves = d.groupby(["company", "investor"]).change.agg(lambda s: next(
         (c for c in ("nouvelle", "renforcée", "allégée", "vendue") if c in set(s)), "=")).reset_index()
     moves = moves.groupby("company").change.agg(
         buyers=lambda s: int(s.isin(["nouvelle", "renforcée"]).sum()),
-        sellers=lambda s: int(s.isin(["vendue", "allégée"]).sum()))
+        trimmers=lambda s: int((s == "allégée").sum()),
+        sold_out=lambda s: int((s == "vendue").sum()))
+    moves["sellers"] = moves.trimmers + moves.sold_out
     g = g.join(moves)
     return g[g.holders >= min_holders].sort_values(["holders", "value_usd"], ascending=False).reset_index()
 

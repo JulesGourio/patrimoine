@@ -422,8 +422,10 @@ def recoupement_investisseurs() -> dict:
 
     con = _con()
     pos = queries.positions(con)
-    symbols = [r[0] for r in con.execute("SELECT symbol FROM instruments WHERE symbol IS NOT NULL")]
-    return {"recoupement": _records(investors.overlap(con, list(pos["name"]), [s.split(".")[0] for s in symbols]))}
+    symbols = dict(con.execute("SELECT isin, symbol FROM instruments WHERE symbol IS NOT NULL"))
+    tickers = [symbols[i].split(".")[0] for i in pos["isin"] if i in symbols]
+    return {"recoupement": _records(investors.overlap(con, list(pos["name"]), tickers)),
+            "note": "Tes lignes sont surtout des ETF européens : le recoupement porte sur les sociétés détenues en direct."}
 
 
 @server.tool()
