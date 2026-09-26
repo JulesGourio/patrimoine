@@ -38,6 +38,8 @@ uv run pytest
 uv run patrimoine tr sync        # télécharge Trade Republic (confirmation dans l'appli si la session a expiré) et importe
 uv run patrimoine tr import      # réimporte le dernier téléchargement sans appeler Trade Republic
 uv run patrimoine historique     # cours, valorisation jour par jour, plus-values et fiscalité
+uv run patrimoine cmb connect    # (re)donne accès aux comptes CMB via Enable Banking (tous les 180 jours)
+uv run streamlit run streamlit_app.py   # tableau de bord
 ```
 
 ## Limites connues
@@ -55,6 +57,6 @@ uv run patrimoine historique     # cours, valorisation jour par jour, plus-value
 4. CMB : API DSP2 via un agrégateur (Enable Banking), sinon import CSV/OFX.
 5. Patrimoine net : tous comptes + PEG.
 6. Serveur MCP local pour les analyses de Claude.
-7. Dashboard Streamlit : Patrimoine, Dépenses, Portefeuille, Alertes.
+7. Dashboard Streamlit : Patrimoine, Dépenses (reclassement en place), Portefeuille, Fiscalité. ✅ (Alertes à venir)
 8. Alertes (ntfy + mail), budgets, rapport hebdo, suivi fiscal (plus-values, PFU, dividendes).
 9. Synchronisation planifiée (tâche Windows).
