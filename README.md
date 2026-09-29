@@ -65,6 +65,8 @@ uv run streamlit run streamlit_app.py   # tableau de bord
 
 10. Investisseurs : fonds (13F) et élus du Congrès américain (STOCK Act), classement par performance, un seul
     récapitulatif quotidien. ✅
+11. Déclarations rapides : Form 4 et 13D/13G des fonds suivis, ETF d'ARK chaque jour, achats des dirigeants ;
+    positions des fonds estimées à aujourd'hui, fil « Nouveautés » et fraîcheur de chaque source. ✅
 
 Idées suivantes : alertes sur les achats d'élus/fonds touchant mes lignes, projection patrimoniale, crypto,
 OCR des déclarations papier, suivi des frais et de l'impôt de l'année en cours.

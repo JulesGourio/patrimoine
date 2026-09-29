@@ -30,7 +30,8 @@ et la feuille de route.
   `fiscalite`, `ventes_realisees`, `operations`, `categoriser`, `marche` (cours, fondamentaux, actualités Yahoo),
   `alertes`, `regle_alerte`, `budget`, `preparer_ordre`, `ordres_proposes`, `enregistrer_rapport`, `rapports`,
   `synchroniser`, et pour les investisseurs connus (13F) `investisseurs`, `investisseur`,
-  `consensus_investisseurs`, `recoupement_investisseurs`, `suivre_investisseur`, et pour les élus du Congrès
+  `consensus_investisseurs`, `recoupement_investisseurs`, `suivre_investisseur`, `nouveautes` (fil des déclarations
+  rapides, élus, 13F et fraîcheur des sources), `positions_actuelles` (13F mis à jour), `dirigeants`, et pour les élus du Congrès
   américain (STOCK Act) `elus`, `elu`, `achats_elus`, `suivre_elu` ; `radar` (idées « quoi regarder » : élus,
   fonds, tendance, analystes, exposition via mes ETF) et `performance_fonds` (rendement de la copie des 13F). Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
 - Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
@@ -58,11 +59,18 @@ et la feuille de route.
   curl_cffi, qui imite Chrome pour passer le filtre anti-robot), `patrimoine/sources/congress.py`, analyses dans
   `patrimoine/politicians.py`. Sélection automatique chaque jour (`politicians.auto_follow`) : Pelosi + élus actifs
   battant le S&P 500 de 5 points ; les choix manuels de Jules (meta `congress_follow_manual`) priment.
+- Déclarations rapides (`patrimoine/sources/ownership.py`, analyses dans `patrimoine/fresh.py`), chaque jour :
+  Form 4 et 13D/13G des fonds suivis (XML EDGAR), ETF d'ARK (CSV quotidiens, historique stocké à partir du
+  29/09/2026), opérations des dirigeants des titres surveillés (`fresh.watchlist`, page EDGAR `own-disp`, une
+  requête par société ; achats P et ventes S seulement, plans salariés écartés). `fresh.current_positions` : 13F
+  mis à jour par ces déclarations. Un 13F-NT renvoie vers un autre déclarant (table `investor_aliases`, ex.
+  Pershing Square Inc. depuis mi-2026). Scion (Burry) ne dépose plus : désactivé.
+- Dates d'élus impossibles (opération après la déclaration) : `congress.fix_date` (année corrigée ou date vide).
 - Radar (`patrimoine/radar.py`) recalculé chaque jour ; fonds 13F sous-performants désactivés (`investors.active`).
 - Pages : Patrimoine (total avant impôts + après impôts latents, « Cette semaine »), Dépenses (« À retenir »,
   salaires, recherche), Portefeuille (Risques : levier, dollar, concentration, simulation de baisse),
-  Projection (Monte-Carlo), Fiscalité et frais (année en cours, TER dans `queries.TER`), Investisseurs (Radar,
-  Fonds, Élus ; fiche par titre), Suivi, Réglages.
+  Projection (Monte-Carlo), Fiscalité et frais (année en cours, TER dans `queries.TER`), Investisseurs (Nouveautés,
+  Radar, Fonds avec positions estimées, Élus ; fiche par titre), Suivi, Réglages.
 - Parseur PDF de la Chambre corrigé pour les sauts de page ; après une correction du parseur,
   `congress.reparse_house(con)` réanalyse les rapports suspects (`all_reports=True` pour tout).
 - Notifications : un seul récapitulatif « Suivi des investisseurs » par jour (13F + opérations des élus suivis et

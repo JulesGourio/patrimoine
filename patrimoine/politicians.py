@@ -60,6 +60,9 @@ def ranking(con: sqlite3.Connection, months: int = 24, min_buys: int = 10) -> pd
             "excess": float((buys.excess * w).sum() / w.sum()) if len(buys) and buys.excess.notna().any() else None,
             "hit_rate": float((buys.excess > 0).mean()) if len(buys) else None,
             "options": float((g.asset_type == "option").mean()),
+            # The STOCK Act gives 45 days; later than that, what you see is even older.
+            "late": float((g.delay_days > 45).mean()) if g.delay_days.notna().any() else None,
+            "delay": float(g.delay_days.median()) if g.delay_days.notna().any() else None,
             "last_trade": g.tx_date.max(), "last_filed": g.filed.max(),
             "top": ", ".join(buys.groupby("ticker").amount_mid.sum().sort_values(ascending=False).head(4).index),
         })

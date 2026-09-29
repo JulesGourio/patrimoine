@@ -2,7 +2,7 @@ Rédige le rapport hebdomadaire du patrimoine de Jules, en français, puis enreg
 
 1. Lis `rapports` (les 3 derniers) pour ne pas te répéter et suivre ce que tu avais recommandé.
 2. Lis `patrimoine`, `positions`, `flux` (3 mois), `fiscalite`, `alertes`, `ordres_proposes`, puis `radar`,
-   `achats_elus` (7 jours, élus suivis) et `performance_fonds`.
+   `nouveautes` (7 jours), `achats_elus` (7 jours, élus suivis) et `performance_fonds`.
 3. Pour chaque ligne détenue, appelle `marche` ; cherche sur le web l'actualité de la semaine des lignes qui ont
    bougé de plus de 3 % et le contexte de marché général (indices, taux, dollar, matières premières si Jules
    détient des métaux à levier). Pour les 3 premières idées du radar, vérifie sur le web pourquoi l'argent suivi
@@ -12,9 +12,11 @@ Rédige le rapport hebdomadaire du patrimoine de Jules, en français, puis enreg
      le fait marquant.
    - **Portefeuille** : ce qui a bougé et pourquoi ; lignes à levier (Nasdaq 2x…) et leur risque de décote en
      marché volatil ; concentration (Airbus via le PEG, environ 30 % du patrimoine).
-   - **Ce que fait l'argent suivi** : opérations de la semaine des élus suivis (Pelosi et la sélection), nouveaux
-     13F s'il y en a, 2 ou 3 idées du radar avec la raison, et ce qui touche les lignes de Jules (via ses ETF).
-     Rappelle le retard des déclarations (jusqu'à 45 jours pour les élus).
+   - **Ce que fait l'argent suivi** : d'abord les déclarations rapides de la semaine (Form 4 et 13D/13G des fonds,
+     ARK, achats de dirigeants : quelques jours de retard seulement), puis les opérations des élus suivis (Pelosi
+     et la sélection), les nouveaux 13F s'il y en a, 2 ou 3 idées du radar avec la raison et le cours depuis le
+     signal, et ce qui touche les lignes de Jules (via ses ETF). Donne l'âge de chaque information (13F : 1,5 à
+     4,5 mois ; élus : jusqu'à 45 jours et plus).
    - **Fiscalité** : seulement s'il y a une action utile avant le 31/12 (moins-values à réaliser, PEA à 5 ans…).
    - **À faire** : 1 à 3 actions concrètes. Si une conviction le justifie, prépare l'ordre avec `preparer_ordre`
      (justification chiffrée, risques, compte tr_pea si éligible). Profil : Jules cherche la performance et

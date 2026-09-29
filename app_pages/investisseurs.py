@@ -3,7 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from patrimoine import investors, politicians, radar, ui
+from patrimoine import fresh, investors, politicians, radar, ui
 from patrimoine.sources import sec13f
 
 
@@ -46,9 +46,10 @@ def load_radar() -> tuple[pd.DataFrame, pd.DataFrame, str | None]:
 def radar_view() -> None:
     r, sold, at = load_radar()
     with st.container(horizontal=True, vertical_alignment="center"):
-        st.caption("Ce que l'argent suivi achète : élus sélectionnés et autres élus (90 jours), fonds 13F (dernier "
+        st.caption("Ce que l'argent suivi achète : déclarations rapides des fonds (Form 4, 13D/13G, ETF d'ARK) et "
+                   "achats des dirigeants (90 jours), élus sélectionnés et autres élus (90 jours), fonds 13F (dernier "
                    "trimestre, les fonds qui battent le marché comptent double), tendance des cours et avis des "
-                   "analystes. Des idées à creuser, pas des ordres : tout est public et en retard."
+                   "analystes ; un signal de moins de 45 jours compte plus. Des idées à creuser, pas des ordres."
                    + (f" Calculé le {at[:10]}." if at else ""))
         if st.button("Recalculer", icon=":material/refresh:", help="Quelques minutes (cours et analystes Yahoo)."):
             with st.spinner("Calcul du radar…"):
@@ -74,17 +75,31 @@ def radar_view() -> None:
 
     col1, col2 = st.columns([3, 2])
     with col1, st.container(border=True):
-        st.markdown("**Le radar complet** · classé par score (élus suivis ×3, bons fonds ×2, tendance, analystes) · "
+        st.markdown("**Le radar complet** · classé par score (achats frais des fonds ×2,5, élus suivis ×3, bons fonds "
+                    "×2, dirigeants, fraîcheur, tendance, analystes) · "
                     "clique sur une ligne pour ouvrir sa fiche plus bas")
         t = r.assign(sector=r.sector.fillna("–"))
-        picked = st.dataframe(t[["ticker", "name", "sector", "score", "cg_sel_buyers", "cg_buyers", "fd_buyers", "fd_holders",
-                        "r1m", "r3m", "r1y", "from_high", "rating", "upside", "mine_eur"]],
+        for c in ("fr_buyers", "in_buyers", "signal_date", "since_signal"):
+            if c not in t:
+                t[c] = None
+        picked = st.dataframe(t[["ticker", "name", "sector", "score", "signal_date", "since_signal", "fr_buyers",
+                                 "in_buyers", "cg_sel_buyers", "cg_buyers", "fd_buyers", "fd_holders",
+                                 "r1m", "r3m", "r1y", "from_high", "rating", "upside", "mine_eur"]],
                      hide_index=True, width="stretch", height=520, on_select="rerun", selection_mode="single-row",
                      key="radar_tbl", column_config={
                          "ticker": "Ticker", "name": st.column_config.TextColumn("Société", width="medium"),
                          "sector": "Secteur",
                          "score": st.column_config.ProgressColumn("Score", format="%.1f", min_value=0,
                                                                   max_value=float(r.score.max())),
+                         "signal_date": st.column_config.DateColumn("Dernier signal", format="DD/MM/YY",
+                                                                    help="Date du plus récent signal d'achat."),
+                         "since_signal": st.column_config.NumberColumn("Depuis", format="percent",
+                                                                       help="Cours depuis ce signal : déjà dans le prix ?"),
+                         "fr_buyers": st.column_config.NumberColumn("Fonds (frais)", format="%d",
+                                                                    help="Fonds suivis qui achètent d'après un Form 4, "
+                                                                         "un 13D/13G ou les ETF d'ARK (90 jours)."),
+                         "in_buyers": st.column_config.NumberColumn("Dirigeants", format="%d",
+                                                                    help="Dirigeants qui achètent sur le marché (90 j)."),
                          "cg_sel_buyers": st.column_config.NumberColumn("Élus suivis", format="%d"),
                          "cg_buyers": st.column_config.NumberColumn("Élus", format="%d"),
                          "fd_buyers": st.column_config.NumberColumn("Fonds acheteurs", format="%d"),
@@ -176,6 +191,29 @@ def radar_view() -> None:
                              column_config={"fund": "Fonds", "change": "Mouvement",
                                             "weight": st.column_config.NumberColumn("Poids", format="percent"),
                                             "weight_prev": st.column_config.NumberColumn("Avant", format="percent")})
+            fr = d.get("fresh", pd.DataFrame())
+            if not fr.empty:
+                st.markdown("**Déclarations rapides des fonds** (Form 4, 13D/13G, 1 an)")
+                st.dataframe(fr[["filed", "fund", "kind", "action", "pct", "value_usd"]], hide_index=True,
+                             width="stretch", column_config={
+                                 "filed": st.column_config.DateColumn("Publié", format="DD/MM/YY"), "fund": "Fonds",
+                                 "kind": "Formulaire", "action": "Mouvement",
+                                 "pct": st.column_config.NumberColumn("% société", format="%.1f %%"),
+                                 "value_usd": st.column_config.NumberColumn("Montant ($)", format="compact")})
+            ins = d.get("insiders", pd.DataFrame())
+            st.markdown("**Dirigeants** (achats et ventes sur le marché, 1 an)")
+            if ins.empty:
+                st.caption("Aucune opération de dirigeant sur le marché.")
+            else:
+                st.dataframe(ins[["tx_date", "action", "who", "role", "value_usd", "since"]].head(30), hide_index=True,
+                             width="stretch", column_config={
+                                 "tx_date": st.column_config.DateColumn("Date", format="DD/MM/YY"), "action": "Sens",
+                                 "who": st.column_config.TextColumn("Qui", width="medium"),
+                                 "role": st.column_config.TextColumn("Rôle", width="small"),
+                                 "value_usd": st.column_config.NumberColumn("Montant ($)", format="compact"),
+                                 "since": st.column_config.NumberColumn("Depuis", format="percent")})
+                st.caption("Les ventes des dirigeants sont souvent programmées (plans 10b5-1) ou fiscales ; les achats "
+                           "sur le marché, rares, sont le vrai signal.")
             st.markdown("**Élus** (2 ans)")
             if tr.empty:
                 st.caption("Aucune opération d'élu.")
@@ -296,7 +334,7 @@ def congress_view() -> None:
                     "opérations arrivent dans le récapitulatif quotidien (coche ou décoche pour changer la sélection)")
         table = view.fillna({"state": "–", "top": "–"}).assign(volume_txt=view.volume.map(lambda v: amount(v, None).replace("plus de ", "≈ ")))
         cols = ["followed", "name", "chamber", "state", "buys", "sales", "ret", "excess", "hit_rate", "options",
-                "volume_txt", "top", "last_filed"]
+                "delay", "late", "volume_txt", "top", "last_filed"]
         edited = st.data_editor(
             table[cols], hide_index=True, width="stretch", height=min(40 + 35 * len(table), 420), key=f"cg_rank_{months}_{only_followed}",
             disabled=[c for c in cols if c != "followed"],
@@ -312,6 +350,11 @@ def congress_view() -> None:
                                                             max_value=1, help="Part des achats qui battent l'indice."),
                 "options": st.column_config.NumberColumn("Options", format="percent",
                                                          help="Part des opérations en options : très risqué."),
+                "delay": st.column_config.NumberColumn("Délai médian", format="%d j",
+                                                       help="Entre l'opération et sa publication."),
+                "late": st.column_config.NumberColumn("En retard", format="percent",
+                                                      help="Part des opérations déclarées après le délai légal de 45 "
+                                                           "jours : ce qu'on voit de cet élu est encore plus ancien."),
                 "volume_txt": "Volume estimé", "top": st.column_config.TextColumn("Principaux achats", width="medium"),
                 "last_filed": st.column_config.DateColumn("Dernière décl.", format="DD/MM/YY")})
         changed = edited[edited.followed != table.followed]
@@ -390,9 +433,184 @@ def congress_view() -> None:
                              "who": st.column_config.TextColumn("Qui", width="medium")})
 
 
+@st.cache_data(ttl="1h", show_spinner=False)
+def load_feed(days: int) -> pd.DataFrame:
+    return ui._load(lambda con: fresh.feed(con, days))
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def load_sources() -> pd.DataFrame:
+    return ui._load(fresh.sources_status)
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def load_fund_moves(days: int) -> pd.DataFrame:
+    return ui._load(lambda con: fresh.fund_moves(con, days))
+
+
+KIND_FILTERS = {"Tout": None, "Sur mes titres": "mine", "Fonds suivis": ("Form 4", "13D", "13G", "13F", "ARK (jour)"),
+                "Dirigeants": ("Dirigeants",), "Élus": ("Élu",)}
+
+
+def news_view() -> None:
+    from patrimoine import db
+
+    # "New" = published since the previous visit; the mark moves forward once per session.
+    if "feed_seen_before" not in st.session_state:
+        seen = ui._load(lambda con: db.get_meta(con, "feed_seen"))
+        st.session_state.feed_seen_before = seen or (pd.Timestamp.today() - pd.Timedelta(days=7)).date().isoformat()
+        con = ui.connect()
+        try:
+            db.set_meta(con, "feed_seen", pd.Timestamp.today().date().isoformat())
+            con.commit()
+        finally:
+            con.close()
+    seen = st.session_state.feed_seen_before
+
+    st.caption("Tout ce que l'argent suivi a publié, du plus récent au plus ancien : déclarations rapides des fonds "
+               "(Form 4 sous 2 jours, 13D sous 5 jours, 13G), opérations quotidiennes d'ARK, achats des dirigeants "
+               "des sociétés surveillées, 13F trimestriels et élus du Congrès. « Depuis » : variation du cours depuis "
+               "l'opération, pour voir si l'idée est déjà dans le prix.")
+    src = load_sources()
+    with st.container(border=True):
+        st.markdown("**Fraîcheur des sources** · date de la dernière information disponible")
+        st.dataframe(src[["source", "latest", "age", "published", "rule", "covers"]], hide_index=True, width="stretch",
+                     column_config={
+                         "source": "Source",
+                         "latest": st.column_config.DateColumn("Situation au", format="DD/MM/YY"),
+                         "age": st.column_config.NumberColumn("Âge", format="%d j",
+                                                              help="Jours entre cette situation et aujourd'hui."),
+                         "published": st.column_config.DateColumn("Publié le", format="DD/MM/YY"),
+                         "rule": st.column_config.TextColumn("Délai légal", width="medium"),
+                         "covers": st.column_config.TextColumn("Couvre", width="medium")})
+        st.caption("Le 13F reste la seule vue complète des portefeuilles, mais il a toujours 1,5 à 4,5 mois de retard. "
+                   "Les Form 4 et 13D/13G ne montrent que les grosses participations (plus de 10 % ou 5 % d'une "
+                   "société) : c'est là que les fonds bougent le plus, mais pas partout.")
+
+    with st.container(horizontal=True, vertical_alignment="center"):
+        days = st.segmented_control("Période", [7, 30, 90], default=30, format_func=lambda d: f"{d} jours",
+                                    key="feed_days", label_visibility="collapsed") or 30
+        which = st.segmented_control("Filtre", list(KIND_FILTERS), default="Tout", key="feed_kind",
+                                     label_visibility="collapsed") or "Tout"
+    f = load_feed(days)
+    if f.empty:
+        st.info("Rien de publié sur la période : la synchronisation quotidienne récupère les déclarations.",
+                icon=":material/info:")
+        return
+    f = f.assign(new=f.date > seen)
+    with st.container(horizontal=True):
+        st.metric("Depuis ta dernière visite", f"{int(f.new.sum())}", f"depuis le {pd.Timestamp(seen):%d/%m}",
+                  delta_color="off", border=True)
+        fund = f[f.kind.isin(["Form 4", "13D", "13G", "ARK (jour)"])]
+        st.metric("Mouvements frais des fonds", f"{len(fund)}", f"{fund.who.nunique()} fonds", delta_color="off",
+                  border=True, help="Form 4, 13D/13G et opérations quotidiennes d'ARK sur la période.")
+        ins = f[(f.kind == "Dirigeants") & f.what.str.startswith("achat")]
+        st.metric("Achats de dirigeants", f"{len(ins)}", f"{ins.ticker.nunique()} sociétés", delta_color="off",
+                  border=True, help="Achats sur le marché d'au moins 100 k$ (hors plans d'achat salariés).")
+        st.metric("Sur tes titres", f"{int(f.mine.sum())}", border=True,
+                  help="Titres que tu détiens en direct ou dans les 10 premières lignes de tes ETF.")
+
+    flt = KIND_FILTERS[which]
+    view = f[f.mine] if flt == "mine" else f[f.kind.isin(flt)] if flt else f
+    col1, col2 = st.columns([3, 2])
+    with col1, st.container(border=True):
+        st.markdown(f"**Fil** · {len(view)} publication(s), les nouvelles en premier dans chaque jour")
+        st.dataframe(view.sort_values(["date", "new", "value_usd"], ascending=False)[
+                         ["new", "date", "kind", "who", "ticker", "what", "since", "mine_eur", "name", "link"]],
+                     hide_index=True, width="stretch", height=620, column_config={
+                         "new": st.column_config.CheckboxColumn("Nouv.", help="Publié depuis ta dernière visite."),
+                         "date": st.column_config.DateColumn("Publié", format="DD/MM/YY"),
+                         "kind": "Source", "who": st.column_config.TextColumn("Qui", width="small"),
+                         "ticker": "Ticker", "name": st.column_config.TextColumn("Titre / rôle", width="small"),
+                         "what": st.column_config.TextColumn("Quoi", width="medium"),
+                         "since": st.column_config.NumberColumn("Depuis", format="percent",
+                                                                help="Variation du cours depuis l'opération."),
+                         "mine_eur": st.column_config.NumberColumn("Chez toi", format="%.0f €"),
+                         "link": st.column_config.LinkColumn("Source", display_text="ouvrir")})
+    with col2, st.container(border=True):
+        st.markdown("**Ce que les fonds suivis font en ce moment** · montants des Form 4, 13D/13G et d'ARK")
+        m = load_fund_moves(90)
+        m = m[m.value_usd.notna() & (m.value_usd != 0)] if not m.empty else m
+        if m.empty:
+            st.caption("Aucun mouvement chiffré.")
+        else:
+            g = (m.assign(label=m.ticker.fillna(m.issuer.str.slice(0, 18)) + " · " + m.fund)
+                 .groupby("label", as_index=False).value_usd.sum())
+            g = g.reindex(g.value_usd.abs().sort_values(ascending=False).index).head(14).iloc[::-1]
+            fig = go.Figure(go.Bar(x=g.value_usd, y=g.label, orientation="h",
+                                   marker_color=[ui.CATEGORICAL[2] if v > 0 else ui.CATEGORICAL[7] for v in g.value_usd],
+                                   hovertemplate="%{y} : %{x:,.0f} $<extra></extra>"))
+            ui.plotly_layout(fig, 80 + 28 * len(g))
+            fig.update_xaxes(tickformat="~s", ticksuffix=" $")
+            st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
+            st.caption("Vert : achats ou participation renforcée, rouge : ventes ou allègements (90 jours). Les 13D/13G "
+                       "sont valorisés au cours du jour de l'événement.")
+
+
 st.subheader("Investisseurs suivis", icon=":material/groups:")
-section = st.segmented_control("Vue", ["Radar", "Fonds (13F)", "Élus américains"], default="Radar",
-                               key="inv_section", label_visibility="collapsed") or "Radar"
+section = st.segmented_control("Vue", ["Nouveautés", "Radar", "Fonds (13F)", "Élus américains"], default="Nouveautés",
+                               key="inv_section", label_visibility="collapsed") or "Nouveautés"
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def load_current(cik: int) -> tuple[pd.DataFrame, dict]:
+    return ui._load(lambda con: fresh.current_positions(con, cik))
+
+
+def fresh_positions(cik: int, meta: dict) -> None:
+    """The fund's portfolio brought up to date by the filings published since its 13F."""
+    cur, cm = load_current(cik)
+    if cur.empty:
+        return
+    age = (pd.Timestamp.today() - pd.Timestamp(meta["period"])).days
+    with st.container(border=True):
+        st.markdown(f"**Positions estimées aujourd'hui** · 13F au {pd.Timestamp(meta['period']):%d/%m/%y} ({age} jours), "
+                    "mis à jour par les déclarations publiées depuis")
+        with st.container(horizontal=True):
+            st.metric("Lignes mises à jour depuis le 13F", f"{cm.get('updated_lines', 0)}",
+                      f"dernière info le {pd.Timestamp(cm['last_update']):%d/%m}" if cm.get("last_update") else None,
+                      delta_color="off", border=True,
+                      help="Form 4, 13D/13G (et ETF d'ARK chaque jour). Les autres lignes restent à la date du 13F.")
+            priced = cur[cur.since_13f.notna()]
+            if not priced.empty:
+                w = priced.weight_13f / priced.weight_13f.sum()
+                ret = float((priced.since_13f * w).sum())
+                st.metric("Ses lignes depuis le 13F", ui.pct(ret),
+                          ui.pct(ret - cm["spy_since"]) + " vs S&P 500" if cm.get("spy_since") is not None else None,
+                          border=True, help="Variation des cours des lignes du 13F, pondérée par leur poids d'alors : "
+                                            "ce que le portefeuille a fait sans compter ses achats et ventes depuis.")
+            moved = cur[cur.moved]
+            st.metric("Nouvelles lignes connues", f"{int((moved.shares_13f == 0).sum())}", border=True,
+                      help="Sociétés absentes du 13F mais déclarées depuis (Form 4, 13D/13G, ETF d'ARK).")
+        show = cur.head(25) if not st.toggle("Seulement les lignes mises à jour", key=f"fresh_only_{cik}") \
+            else cur[cur.moved]
+        st.dataframe(show[["ticker", "issuer", "weight_13f", "weight_now", "shares_13f", "shares_now", "source",
+                           "as_of", "since_13f"]], hide_index=True, width="stretch", column_config={
+            "ticker": "Ticker", "issuer": st.column_config.TextColumn("Société", width="medium"),
+            "weight_13f": st.column_config.NumberColumn("Poids 13F", format="percent"),
+            "weight_now": st.column_config.NumberColumn("Poids estimé", format="percent",
+                                                        help="Actions connues aujourd'hui × dernier cours."),
+            "shares_13f": st.column_config.NumberColumn("Actions 13F", format="compact"),
+            "shares_now": st.column_config.NumberColumn("Actions connues", format="compact"),
+            "source": "Source", "as_of": st.column_config.DateColumn("Au", format="DD/MM/YY"),
+            "since_13f": st.column_config.NumberColumn("Cours depuis le 13F", format="percent")})
+        if cm.get("note"):
+            st.caption(cm["note"])
+        m = load_fund_moves(400)
+        m = m[(m.cik == cik) & (m.action != "inchangée")] if not m.empty else m
+        if not m.empty:
+            st.markdown("**Ses déclarations rapides** (Form 4, 13D/13G)")
+            st.dataframe(m[["filed", "event_date", "kind", "ticker", "issuer", "action", "pct", "delta", "value_usd",
+                            "price", "since", "url"]], hide_index=True, width="stretch", column_config={
+                "filed": st.column_config.DateColumn("Publié", format="DD/MM/YY"),
+                "event_date": st.column_config.DateColumn("Opération", format="DD/MM/YY"),
+                "kind": "Formulaire", "ticker": "Ticker", "issuer": st.column_config.TextColumn("Société", width="medium"),
+                "action": "Mouvement", "pct": st.column_config.NumberColumn("% société", format="%.1f %%"),
+                "delta": st.column_config.NumberColumn("Actions", format="compact"),
+                "value_usd": st.column_config.NumberColumn("Montant ($)", format="compact"),
+                "price": st.column_config.NumberColumn("Prix", format="%.2f $"),
+                "since": st.column_config.NumberColumn("Depuis", format="percent"),
+                "url": st.column_config.LinkColumn("Document", display_text="ouvrir")})
 
 
 def funds() -> None:
@@ -429,11 +647,19 @@ def funds() -> None:
 
     with st.container(border=True):
         st.markdown("**Vue d'ensemble** · clique sur une ligne pour ouvrir l'investisseur")
-        table = ov.assign(total=ov.total_usd.map(usd))
+        fm = load_fund_moves(400)
+        last_fast = fm[fm.action != "inchangée"].groupby("cik").filed.max() if not fm.empty else pd.Series(dtype=str)
+        table = ov.assign(total=ov.total_usd.map(usd), fast=ov.cik.map(last_fast),
+                          age=(pd.Timestamp.today() - pd.to_datetime(ov.period)).dt.days)
         event = st.dataframe(
-            table[["name", "manager", "style", "period", "total", "positions", "top10", "top3"]], hide_index=True,
+            table[["name", "manager", "style", "period", "age", "fast", "total", "positions", "top10", "top3"]],
+            hide_index=True,
             width="stretch", on_select="rerun", selection_mode="single-row", key="inv_table",
             column_config={"name": "Fonds", "manager": "Gérant", "style": "Style", "period": "Trimestre",
+                           "age": st.column_config.NumberColumn("Âge", format="%d j",
+                                                                help="Jours depuis la date du dernier 13F."),
+                           "fast": st.column_config.DateColumn("Dernière décl. rapide", format="DD/MM/YY",
+                                                               help="Form 4 ou 13D/13G publié depuis."),
                            "total": "Encours 13F", "positions": st.column_config.NumberColumn("Lignes"),
                            "top10": st.column_config.ProgressColumn("Poids des 10 premières", format="percent",
                                                                     min_value=0, max_value=1),
@@ -458,6 +684,8 @@ def funds() -> None:
                   delta_color="off", border=True)
         st.metric("Options", ui.pct(options.weight.sum(), sign=False) if not options.empty else "–", border=True,
                   help="Part de l'encours déclarée en options d'achat (CALL) ou de vente (PUT).")
+
+    fresh_positions(cik, meta)
 
     col1, col2 = st.columns([2, 3])
     with col1, st.container(border=True):
@@ -526,7 +754,9 @@ def funds() -> None:
                              "investors": st.column_config.TextColumn("Qui", width="large")})
 
 
-if section == "Radar":
+if section == "Nouveautés":
+    news_view()
+elif section == "Radar":
     radar_view()
 elif section == "Fonds (13F)":
     funds()

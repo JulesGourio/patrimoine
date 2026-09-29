@@ -5,7 +5,8 @@
 2. CMB through Enable Banking; a notice when the 180-day consent is about to end.
 3. Prices, daily valuation.
 4. Other investors: new 13F filings of the followed funds (and how copying them did), new trades of US members
-   of Congress (and the automatic selection of the best ones), the radar; sent as a single digest.
+   of Congress (and the automatic selection of the best ones), the fast filings (funds' Form 4 and 13D/13G, ARK's
+   daily trades, insiders of the watched companies), the radar; sent as a single digest.
 5. The alert rules (spending budgets are recorded, never sent).
 """
 from __future__ import annotations
@@ -129,6 +130,53 @@ def _congress(con, lines: list[str]) -> list[str]:
     return out
 
 
+def _fresh(con, lines: list[str]) -> list[str]:
+    """The fast filings, once a day: the followed funds' Form 4 and 13D/13G, ARK's daily trades, open-market trades
+    of the watched companies' insiders. The first run imports the history quietly."""
+    from . import fresh
+    from .sources import ownership
+
+    last = db.get_meta(con, "last_ownership_check")
+    if last and last[:10] == date.today().isoformat():
+        return []
+    res = ownership.sync(con, fresh.watchlist(con))
+    lines.append(f"Déclarations rapides : {len(res['funds'])} des fonds suivis, {len(res['ark'])} mouvement(s) ARK, "
+                 f"{len(res['insiders'])} opération(s) de dirigeants" + "".join(f" ({e})" for e in res["errors"]))
+    if last is None:
+        return []
+    out = []
+    new = {f["accession"] for f in res["funds"]}
+    m = fresh.fund_moves(con, days=30)
+    m = m[m.accession.isin(new) & (m.action != "inchangée")] if not m.empty else m
+    if not m.empty:
+        out.append("**Fonds suivis : déclarations rapides** (Form 4, 13D/13G)\n" + "\n".join(
+            f"- {r.fund} : {r.action} {r.ticker or r.issuer}"
+            + (f" · {usd(abs(r.value_usd))}" if pd.notna(r.value_usd) and r.value_usd else "")
+            + (f" · {r.pct:.1f} % de la société".replace(".", ",") if pd.notna(r.pct) else "")
+            + f" ({r.kind}, le {pd.Timestamp(r.event_date):%d/%m})" for r in m.head(10).itertuples()))
+    mine = set(db.get_meta(con, "exposure") or {})
+    if res["ark"]:
+        a = pd.DataFrame(res["ark"]).groupby("ticker", as_index=False).agg(v=("value_usd", "sum"),
+                                                                          change=("change", "first"))
+        a = a[(a.v.abs() >= 5e6) | a.ticker.isin(mine)].sort_values("v", key=abs, ascending=False)
+        if not a.empty:
+            out.append("**ARK Invest aujourd'hui**\n" + "\n".join(
+                f"- {'achat' if r.v > 0 else 'vente'} {r.ticker} · {usd(abs(r.v))} ({r.change})"
+                for r in a.head(6).itertuples()))
+    if res["insiders"]:
+        ids = {x["id"] for x in res["insiders"]}
+        t = fresh.insider_trades(con, days=30)
+        t = fresh.insider_days(t[t.id.isin(ids)]) if not t.empty else t
+        if not t.empty:
+            t = t[~t.holder & (((t.action == "achat") & (t.value_usd >= 100_000))
+                               | ((t.action == "vente") & (t.value_usd >= 5e6) & t.ticker.isin(mine)))]
+        if not t.empty:
+            out.append("**Dirigeants** (achats sur le marché, grosses ventes sur tes titres)\n" + "\n".join(
+                f"- {r.ticker} : {r.action} de {usd(r.value_usd)} par {r.who} ({r.role}), le "
+                f"{pd.Timestamp(r.tx_date):%d/%m}" for r in t.head(8).itertuples()))
+    return out
+
+
 def _radar(con, lines: list[str]) -> list[str]:
     """Recompute the radar once a day; report the ideas that just entered its top 5 and the signals on Jules's
     own lines that were not there yesterday."""
@@ -187,7 +235,8 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
             lines.append(f"Valorisation : ÉCHEC — {e}")
         # One digest for everything about other investors (funds and members of Congress), not one mail each.
         digest: list[str] = []
-        for name, step in (("13F", _investors), ("Élus américains", _congress), ("Radar", _radar)):
+        for name, step in (("13F", _investors), ("Élus américains", _congress), ("Déclarations rapides", _fresh),
+                           ("Radar", _radar)):
             try:
                 digest += step(con, lines)
             except Exception as e:  # noqa: BLE001

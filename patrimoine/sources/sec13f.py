@@ -81,9 +81,14 @@ CREATE TABLE IF NOT EXISTS cusip_map (
 """
 
 
+RETIRED = {1649339}  # Scion: deregistered at the end of 2025, no filing since
+
+
 def init(con: sqlite3.Connection) -> None:
     con.executescript(SCHEMA)
+    con.execute("CREATE TABLE IF NOT EXISTS investor_aliases (alias_cik INTEGER PRIMARY KEY, cik INTEGER NOT NULL)")
     con.executemany("INSERT OR IGNORE INTO investors (cik, name, manager, style) VALUES (?, ?, ?, ?)", INVESTORS)
+    con.executemany("UPDATE investors SET active = 0 WHERE cik = ?", [(c,) for c in RETIRED])
     con.commit()
 
 
@@ -142,16 +147,21 @@ def sync(con: sqlite3.Connection, per_investor: int = 6) -> list[dict]:
     init(con)
     known = {r[0] for r in con.execute("SELECT accession FROM f13_filings")}
     new = []
-    for cik, name in con.execute("SELECT cik, name FROM investors WHERE active = 1").fetchall():
+    # An investor's holdings can move to another filer (a 13F-NT names it, see ownership.find_successor).
+    filers = [(cik, cik, name) for cik, name in con.execute("SELECT cik, name FROM investors WHERE active = 1")]
+    filers += con.execute("SELECT a.alias_cik, a.cik, i.name FROM investor_aliases a JOIN investors i USING (cik)"
+                          " WHERE i.active = 1").fetchall()
+    for filer, cik, name in filers:
         try:
-            fl = filings(cik, per_investor)
+            fl = filings(filer, per_investor)
         except requests.RequestException:
             continue
+        covered = {r[0] for r in con.execute("SELECT period FROM f13_filings WHERE cik = ?", (cik,))}
         for f in reversed(fl):
-            if f["accession"] in known:
-                continue
+            if f["accession"] in known or (filer != cik and f["period"] in covered):
+                continue  # before the switch, the other filer only reported its own few lines
             try:
-                rows = holdings(cik, f["accession"])
+                rows = holdings(filer, f["accession"])
             except (requests.RequestException, ParseError, KeyError):
                 continue
             total = sum(r["value_usd"] for r in rows)

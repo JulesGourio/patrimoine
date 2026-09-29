@@ -341,6 +341,24 @@ def _senate(con: sqlite3.Connection, since: date, limit: int | None) -> list[str
 
 # ---------- storage ----------
 
+def fix_date(tx_date: str | None, filed: str) -> str | None:
+    """A trade cannot follow its report: a year typed wrong (12/26/2026 in a February 2026 report) is put back a
+    year when that makes a plausible delay; anything else impossible is dropped rather than kept wrong."""
+    if not tx_date or tx_date <= filed:
+        return tx_date
+    earlier = date.fromisoformat(f"{int(tx_date[:4]) - 1}{tx_date[4:]}")
+    return earlier.isoformat() if 0 <= (date.fromisoformat(filed) - earlier).days <= 180 else None
+
+
+def fix_dates(con: sqlite3.Connection) -> int:
+    rows = con.execute("SELECT id, tx_date, filed FROM congress_trades WHERE tx_date > filed").fetchall()
+    for tid, tx, filed in rows:
+        con.execute("UPDATE congress_trades SET tx_date = ?, ret = NULL, bench_ret = NULL WHERE id = ?",
+                    (fix_date(tx, filed), tid))
+    con.commit()
+    return len(rows)
+
+
 def _store(con: sqlite3.Connection, rid: str, chamber: str, pid: str, filed: str, url: str, kind: str,
            trades: list[dict]) -> None:
     con.execute("INSERT OR REPLACE INTO congress_reports VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -348,8 +366,8 @@ def _store(con: sqlite3.Connection, rid: str, chamber: str, pid: str, filed: str
     con.executemany(
         "INSERT OR REPLACE INTO congress_trades (id, report_id, politician_id, owner, ticker, asset, asset_type, action,"
         " tx_date, filed, amount_min, amount_max, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [(_trade_id(rid, n), rid, pid, t["owner"], t["ticker"], t["asset"], t["asset_type"], t["action"], t["tx_date"],
-          filed, t["amount_min"], t["amount_max"], t["comment"]) for n, t in enumerate(trades)])
+        [(_trade_id(rid, n), rid, pid, t["owner"], t["ticker"], t["asset"], t["asset_type"], t["action"],
+          fix_date(t["tx_date"], filed), filed, t["amount_min"], t["amount_max"], t["comment"]) for n, t in enumerate(trades)])
     con.commit()
 
 

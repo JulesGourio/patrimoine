@@ -509,18 +509,75 @@ def suivre_elu(nom: str, suivre: bool = True) -> dict:
 
 @server.tool()
 def radar(n: int = 25) -> dict:
-    """Radar « quoi regarder » : actions que l'argent suivi achète (élus sélectionnés et autres sur 90 jours, fonds
-    13F au dernier trimestre, les fonds qui battent le marché comptant double), avec tendance des cours (1/3/12
+    """Radar « quoi regarder » : actions que l'argent suivi achète (déclarations rapides des fonds et achats des
+    dirigeants, élus sélectionnés et autres sur 90 jours, fonds 13F au dernier trimestre, les fonds qui battent le
+    marché comptant double ; date du dernier signal et cours depuis), avec tendance des cours (1/3/12
     mois, écart au plus haut), avis et objectif des analystes, exposition de Jules via ses ETF (mine_eur) et la
     raison en clair (why) ; plus les titres qu'ils vendent. Idées à creuser, pas des signaux d'achat."""
     from . import radar as rd
 
     con = _con()
     r = rd.load(con)
-    keep = ["ticker", "name", "sector", "score", "why", "r1m", "r3m", "r1y", "from_high", "rating", "upside",
-            "mine_eur", "mine_via"]
+    keep = [c for c in ["ticker", "name", "sector", "score", "why", "signal_date", "since_signal", "r1m", "r3m",
+                        "r1y", "from_high", "rating", "upside", "mine_eur", "mine_via"] if c in r]
     return {"calcule_le": db.get_meta(con, "radar_at"), "idees": _records(r[keep].head(n)) if not r.empty else [],
             "ventes": _records(rd.selling(con).head(15))}
+
+
+@server.tool()
+def nouveautes(jours: int = 14, mes_titres: bool = False) -> dict:
+    """Fil de ce que l'argent suivi a publié récemment, du plus récent au plus ancien : Form 4 et 13D/13G des fonds
+    suivis (quelques jours de retard seulement), opérations quotidiennes d'ARK, achats des dirigeants (au moins
+    100 k$, hors plans salariés), nouveaux 13F, opérations des élus suivis ou importantes. `since` : variation du
+    cours depuis l'opération ; `mine` : Jules détient le titre (en direct ou via ses ETF). Plus la fraîcheur de
+    chaque source."""
+    from . import fresh
+
+    con = _con()
+    f = fresh.feed(con, jours)
+    if mes_titres and not f.empty:
+        f = f[f.mine]
+    return {"sources": _records(fresh.sources_status(con)),
+            "fil": _records(f.drop(columns=["link"]).head(80)) if not f.empty else []}
+
+
+@server.tool()
+def positions_actuelles(nom: str) -> dict:
+    """Portefeuille estimé aujourd'hui d'un investisseur suivi : son dernier 13F mis à jour par les Form 4 et
+    13D/13G publiés depuis (et, pour ARK, ses ETF du jour). Pour chaque ligne : actions au 13F et connues
+    aujourd'hui, source et date de l'info, poids estimé, variation du cours depuis le 13F ; plus ses déclarations
+    rapides."""
+    from . import fresh
+
+    con = _con()
+    row = con.execute("SELECT cik FROM investors WHERE name LIKE ? OR manager LIKE ?",
+                      (f"%{nom}%", f"%{nom}%")).fetchone()
+    if not row:
+        return {"erreur": "investisseur non suivi ; voir `investisseurs`"}
+    p, meta = fresh.current_positions(con, row["cik"])
+    m = fresh.fund_moves(con, 365)
+    m = m[m.cik == row["cik"]] if not m.empty else m
+    cols = ["ticker", "issuer", "shares_13f", "shares_now", "source", "as_of", "weight_13f", "weight_now", "since_13f"]
+    return {"meta": _clean(meta), "positions": _records(p[cols].head(40)) if not p.empty else [],
+            "declarations_rapides": _records(m.drop(columns=["url"]).head(30)) if not m.empty else []}
+
+
+@server.tool()
+def dirigeants(ticker: str = "", jours: int = 90) -> dict:
+    """Achats et ventes sur le marché des dirigeants et administrateurs (Form 4, 2 jours de retard) : pour un titre,
+    le détail par jour ; sans titre, les titres surveillés où plusieurs dirigeants achètent. Les ventes sont souvent
+    programmées ou fiscales ; les achats sont le vrai signal."""
+    from . import fresh
+
+    con = _con()
+    if ticker:
+        t = fresh.insider_trades(con, jours, ticker.upper())
+        return {"operations": _records(fresh.insider_days(t)) if not t.empty else []}
+    s = fresh.insider_signals(con, jours)
+    if s.empty:
+        return {"achats": []}
+    s = s[s.in_buyers > 0].sort_values(["in_buyers", "in_bought"], ascending=False)
+    return {"achats": _records(s.reset_index(names="ticker").head(30))}
 
 
 @server.tool()
