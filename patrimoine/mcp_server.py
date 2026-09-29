@@ -53,7 +53,7 @@ def _records(df: pd.DataFrame) -> list[dict]:
 
 @server.tool()
 def patrimoine() -> dict:
-    """Patrimoine net par compte aujourd'hui, variation sur 30 jours et 1 an, plus-values latentes et réalisées,
+    """Patrimoine total (somme des avoirs, avant impôts) par compte aujourd'hui, variation sur 30 jours et 1 an, plus-values latentes et réalisées,
     dernière synchronisation."""
     con = _con()
     h = queries.history(con)
@@ -140,18 +140,19 @@ def depenses(mois: int = 12) -> dict:
 
 @server.tool()
 def flux(mois: int = 12) -> dict:
-    """Par mois : revenus, dépenses, épargne (revenus - dépenses), taux d'épargne, montants investis (achats nets
-    de titres), intérêts, dividendes et Saveback."""
-    f = queries.flows_by_month(_con())
-    f = f[f.index >= pd.Timestamp.today().to_period("M").to_timestamp() - pd.DateOffset(months=mois)]
+    """Par mois : revenus (salaire, aides, intérêts, dividendes), dépenses nettes des remboursements (amis qui
+    rendent leur part, sécu), épargne (revenus - dépenses), taux d'épargne, montants investis (achats nets de
+    titres) et Saveback. Mêmes chiffres que la page Dépenses du tableau de bord."""
+    from . import analytics
+
+    con = _con()
+    since = pd.Timestamp.today().to_period("M").to_timestamp() - pd.DateOffset(months=mois)
+    out = analytics.monthly_balance(con)
+    out = out[out.index >= since].rename(columns={"taux": "taux_epargne"})
+    f = queries.flows_by_month(con).reindex(out.index, fill_value=0.0)
     col = lambda c: f[c] if c in f else 0.0  # noqa: E731
-    out = pd.DataFrame({
-        "revenus": col("revenu"), "depenses": -col("depense") - col("frais"),
-        "investi_net": -(col("achat_titre") + col("vente_titre")),
-        "interets_dividendes_saveback": col("interets") + col("dividende") + col("saveback"),
-    })
-    out["epargne"] = out.revenus - out.depenses
-    out["taux_epargne"] = out.epargne / out.revenus.where(out.revenus > 0)
+    out["investi_net"] = -(col("achat_titre") + col("vente_titre"))
+    out["saveback"] = col("saveback")
     return {"flux": _records(out.reset_index())}
 
 
@@ -441,6 +442,94 @@ def suivre_investisseur(cik: int, nom: str, gerant: str = "", style: str = "", a
     con.commit()
     new = sec13f.sync(con) if actif else []
     return {"ok": True, "nouvelles_declarations": len(new)}
+
+
+TRADE_FIELDS = ["filed", "tx_date", "name", "chamber_label", "action", "ticker", "asset", "asset_type", "owner",
+                "amount_min", "amount_max", "ret", "bench_ret", "comment"]
+
+
+@server.tool()
+def elus(mois: int = 24, suivis_seulement: bool = False) -> dict:
+    """Élus du Congrès américain (Chambre et Sénat, déclarations STOCK Act) classés par l'écart de leurs achats
+    d'actions au S&P 500 sur les `mois` derniers : perf moyenne pondérée depuis chaque achat (ret), écart à
+    l'indice (excess), part d'achats gagnants, part d'options, principaux achats, suivi ou non. Déclarations
+    jusqu'à 45 jours en retard, montants en fourchettes : une estimation, pas le rendement de leur compte."""
+    from . import politicians
+
+    r = politicians.ranking(_con(), mois)
+    if suivis_seulement and not r.empty:
+        r = r[r.followed]
+    return {"classement": _records(r.head(40))}
+
+
+@server.tool()
+def elu(nom: str, operations: int = 40) -> dict:
+    """Opérations déclarées d'un élu américain (nom partiel, ex. 'Pelosi', 'Tuberville'), les plus récentes
+    d'abord, avec la variation du cours depuis et celle du S&P 500 sur la même période."""
+    from . import politicians
+
+    con = _con()
+    found = politicians.find(con, nom)
+    if not found:
+        return {"erreur": "élu introuvable ; voir `elus`"}
+    out = []
+    for p in found[:3]:
+        t = politicians.trades(con, p["id"])
+        out.append({**p, "operations": _records(t[TRADE_FIELDS].head(operations)) if not t.empty else []})
+    return {"elus": out}
+
+
+@server.tool()
+def achats_elus(jours: int = 30, suivis_seulement: bool = False) -> dict:
+    """Opérations des élus américains déclarées ces `jours` derniers, et les titres traités par plusieurs élus sur
+    90 jours (acheteurs, vendeurs, montants estimés)."""
+    from . import politicians
+
+    con = _con()
+    rec = politicians.recent(con, jours, suivis_seulement)
+    return {"operations": _records(rec[TRADE_FIELDS].head(150)) if not rec.empty else [],
+            "convergences_90j": _records(politicians.consensus(con, 90).head(25))}
+
+
+@server.tool()
+def suivre_elu(nom: str, suivre: bool = True) -> dict:
+    """Suit (ou ne suit plus) un élu américain : ses nouvelles opérations arrivent dans le récapitulatif quotidien
+    des investisseurs (un seul message par jour, push et mail)."""
+    from . import politicians
+    from .sources import congress
+
+    con = _con()
+    found = politicians.find(con, nom)
+    if len(found) != 1:
+        return {"erreur": "préciser le nom", "candidats": found[:10]}
+    congress.follow(con, found[0]["id"], suivre)
+    return {"ok": True, "elu": found[0]["name"], "suivi": suivre}
+
+
+
+@server.tool()
+def radar(n: int = 25) -> dict:
+    """Radar « quoi regarder » : actions que l'argent suivi achète (élus sélectionnés et autres sur 90 jours, fonds
+    13F au dernier trimestre, les fonds qui battent le marché comptant double), avec tendance des cours (1/3/12
+    mois, écart au plus haut), avis et objectif des analystes, exposition de Jules via ses ETF (mine_eur) et la
+    raison en clair (why) ; plus les titres qu'ils vendent. Idées à creuser, pas des signaux d'achat."""
+    from . import radar as rd
+
+    con = _con()
+    r = rd.load(con)
+    keep = ["ticker", "name", "sector", "score", "why", "r1m", "r3m", "r1y", "from_high", "rating", "upside",
+            "mine_eur", "mine_via"]
+    return {"calcule_le": db.get_meta(con, "radar_at"), "idees": _records(r[keep].head(n)) if not r.empty else [],
+            "ventes": _records(rd.selling(con).head(15))}
+
+
+@server.tool()
+def performance_fonds() -> dict:
+    """Pour chaque fonds 13F suivi : rendement si on avait copié ses 20-25 premières lignes à chaque publication,
+    comparé au S&P 500 sur la même période (ret, bench, excess, annual, last_quarter)."""
+    from . import investors
+
+    return {"fonds": _records(investors.performance(_con()))}
 
 
 def main() -> None:

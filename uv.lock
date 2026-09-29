@@ -1268,6 +1268,7 @@ name = "patrimoine"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "curl-cffi" },
     { name = "defusedxml" },
     { name = "keyring" },
     { name = "markdown" },
@@ -1291,6 +1292,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "curl-cffi", specifier = ">=0.16.3" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "keyring", specifier = ">=25" },
     { name = "markdown", specifier = ">=3.11" },

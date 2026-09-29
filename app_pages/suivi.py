@@ -85,6 +85,8 @@ with tab_alerts:
         st.toast("Règles enregistrées", icon=":material/check:")
 
 with tab_budgets:
+    st.caption("Un dépassement est noté dans l'onglet Alertes, sans notification ni mail : les dépenses se "
+               "consultent ici.")
     sp = ui.spending()
     month = pd.Timestamp.today().to_period("M").to_timestamp()
     spent = sp[sp.month == month].groupby("category")["amount"].sum()

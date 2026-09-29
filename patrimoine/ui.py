@@ -54,8 +54,23 @@ def spending() -> pd.DataFrame:
 
 
 @st.cache_data(ttl="10m", show_spinner=False)
+def income() -> pd.DataFrame:
+    return _load(queries.income)
+
+
+@st.cache_data(ttl="10m", show_spinner=False)
 def last_sync() -> str | None:
     return _load(queries.last_sync)
+
+
+@st.cache_data(ttl="10m", show_spinner=False)
+def investment_income() -> pd.DataFrame:
+    return _load(queries.investment_income)
+
+
+@st.cache_data(ttl="10m", show_spinner=False)
+def account_open_dates() -> dict:
+    return _load(queries.account_open_dates)
 
 
 def eur(x: float | None, decimals: int = 0, sign: bool = False) -> str:
@@ -171,3 +186,24 @@ def month_axis(df: pd.DataFrame, col: str = "month") -> tuple[pd.DataFrame, list
     months = sorted(df[col].unique())
     df = df.assign(mois=df[col].map(short_month))
     return df, [short_month(m) for m in months]
+
+
+def reset_filters_button(values: dict, pop: list[str] | None = None,
+                         label: str = "Réinitialiser les filtres") -> None:
+    """A button that restores the given session-state keys to ``values`` (segmented_control keeps its own
+    frontend state and ignores ``default`` once a key has been popped, so it must be set explicitly) and
+    pops the rest, so their widgets fall back to their defaults.
+
+    Uses ``on_click`` rather than an inline ``if st.button(...)``: the button sits after the widgets it
+    resets in the script, and Streamlit forbids writing to a widget's session-state key once that widget
+    has already been instantiated in the same run — the callback runs before the rerun, so it's still early.
+    """
+
+    def _reset() -> None:
+        for k, v in values.items():
+            st.session_state[k] = v
+        for k in (pop or []):
+            st.session_state.pop(k, None)
+
+    st.button(label, icon=":material/filter_alt_off:", key=f"reset_{'_'.join(values) + '_'.join(pop or [])}",
+             on_click=_reset)

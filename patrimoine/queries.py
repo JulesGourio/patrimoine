@@ -81,7 +81,22 @@ def spending(con: sqlite3.Connection) -> pd.DataFrame:
         " FROM transactions WHERE flow = 'depense' ORDER BY date DESC", con, parse_dates=["date"])
     df["amount"] = -df.pop("amount_cents") / 100
     df["category"] = df["category_override"].fillna(df["category"])
-    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^(vers|VIR|PRLV)\s+", "", regex=True)
+    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True)
+                      .str.strip())
+    df["account"] = df["account_id"].map(ACCOUNT_LABELS)
+    df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
+    return df
+
+
+def income(con: sqlite3.Connection) -> pd.DataFrame:
+    """Every income line (positive), with the category that applies. Internal transfers are a separate
+    flow ('interne') and never show up here."""
+    df = pd.read_sql_query(
+        "SELECT id, date, account_id, counterparty, label, amount_cents, category, category_override"
+        " FROM transactions WHERE flow = 'revenu' ORDER BY date DESC", con, parse_dates=["date"])
+    df["amount"] = df.pop("amount_cents") / 100
+    df["category"] = df["category_override"].fillna(df["category"])
+    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True)
                       .str.strip())
     df["account"] = df["account_id"].map(ACCOUNT_LABELS)
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
@@ -109,3 +124,66 @@ def set_category(con: sqlite3.Connection, tx_id: str, category: str | None, merc
 
 def last_sync(con: sqlite3.Connection) -> str | None:
     return db.get_meta(con, "last_sync_tr")
+
+
+def investment_income(con: sqlite3.Connection) -> pd.DataFrame:
+    """Interest and dividends actually received, by flow and account, EUR."""
+    df = pd.read_sql_query(
+        "SELECT flow, COALESCE(holding_account_id, account_id) AS account_id, SUM(amount_cents) AS cents"
+        " FROM transactions WHERE flow IN ('interets', 'dividende') GROUP BY flow, account_id", con)
+    df["amount"] = df.pop("cents") / 100
+    df["account"] = df["account_id"].map(ACCOUNT_LABELS).fillna(df["account_id"])
+    return df
+
+
+def account_open_dates(con: sqlite3.Connection) -> dict[str, str]:
+    """Earliest transaction date per account (and per holding account), to judge the PEA/PEG 5-year mark."""
+    out: dict[str, str] = {}
+    for acc, d in con.execute(
+            "SELECT acc, MIN(date) FROM (SELECT account_id AS acc, date FROM transactions UNION ALL"
+            " SELECT holding_account_id AS acc, date FROM transactions WHERE holding_account_id IS NOT NULL)"
+            " GROUP BY acc"):
+        out[acc] = d
+    return out
+
+
+# Ongoing charges (TER) of Jules's funds, % per year, from their factsheets: to check against the KID.
+TER = {
+    "FR0011550185": 0.0015,   # Amundi PEA S&P 500
+    "FR0010342592": 0.0060,   # Amundi Nasdaq-100 Daily 2x Leveraged
+    "IE00BHZRR030": 0.0009,   # Franklin FTSE Korea
+    "IE000YU9K6K2": 0.0055,   # VanEck Space Innovators
+    "IE000KHX9DX6": 0.0055,   # VanEck Rare Earth and Strategic Metals
+}
+
+
+def fees_by_year(con: sqlite3.Connection) -> pd.DataFrame:
+    """Per year, EUR: brokerage fees on trades, bank fees, and the funds' ongoing charges estimated on each line's
+    average value that year (TER table above; lines without a known TER are left out)."""
+    trades = pd.read_sql_query(
+        "SELECT substr(date, 1, 4) AS year, SUM(COALESCE(fees_cents, 0)) / 100.0 AS courtage, COUNT(*) AS ordres"
+        " FROM transactions WHERE flow IN ('achat_titre', 'vente_titre') GROUP BY year", con).set_index("year")
+    bank = pd.read_sql_query(
+        "SELECT substr(date, 1, 4) AS year, -SUM(amount_cents) / 100.0 AS banque FROM transactions"
+        " WHERE flow = 'frais' GROUP BY year", con).set_index("year")
+    out = trades.join(bank, how="outer")
+    book, prices = portfolio.replay(con)
+    held = pd.read_sql_query("SELECT date, isin, COALESCE(holding_account_id, account_id) AS acc, flow, quantity"
+                             " FROM transactions WHERE isin IS NOT NULL AND quantity IS NOT NULL ORDER BY date", con,
+                             parse_dates=["date"])
+    ter = {}
+    for isin, rate in TER.items():
+        h = held[held["isin"] == isin]
+        if h.empty:
+            continue
+        sign = h.flow.map(lambda f: -1 if f == "vente_titre" else 1)
+        qty = (h.quantity * sign).groupby(h.date).sum().cumsum()
+        days = pd.date_range(qty.index.min(), pd.Timestamp.today().normalize())
+        qty = qty.reindex(days).ffill().clip(lower=0)
+        px = pd.Series({d: prices.get(isin, d) for d in days[::7]}, dtype=float).reindex(days).ffill().bfill()
+        daily = (qty * px * rate / 365).groupby(days.year).sum()
+        for y, v in daily.items():
+            ter[str(y)] = ter.get(str(y), 0.0) + float(v)
+    out = out.join(pd.Series(ter, name="frais_fonds"), how="outer").fillna(0.0)
+    out["total"] = out.courtage + out.banque + out.frais_fonds
+    return out.sort_index()

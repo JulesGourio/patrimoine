@@ -18,8 +18,9 @@ GROUP = {"PEA": "Bourse", "Compte-titres": "Bourse", "PEG Airbus": "Épargne sal
 with st.container(horizontal=True, vertical_alignment="center"):
     st.subheader("Patrimoine", icon=":material/account_balance:")
     period = st.segmented_control("Période", ["3 mois", "6 mois", "1 an", "Tout"], default="1 an",
-                                  label_visibility="collapsed")
-    with_peg = st.toggle("Compter le PEG", value=True)
+                                  label_visibility="collapsed", key="acc_period")
+    with_peg = st.toggle("Compter le PEG", value=True, key="acc_with_peg")
+    ui.reset_filters_button({"acc_period": "1 an", "acc_with_peg": True})
 
 if not with_peg:
     hist = hist[hist.account_id != "peg_airbus"]
@@ -40,9 +41,41 @@ full = bal[bal.index < pd.Timestamp.today().to_period("M").to_timestamp()].tail(
 last = hist[hist.date == today]
 by_group = last.assign(g=last.account.map(GROUP)).groupby("g")["value"].sum()
 
+pos_all = ui.positions()
+real = ui.realised()
+income = ui.investment_income()
+opens = ui.account_open_dates()
+
+# Gain per wrapper (unrealised + realised), then gross/net of the tax due if withdrawn: PEA and PEG only owe
+# social contributions (17,2 %) once past the 5-year mark; the compte-titres and interest owe the PFU (30 %).
+PS, PFU = 0.172, 0.30
+by_wrapper = (pos_all.groupby("account").gain.sum() if not pos_all.empty else pd.Series(dtype=float)).add(
+    real.groupby("account").gain.sum() if not real.empty else pd.Series(dtype=float), fill_value=0.0)
+gain_cto, gain_pea, gain_peg = (by_wrapper.get(a, 0.0) for a in ("Compte-titres", "PEA", "PEG Airbus"))
+div_pea = income[(income.flow == "dividende") & (income.account == "PEA")].amount.sum() if not income.empty else 0.0
+div_other = income[(income.flow == "dividende") & (income.account != "PEA")].amount.sum() if not income.empty else 0.0
+interest_all = income[income.flow == "interets"].amount.sum() if not income.empty else 0.0
+
+if not with_peg:
+    gain_peg = 0.0
+investment_gain = gain_cto + gain_pea + gain_peg + div_pea + div_other + interest_all
+investment_gain_net = ((gain_cto + div_other + interest_all) * (1 - PFU) + (gain_pea + div_pea) * (1 - PS)
+                       + gain_peg * (1 - PS))
+tax_due = investment_gain - investment_gain_net
+
+pea_open = opens.get("tr_pea")
+pea_5y = pea_open and (today - pd.Timestamp(pea_open)).days >= 365.25 * 5
+
 with st.container(horizontal=True):
-    st.metric("Patrimoine net", ui.eur(now), ui.eur(now - at(today - pd.Timedelta(days=30)), sign=True) + " sur 30 j",
-              border=True, chart_data=total[total.index >= start].resample("W").last().tolist(), chart_type="area")
+    st.metric("Patrimoine total", ui.eur(now), ui.eur(now - at(today - pd.Timedelta(days=30)), sign=True) + " sur 30 j",
+              border=True, chart_data=total[total.index >= start].resample("W").last().tolist(), chart_type="area",
+              help="Somme de la valeur de tous tes comptes aujourd'hui, avant impôts (même total que la ligne "
+                   "« Total » du tableau Comptes). Tu n'as pas de dette suivie.")
+    st.metric("Après impôts si tout était vendu", ui.eur(now - tax_due), ui.eur(-tax_due, sign=True) + " d'impôts latents",
+              delta_color="off", border=True,
+              help="Patrimoine total moins l'impôt estimé sur tes gains si tu vendais et retirais tout aujourd'hui : "
+                   "PFU 30 % sur le compte-titres, les dividendes hors PEA et les intérêts ; prélèvements sociaux "
+                   "17,2 % sur les gains du PEA (plus de 5 ans) et du PEG. Les versements ne sont pas imposés.")
     st.metric("Depuis le 1er janvier", ui.eur(now - jan1, sign=True) if jan1 else "–",
               ui.pct(now / jan1 - 1) if jan1 else None, border=True)
     st.metric("Sur 1 an", ui.eur(now - at(today - pd.DateOffset(years=1)), sign=True)
@@ -50,9 +83,84 @@ with st.container(horizontal=True):
     st.metric("Épargne moyenne", ui.eur(full.epargne.mean()) + " / mois", ui.pct(full.epargne.sum() / full.revenus.sum(),
               sign=False) + " des revenus" if full.revenus.sum() else None, delta_color="off", border=True,
               help="Revenus moins dépenses, moyenne des 12 derniers mois complets.")
+
+pea_note = ""
+if pea_open:
+    pea_note = (f" Le PEA a été ouvert le {pea_open[:10]} : " + ("plus de 5 ans, régime plein." if pea_5y else
+                "moins de 5 ans, un retrait aujourd'hui serait en fait taxé à 30 % comme le compte-titres."))
+
+with st.container(horizontal=True):
     invested_now = by_group.get("Bourse", 0) + by_group.get("Épargne salariale", 0)
     st.metric("Part investie en actions", ui.pct(invested_now / now, sign=False), ui.eur(invested_now),
               delta_color="off", border=True, help="Compte-titres, PEA et PEG Airbus.")
+    st.metric("Gains d'investissement (brut)", ui.eur(investment_gain, sign=True),
+              ui.eur(interest_all + div_pea + div_other, sign=True) + " d'intérêts et dividendes",
+              delta_color="off", border=True,
+              help="Avant impôt. Plus-values latentes et réalisées sur les actions (compte-titres, PEA, PEG "
+                   "Airbus) et intérêts et dividendes perçus, depuis le début. Plus large que le « Gain total » "
+                   "de l'onglet Portefeuille, qui ne compte que le compte-titres et le PEA. Le patrimoine total "
+                   "inclut en plus l'argent que tu as épargné (versements, pas gains).")
+    st.metric("Gains d'investissement (net d'impôt estimé)", ui.eur(investment_gain_net, sign=True),
+              ui.eur(-tax_due, sign=True) + " de fiscalité", delta_color="off", border=True,
+              help="Estimation à la sortie, au régime de chaque enveloppe : PEA (au-delà de 5 ans) et PEG ne "
+                   "doivent que les prélèvements sociaux (17,2 %) ; compte-titres, dividendes hors PEA et "
+                   f"intérêts sont au PFU (30 %).{pea_note}")
+
+
+
+@st.cache_data(ttl="10m", show_spinner=False)
+def week_news() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Alerts of the last 7 days and the followed members' trades filed in the last 7 days."""
+    from patrimoine import politicians
+
+    def load(con):
+        alerts = pd.read_sql_query("SELECT triggered_at, message FROM alert_events WHERE triggered_at >= ?"
+                                   " ORDER BY triggered_at DESC", con,
+                                   params=((pd.Timestamp.today() - pd.Timedelta(days=7)).isoformat(),))
+        return alerts, politicians.recent(con, 7, followed_only=True)
+
+    return ui._load(load)
+
+
+# ---------- this week, at a glance ----------
+week_ago = today - pd.Timedelta(days=7)
+w_total = now - at(week_ago) if at(week_ago) else None
+movers = []
+for r in pos_all.itertuples():
+    if r.account == "PEG Airbus" and not with_peg:
+        continue
+    s_ = ui.prices(r.isin)
+    if len(s_) > 6 and r.value:
+        past = s_[s_.index <= week_ago]
+        if len(past):
+            movers.append((r.name, s_.iloc[-1] / past.iloc[-1] - 1, r.value * (1 - past.iloc[-1] / s_.iloc[-1])))
+alerts_w, trades_w = week_news()
+with st.container(border=True):
+    st.markdown("**Cette semaine**")
+    items = []
+    if w_total is not None:
+        market = sum(m[2] for m in movers)
+        items.append(f"Patrimoine **{ui.eur(w_total, sign=True)}** ({ui.pct(w_total / (now - w_total))}) en 7 jours, "
+                     f"dont {ui.eur(market, sign=True)} dus aux marchés sur tes lignes et "
+                     f"{ui.eur(w_total - market, sign=True)} d'argent entré ou sorti (salaire moins dépenses ; les "
+                     "virements entre tes comptes ne comptent pas).")
+    if movers:
+        best = max(movers, key=lambda m: m[1])
+        worst = min(movers, key=lambda m: m[1])
+        items.append(f"Meilleure ligne : **{best[0]}** {ui.pct(best[1])} ({ui.eur(best[2], sign=True)}) ; "
+                     f"moins bonne : **{worst[0]}** {ui.pct(worst[1])} ({ui.eur(worst[2], sign=True)}).")
+    alerts_w = alerts_w[~alerts_w.message.str.startswith("Budget")]  # spending lives on the Dépenses page
+    if not alerts_w.empty:
+        items.append(f"{len(alerts_w)} alerte(s) : " + " ; ".join(alerts_w.message.str.split(" — ").str[0].head(3)) + ".")
+    if not trades_w.empty:
+        who = trades_w.groupby("name").ticker.agg(lambda x: ", ".join(sorted(set(x.dropna()))[:4]))
+        items.append("Élus suivis : " + " ; ".join(f"**{n}** ({t or 'titres non cotés'})" for n, t in who.items())
+                     + " — détail dans Investisseurs.")
+    if pea_open and not pea_5y:
+        five = pd.Timestamp(pea_open) + pd.DateOffset(years=5)
+        items.append(f"PEA : 5 ans le {five:%d/%m/%Y}, n'y retire rien d'ici là.")
+    for it in items:
+        st.markdown(f"- {it}")
 
 col1, col2 = st.columns([3, 2])
 with col1, st.container(border=True):
@@ -64,6 +172,9 @@ with col1, st.container(border=True):
     fig = px.area(weekly, x="date", y="value", color="account", category_orders={"account": accounts},
                   color_discrete_map=colors, labels={"value": "Valeur", "account": "Compte", "date": ""})
     fig.update_traces(line=dict(width=1.5), hovertemplate="%{y:,.0f} €")
+    tot_w = weekly.groupby("date")["value"].sum()
+    fig.add_trace(go.Scatter(x=tot_w.index, y=tot_w.values, name="Total", mode="lines",
+                             line=dict(color="#111827", width=2.5), hovertemplate="<b>%{y:,.0f} €</b>"))
     ui.plotly_layout(fig, 400)
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
     st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
@@ -92,7 +203,7 @@ with col2, st.container(border=True):
 col1, col2 = st.columns(2)
 with col1, st.container(border=True):
     st.markdown("**Répartition par type d'actif**")
-    pos = ui.positions()
+    pos = pos_all
     alloc = {"Livrets": by_group.get("Livrets", 0.0), "Liquidités": by_group.get("Liquidités", 0.0)}
     if not pos.empty:
         for r in pos.itertuples():
@@ -128,13 +239,13 @@ with col2, st.container(border=True):
     ui.plotly_layout(fig, 60 + 42 * max(len(a), 5))
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f", zeroline=True)
     st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
-    st.caption("Mois complets. Épargne = revenus moins dépenses du mois ; le reste de la variation vient des "
-               "marchés (et, avant août 2025, des comptes CMB dont l'historique manque).")
+    st.caption("Mois complets. Épargne = revenus moins dépenses du mois ; le reste de la variation vient surtout "
+               "des marchés.")
 
 with st.container(border=True):
-    st.markdown("**Patrimoine net et investissement Trade Republic**")
+    st.markdown("**Patrimoine total et investissement Trade Republic**")
     inv = ui.invested()
-    frame = pd.DataFrame({"Patrimoine net": total})
+    frame = pd.DataFrame({"Patrimoine total": total})
     if not inv.empty:
         frame["Valeur des placements"] = inv.value
         frame["Net investi en bourse"] = inv.net_invested
@@ -150,5 +261,5 @@ with st.container(border=True):
 sync = ui.last_sync()
 st.caption(
     f"Dernière synchronisation Trade Republic : {sync[:16].replace('T', ' ') if sync else 'jamais'} (UTC). "
-    "PEG reconstitué depuis les relevés Amundi (ESOP converti en équivalent actions) ; l'historique CMB commence en août 2025."
+    "PEG reconstitué depuis les relevés Amundi (ESOP converti en équivalent actions) ; CMB depuis 2016 (exports CSV)."
 )

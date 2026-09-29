@@ -140,3 +140,83 @@ def overlap(con: sqlite3.Connection, my_names: list[str], my_tickers: list[str])
     hit = c.ticker.fillna("").str.upper().isin(tick) | c.issuer.str.upper().apply(
         lambda s: any(w and (w in s or s.startswith(w)) for w in words))
     return c[hit]
+
+
+# ---------- how copying a fund's 13F would have done ----------
+
+PERF_SCHEMA = """
+CREATE TABLE IF NOT EXISTS f13_perf (
+    accession TEXT PRIMARY KEY,
+    cik INTEGER NOT NULL,
+    period TEXT NOT NULL,
+    start TEXT NOT NULL,                -- filing date: the first day the basket was public
+    until TEXT NOT NULL,                -- next filing date, or the last close for the latest one
+    ret REAL,                           -- weighted return of the top holdings over [start, until]
+    bench_ret REAL,                     -- S&P 500 (SPY) over the same days
+    coverage REAL                       -- share of the filing's stock value priced
+);
+"""
+
+
+def update_performance(con: sqlite3.Connection, top: int = 25) -> int:
+    """Return of each filing's top ``top`` stock lines, held from the day it was filed to the next filing (or
+    today), next to the S&P 500. It is what copying the fund on each 13F would have earned, before costs."""
+    from datetime import date
+
+    from .prices import change, closes
+    from .sources import sec13f
+
+    con.executescript(PERF_SCHEMA)
+    f = _filings(con).sort_values(["cik", "period"])
+    if f.empty:
+        return 0
+    baskets = {}
+    for r in f.itertuples():
+        h = _holdings(con, r.accession)
+        baskets[r.accession] = h[h.put_call == ""].head(top)
+    sec13f.map_cusips(con, [c for b in baskets.values() for c in b.cusip])
+    for acc, b in baskets.items():  # tickers found by map_cusips
+        baskets[acc] = _holdings(con, acc).query("put_call == ''").head(top)
+    tickers = sorted({t for b in baskets.values() for t in b.ticker.dropna()} | {"SPY"})
+    px = closes(tickers, f.filed.min())
+    if px.empty:
+        return 0
+    last = px.index[-1].date().isoformat()
+    n = 0
+    for cik, g in f.groupby("cik"):
+        g = g.reset_index(drop=True)
+        for i, r in g.iterrows():
+            until = g.filed[i + 1] if i + 1 < len(g) else last
+            b = baskets[r.accession]
+            rets = [(w, change(px, t, r.filed, until)) for t, w in zip(b.ticker, b.value_usd) if isinstance(t, str)]
+            rets = [(w, x) for w, x in rets if x is not None]
+            total = b.value_usd.sum()
+            if not rets or not total:
+                continue
+            w = sum(x[0] for x in rets)
+            con.execute("INSERT OR REPLACE INTO f13_perf VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (r.accession, int(cik), r.period, r.filed, until, sum(a * x for a, x in rets) / w,
+                         change(px, "SPY", r.filed, until), w / total))
+            n += 1
+    con.commit()
+    return n
+
+
+def performance(con: sqlite3.Connection) -> pd.DataFrame:
+    """Per fund: chained return of copying its 13F since its oldest stored filing, the S&P 500 over the same
+    time, the latest quarter, and how much of each basket was priced."""
+    con.executescript(PERF_SCHEMA)
+    p = pd.read_sql_query("SELECT p.*, i.name, i.manager, i.style FROM f13_perf p JOIN investors i USING (cik)"
+                          " WHERE i.active = 1 ORDER BY p.start", con)
+    if p.empty:
+        return p
+    rows = []
+    for cik, g in p.groupby("cik"):
+        days = (pd.Timestamp(g.until.iloc[-1]) - pd.Timestamp(g.start.iloc[0])).days or 1
+        ret = (1 + g.ret).prod() - 1
+        bench = (1 + g.bench_ret.fillna(0)).prod() - 1
+        rows.append({"cik": cik, "name": g.name.iloc[0], "manager": g.manager.iloc[0], "style": g["style"].iloc[0],
+                     "since": g.start.iloc[0], "days": days, "ret": ret, "bench": bench, "excess": ret - bench,
+                     "annual": (1 + ret) ** (365.25 / days) - 1 if days > 180 else None,
+                     "last_quarter": g.ret.iloc[-1], "coverage": g.coverage.mean()})
+    return pd.DataFrame(rows).sort_values("excess", ascending=False)

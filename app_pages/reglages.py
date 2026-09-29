@@ -45,3 +45,13 @@ with st.container(border=True):
                 "- Synchronisation automatique chaque jour à 7 h 30, rapport hebdo le dimanche à 18 h.")
     for line in last.get("summary", []):
         st.caption(line)
+    if st.button("Relancer tous les imports maintenant", icon=":material/sync:", type="primary"):
+        from patrimoine import pipeline
+
+        with st.spinner("Trade Republic, CMB, cours, historique et alertes… (jusqu'à 2 min si la connexion "
+                        "Trade Republic doit être confirmée dans l'appli)"):
+            result = pipeline.run()
+        st.cache_data.clear()
+        for line in result:
+            st.caption(line)
+        st.success("Synchronisation terminée.", icon=":material/check_circle:")

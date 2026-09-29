@@ -37,6 +37,13 @@ INVESTORS = [
     (1697748, "ARK Invest", "Cathie Wood", "innovation disruptive"),
     (1350694, "Bridgewater", "Ray Dalio", "macro, très diversifié"),
     (1649339, "Scion Asset Management", "Michael Burry", "contrarian (ne dépose plus depuis fin 2025)"),
+    # Among the best performers of recent years (concentrated growth, AI, quality compounders).
+    (2045724, "Situational Awareness", "Leopold Aschenbrenner", "IA, très concentré"),
+    (1541617, "Altimeter Capital", "Brad Gerstner", "croissance tech"),
+    (1747057, "D1 Capital Partners", "Dan Sundheim", "croissance, long/short"),
+    (1103804, "Viking Global", "Andreas Halvorsen", "long/short fondamental"),
+    (1387322, "Whale Rock", "Alex Sacerdote", "tech"),
+    (1549575, "Dalal Street", "Mohnish Pabrai", "value concentré"),
 ]
 
 SCHEMA = """

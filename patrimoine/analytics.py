@@ -73,6 +73,11 @@ def invested_series(con: sqlite3.Connection, accounts: tuple[str, ...] = INVESTE
         % ",".join("?" * len(accounts)), con, params=accounts, parse_dates=["date"]).set_index("date")
     if v.empty:
         return v
+    # The valuations table starts with the oldest bank history (2016); investing started later. Before the first
+    # day with securities, there is nothing to measure (and annualising over those years would dilute returns).
+    started = v.index[(v.value > 0) | (v.cost > 0)]
+    if len(started):
+        v = v[v.index >= started[0]]
     flows = security_flows(con, accounts).reindex(v.index, fill_value=0.0)
     v["flow"] = flows
     v["net_invested"] = flows.cumsum()
@@ -172,7 +177,11 @@ def lines(con: sqlite3.Connection) -> pd.DataFrame:
 
 
 def kind_of(name: str) -> str:
+    from .prices import CRYPTO_NAMES
+
     n = name.lower()
+    if name.strip().upper() in CRYPTO_NAMES:
+        return "Crypto"
     if n.startswith(("long", "short")):
         return "Turbo / warrant"
     if any(k in n for k in ("2x", "3x", "lev")):
@@ -209,14 +218,25 @@ def recurring(spending: pd.DataFrame, min_months: int = 3) -> pd.DataFrame:
 
 
 def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
-    """Per month: income, spending (fees included), savings and savings rate."""
-    f = pd.read_sql_query("SELECT date, flow, amount_cents FROM transactions WHERE flow IN ('revenu','depense','frais',"
-                          "'interets','dividende')", con, parse_dates=["date"])
+    """Per month: income, spending (fees included), savings and savings rate.
+
+    Refunds (friends paying back their share, health insurance) are netted off spending rather than counted
+    as income: otherwise a shared dinner paid by Jules would inflate both sides and the savings rate.
+    """
+    from .categories import REFUNDS
+
+    f = pd.read_sql_query("SELECT date, flow, amount_cents, COALESCE(category_override, category) AS category"
+                          " FROM transactions WHERE flow IN ('revenu','depense','frais','interets','dividende')",
+                          con, parse_dates=["date"])
     f["month"] = f.date.dt.to_period("M").dt.to_timestamp()
+    f.loc[(f.flow == "revenu") & f.category.isin(REFUNDS), "flow"] = "remboursement"
+    f.loc[(f.flow == "revenu") & (f.category == "Salaire"), "flow"] = "salaire"
     p = f.pivot_table(index="month", columns="flow", values="amount_cents", aggfunc="sum", fill_value=0) / 100
     col = lambda c: p[c] if c in p else 0.0  # noqa: E731
-    out = pd.DataFrame({"revenus": col("revenu") + col("interets") + col("dividende"),
-                        "depenses": -(col("depense") + col("frais"))})
+    out = pd.DataFrame({"revenus": col("salaire") + col("revenu") + col("interets") + col("dividende"),
+                        "depenses": -(col("depense") + col("frais")) - col("remboursement")})
+    out["salaire"] = col("salaire")
+    out["remboursements"] = col("remboursement")
     out["epargne"] = out.revenus - out.depenses
     out["taux"] = (out.epargne / out.revenus).where(out.revenus > 0)
     return out

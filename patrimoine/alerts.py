@@ -8,7 +8,8 @@ Kinds:
 - ``seuil_bas`` / ``seuil_haut``: an ISIN's price crossing ``threshold`` EUR.
 - ``concentration``: a line above ``threshold`` % of invested wealth (PEG included).
 - ``budget``: a category's spending this month above its budget (``budgets`` table); ``target`` limits
-  it to one category.
+  it to one category. Recorded and shown on the Suivi page, never pushed nor mailed: Jules checks his
+  spending himself.
 """
 from __future__ import annotations
 
@@ -37,6 +38,7 @@ class Fired:
     title: str
     message: str
     priority: int = 3
+    notify: bool = True
 
 
 def seed(con: sqlite3.Connection) -> None:
@@ -158,7 +160,8 @@ def check(con: sqlite3.Connection, today: date | None = None) -> list[Fired]:
                 used = float(spent.get(cat, 0.0))
                 if limit and used >= limit * threshold / 100:
                     fired.append(Fired(rid, f"{cat}:{month}", f"Budget {cat} dépassé",
-                                       f"{used:.0f} € dépensés ce mois-ci pour un budget de {limit:.0f} €.", 3))
+                                       f"{used:.0f} € dépensés ce mois-ci pour un budget de {limit:.0f} €.", 3,
+                                       notify=False))
     return fired
 
 
@@ -172,7 +175,7 @@ def run(con: sqlite3.Connection, send: bool = True, today: date | None = None) -
         if con.execute("SELECT 1 FROM alert_events WHERE rule_id = ? AND key = ?", (f.rule_id, f.key)).fetchone():
             continue
         sent = notify.send(f.title, f.message, priority=f.priority, tags=["chart_with_downwards_trend"]
-                           if f.priority >= 4 else ["bell"]) if send else False
+                           if f.priority >= 4 else ["bell"]) if send and f.notify else False
         con.execute("INSERT INTO alert_events (rule_id, key, triggered_at, message, sent_to) VALUES (?, ?, ?, ?, ?)",
                     (f.rule_id, f.key, db.now_iso(), f"{f.title} — {f.message}", sent or None))
         new.append(f)

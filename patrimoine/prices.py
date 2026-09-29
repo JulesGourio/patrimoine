@@ -64,6 +64,74 @@ def to_eur(s: pd.Series, currency: str, start: date) -> pd.Series | None:
     return (s / rate).dropna()
 
 
+def closes(tickers: list[str], start: date | str, batch_size: int = 200) -> pd.DataFrame:
+    """Adjusted daily closes of many US tickers at once (one column each), in their own currency.
+
+    Yahoo rate-limits bursts: batches are paced, and a batch that comes back mostly empty is retried once.
+    Dotted class shares ("BRK.B") are asked as Yahoo writes them ("BRK-B") and returned under the original name.
+    """
+    import time
+
+    import yfinance as yf
+
+    names = {t.replace(".", "-"): t for t in dict.fromkeys(tickers) if t}
+    frames = []
+    todo = sorted(names)
+    for i in range(0, len(todo), batch_size):
+        batch = todo[i:i + batch_size]
+        df = None
+        for _ in range(2):
+            try:
+                got = yf.download(batch, start=str(start), auto_adjust=True, progress=False, threads=True)["Close"]
+                df = got if isinstance(got, pd.DataFrame) else got.to_frame(batch[0])
+            except Exception as e:  # noqa: BLE001 - network or Yahoo format change
+                log.warning("Yahoo: %s", e)
+                df = None
+            if df is not None and df.notna().any().mean() > 0.5:
+                break
+            time.sleep(30)
+        if df is not None:
+            frames.append(df)
+        if i + batch_size < len(todo):
+            time.sleep(5)
+    if not frames:
+        return pd.DataFrame()
+    px = pd.concat(frames, axis=1).sort_index().ffill()
+    px.index = pd.to_datetime(px.index).tz_localize(None)
+    return px.rename(columns=names)
+
+
+def change(px: pd.DataFrame, ticker: str, start, end=None) -> float | None:
+    """Price change of ``ticker`` from the first close on or after ``start`` to the last close on or before
+    ``end`` (the latest close when None)."""
+    if ticker not in px:
+        return None
+    s = px[ticker].dropna()
+    after = s[s.index >= pd.Timestamp(start)]
+    until = s[s.index <= pd.Timestamp(end)] if end is not None else s
+    if after.empty or until.empty or not after.iloc[0] or until.index[-1] < after.index[0]:
+        return None
+    return float(until.iloc[-1] / after.iloc[0] - 1)
+
+
+# Trade Republic crypto "ISINs" (XF000BTC0017) carry the coin's code; Yahoo quotes it against the euro.
+CRYPTO_NAMES = {"BITCOIN": "BTC", "ETHEREUM": "ETH", "SOLANA": "SOL", "RIPPLE": "XRP", "CARDANO": "ADA",
+                "POLKADOT": "DOT", "DOGECOIN": "DOGE", "LITECOIN": "LTC", "CHAINLINK": "LINK", "AVALANCHE": "AVAX"}
+
+
+def crypto_symbols(isin: str, name: str | None) -> list[str]:
+    import re
+
+    out = []
+    m = re.match(r"XF000([A-Z0-9]{2,5}?)\d{3,4}$", isin or "")
+    if m:
+        out.append(f"{m.group(1)}-EUR")
+    code = CRYPTO_NAMES.get((name or "").strip().upper())
+    if code:
+        out.append(f"{code}-EUR")
+    return out
+
+
 # Listings Yahoo's ISIN search misses; tried along with its own results.
 EXTRA_SYMBOLS = {
     "FR0010342592": ["LQQ.PA"],
@@ -101,7 +169,7 @@ def update(con: sqlite3.Connection, isins: list[str] | None = None) -> dict[str,
                 splits.setdefault(r["isin"], []).append(pd.Timestamp(r["date"]))
     default_first = min(first_seen.values(), default=pd.Timestamp(date.today() - timedelta(days=365)))
     done: dict[str, str] = {}
-    for isin, symbol, kind in con.execute("SELECT isin, symbol, kind FROM instruments").fetchall():
+    for isin, symbol, kind, name in con.execute("SELECT isin, symbol, kind, name FROM instruments").fetchall():
         if isins and isin not in isins:
             continue
         if kind == "derive":
@@ -110,7 +178,8 @@ def update(con: sqlite3.Connection, isins: list[str] | None = None) -> dict[str,
         first_day = first_seen.get(isin, default_first)
         start = (first_day - pd.Timedelta(days=10)).date()
         best: tuple[tuple[int, float], str, str, pd.Series] | None = None
-        tried = dict.fromkeys(([symbol] if symbol else []) + EXTRA_SYMBOLS.get(isin, []) + candidates(isin))
+        tried = dict.fromkeys(([symbol] if symbol else []) + EXTRA_SYMBOLS.get(isin, [])
+                              + (crypto_symbols(isin, name) if kind == "crypto" else candidates(isin)))
         for sym in tried:
             try:
                 s, currency = history(sym, start)

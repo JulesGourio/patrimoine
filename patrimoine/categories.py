@@ -42,9 +42,13 @@ SPENDING = [
     "Impôts et taxes",
     "Études",
     "Retraits d'espèces",
+    "Virements à des particuliers",
     "Divers",
 ]
 INCOME = ["Salaire", "Aides et allocations", "Famille", "Remboursements", "Autres revenus"]
+# Income that only gives back money already spent (friends paying their share, health insurance): the
+# savings rate nets it off spending instead of counting it as income.
+REFUNDS = ("Remboursements",)
 # Flows that bring securities without moving cash: their amount is the value received.
 NON_CASH_FLOWS = {"saveback", "titres_offerts", "operation_titres", "transfert_titres"}
 CATEGORIES = SPENDING + INCOME
@@ -66,7 +70,7 @@ DEFAULT_RULES: dict[str, str] = {
     "BOULANGERIE": "Restaurants et sorties", "CINEMA": "Restaurants et sorties",
     "PATHE": "Restaurants et sorties", "BAR ": "Restaurants et sorties",
     # Transports
-    "SNCF": "Transports", "TOTALENERGIES": "Transports", "TOTAL ": "Transports",
+    "SNCF": "Transports", "TOTALENERGIES": "Transports", "TOTALENERGIES ELECTRICITE": "Logement et énergie", "TOTAL ": "Transports",
     "ESSO": "Transports", "SHELL": "Transports", "BP ": "Transports", "UBER": "Transports",
     "BOLT": "Transports", "BLABLACAR": "Transports", "RATP": "Transports",
     "AUTOROUTE": "Transports", "VINCI": "Transports", "SANEF": "Transports",
@@ -168,8 +172,20 @@ DEFAULT_RULES: dict[str, str] = {
     "DANIELLE": "Logement et énergie", "METGE": "Logement et énergie", "FAUX JEAN": "Logement et énergie", "IZLY": "Cantine", "LYC ": "Études", "CONCOURS": "Études",
     "SCEI": "Études", "EN VOITURE SIMON": "Transports", "EVA AIR": "Voyages", "MSA": "Aides et allocations",
     "ACTION LOGEMENT": "Aides et allocations", "GOURIO SYLVAIN": "Famille", "VIOT": "Famille",
-    "CHLOE GOURIO": "Famille", "WINAMAX": "Autres revenus", "DELL": "Shopping", "MI.COM": "Shopping",
+    "CHLOE GOURIO": "Famille", "GOURIO SANDRA": "Famille", "WINAMAX": "Autres revenus", "DELL": "Shopping", "MI.COM": "Shopping",
     "LIBRAIRIE": "Shopping", "SMONEY": "Cantine",
+    # Seen in the "Divers" backlog (2020-2026)
+    "TOO GOOD T": "Courses", "TOOGOODTOGO": "Courses", "U EXPRESS": "Courses", "RU ": "Cantine",
+    "FOURNIL": "Restaurants et sorties", "B.KING": "Restaurants et sorties", "SUBWAY": "Restaurants et sorties",
+    "ZINGBURGER": "Restaurants et sorties", "V AND B": "Restaurants et sorties", "DUBLINERS": "Restaurants et sorties",
+    "BLIND PIPER": "Restaurants et sorties", "BLACK LION": "Restaurants et sorties", "THAI": "Restaurants et sorties",
+    "SABLES D'OR": "Restaurants et sorties", "CHEZ TONTON": "Restaurants et sorties", "TARTINE": "Restaurants et sorties",
+    "CINE ": "Restaurants et sorties", "BIBUS": "Transports", "TMB BUS": "Transports", "PRIX DU TRAJ": "Transports",
+    "HEMA": "Shopping", "PRIMARK": "Shopping", "CELIO": "Shopping", "PAPETERIE": "Shopping",
+    "ADIDAS": "Sport et loisirs", "SPORT TICKETING": "Sport et loisirs", "MISTERFLY": "Voyages",
+    "VIVRE LE JAPON": "Voyages", "SZE'CHENYI": "Voyages", "TERROR HA": "Voyages",
+    "TIMBRE FISCAL": "Services et administratif", "BOOKSY": "Services et administratif",
+    "F COMM PAIEMENT": "Services et administratif",
     # Told by Jules
     "CSE AIRBUS": "Cantine", "COOP CE AIRBUS": "Cantine", "MONEWEB": "Cantine", "GALAXIE": "Cantine",
     "MA VILLE MON SHOPPING": "Sport et loisirs", "CHEQUES VACANCE": "Voyages",
@@ -193,7 +209,9 @@ def categorize(flow: str, label: str | None, counterparty: str | None, rules: di
     Patterns are matched at word starts ("ACTION" must not match "TRANSACTION"); a trailing
     space in a pattern also requires a word end ("BAR " must not match "BARBIER"). Among the
     patterns that match, the longest one wins. A pattern whose category does not fit the flow
-    (a salary rule on a card payment) is skipped.
+    (a salary rule on a card payment) is skipped. An instant transfer received from someone with no
+    rule is a friend paying back a share ("VIR INST M. X kebab"): a refund, not an income. The other way round, a
+    transfer sent to someone (VIR, Wero, Lydia, Paylib) with no rule is "Virements à des particuliers".
     """
     if flow not in FALLBACK:
         return None
@@ -209,4 +227,10 @@ def categorize(flow: str, label: str | None, counterparty: str | None, rules: di
             continue
         if best is None or len(p) > best[0]:
             best = (len(p), category)
-    return best[1] if best else FALLBACK[flow]
+    if best:
+        return best[1]
+    if flow == "revenu" and re.match(r" VIR (INST|WERO) ", normalize(label)):
+        return "Remboursements"
+    if flow == "depense" and re.search(r"^ (VIR|WERO) | (PAYLIB|LYDIA)", normalize(label) + normalize(counterparty)):
+        return "Virements à des particuliers"
+    return FALLBACK[flow]

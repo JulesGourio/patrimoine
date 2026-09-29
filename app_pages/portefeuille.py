@@ -16,7 +16,8 @@ st_ = ui.invested_stats()
 with st.container(horizontal=True, vertical_alignment="center"):
     st.subheader("Portefeuille", icon=":material/candlestick_chart:")
     period = st.segmented_control("Période", ["3 mois", "6 mois", "1 an", "Tout"], default="1 an",
-                                  label_visibility="collapsed")
+                                  label_visibility="collapsed", key="pf_period")
+    ui.reset_filters_button({"pf_period": "1 an", "scope": "Tout"}, pop=["pf_bench", "pf_line"])
 with st.expander("Lexique : PMP, TWR, TRI, plus-values…", icon=":material/help:"):
     st.markdown(ui.GLOSSARY)
 
@@ -32,8 +33,11 @@ with st.container(horizontal=True):
               chart_data=inv.value[inv.index >= start].resample("W").last().tolist(), chart_type="area")
     st.metric("Net investi", ui.eur(st_["net_investi"]), border=True,
               help="Achats moins ventes : l'argent que tu as laissé en bourse.")
-    st.metric("Gain total", ui.eur(st_["gain_total"], sign=True), ui.pct(st_["gain_total"] / st_["net_investi"]),
-              border=True, help="Valeur moins net investi : plus-values latentes et réalisées, Saveback compris.")
+    st.metric("Gain total (compte-titres + PEA)", ui.eur(st_["gain_total"], sign=True),
+              ui.pct(st_["gain_total"] / st_["net_investi"]), border=True,
+              help="Brut (avant impôt). Valeur moins net investi : plus-values latentes et réalisées, Saveback "
+                   "compris. Ne compte ni le PEG Airbus ni les intérêts et dividendes : pour une vue plus large "
+                   "et une estimation nette d'impôt, voir « Gains d'investissement » sur la page Patrimoine.")
     st.metric("TRI annuel", ui.pct(st_["tri"]), border=True,
               help="Rendement annuel de ton argent, compte tenu des dates de tes versements.")
 with st.container(horizontal=True):
@@ -50,7 +54,8 @@ col1, col2 = st.columns([3, 2])
 with col1, st.container(border=True):
     with st.container(horizontal=True, vertical_alignment="center"):
         st.markdown("**Valeur, argent investi et comparaison**")
-        bench_name = st.selectbox("Indice", list(BENCHMARKS), label_visibility="collapsed", width=180)
+        bench_name = st.selectbox("Indice", list(BENCHMARKS), label_visibility="collapsed", width=180,
+                                  key="pf_bench")
     bench = ui.benchmark(BENCHMARKS[bench_name])
     frame = pd.DataFrame({"Ton portefeuille": inv.value, "Net investi": inv.net_invested})
     if bench is not None:
@@ -66,7 +71,9 @@ with col1, st.container(border=True):
     if bench is not None:
         gap = inv.value.iloc[-1] - bench.iloc[-1]
         st.caption(f"Si chaque achat et chaque vente avait porté sur le {bench_name}, tu aurais "
-                   f"{ui.eur(bench.iloc[-1])} aujourd'hui : ton choix de titres fait {ui.eur(gap, sign=True)}.")
+                   f"{ui.eur(bench.iloc[-1])} aujourd'hui : ton choix de titres fait {ui.eur(gap, sign=True)}. "
+                   "Les creux brefs (janvier-février 2026) sont des ventes dont l'argent a attendu en espèces avant "
+                   "d'être réinvesti : la valeur et le net investi baissent ensemble, ce n'est pas une perte.")
 
 with col2, st.container(border=True):
     st.markdown("**Baisse depuis le plus haut**")
@@ -113,11 +120,59 @@ for col, (title, key) in zip(cols, [("Par type", "kind"), ("Par zone", "region")
         fig.update_xaxes(ticksuffix=" €", tickformat=",.0f")
         st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
+# ---------- risks: real exposure (leverage), currencies, concentration, a market drop ----------
+LEVERAGE = {"FR0010342592": 2.0}  # Nasdaq 100 x2: moves twice the index each day
+CURRENCY = {"NL0000235190": "EUR", "IE00BHZRR030": "KRW", "FR0011550185": "USD", "FR0010342592": "USD",
+            "IE000YU9K6K2": "USD", "IE000KHX9DX6": "USD"}  # currency of the underlying assets, not of the listing
+risk = pos.assign(lev=pos["isin"].map(LEVERAGE).fillna(1.0), cur=pos["isin"].map(CURRENCY).fillna("?"))
+risk["exposure"] = risk.value * risk.lev
+hist_all = ui.history()
+wealth = float(hist_all[hist_all.date == hist_all.date.max()].value.sum())
+with st.container(border=True):
+    st.markdown("**Risques** · ce que tes placements te font vraiment porter")
+    top = risk.sort_values("value", ascending=False).iloc[0]
+    usd = risk[risk.cur == "USD"].exposure.sum()
+    with st.container(horizontal=True):
+        st.metric("Exposition réelle aux actions", ui.eur(risk.exposure.sum()), f"{ui.eur(risk.value.sum())} investis",
+                  delta_color="off", border=True,
+                  help="Valeur × levier : ton Nasdaq x2 compte double. C'est ce qui bouge quand les marchés bougent.")
+        st.metric("Plus grosse ligne", top["name"], f"{ui.pct(top.value / wealth, sign=False)} de ton patrimoine total",
+                  delta_color="off", border=True,
+                  help="Au-delà de 20 % du patrimoine sur une seule action, un accident propre à l'entreprise pèse lourd. "
+                       "Airbus est aussi ton ancien employeur (PEG) : même risque que ton ancien salaire.")
+        st.metric("Exposé au dollar", ui.pct(usd / risk.exposure.sum(), sign=False), ui.eur(usd), delta_color="off",
+                  border=True, help="Tes ETF en euros détiennent des actions américaines : une baisse du dollar face à "
+                                    "l'euro les fait baisser d'autant, même si les actions ne bougent pas.")
+        lev_share = risk[risk.lev > 1].value.sum() / risk.value.sum()
+        st.metric("Part à levier", ui.pct(lev_share, sign=False), border=True,
+                  help="Un ETF x2 perd en marché agité même si l'indice revient à son niveau (décote de volatilité).")
+    c1, c2 = st.columns([2, 3])
+    with c1:
+        drop = st.slider("Si les marchés d'actions baissaient de…", 5, 50, 30, 5, format="%d %%", key="pf_drop")
+        loss = (risk.exposure * drop / 100).clip(upper=risk.value)  # a x2 line cannot lose more than it is worth
+        st.metric("Perte estimée", ui.eur(-loss.sum()), f"{ui.pct(-loss.sum() / wealth)} de ton patrimoine total",
+                  border=True, delta_color="off",
+                  help="Chaque ligne baisse comme le marché, deux fois plus pour le Nasdaq x2. En 2020 et 2022, les "
+                       "actions mondiales ont perdu 25 à 35 % au pire moment.")
+        mb = ui.monthly_balance()
+        saving = mb[mb.index < pd.Timestamp.today().to_period("M").to_timestamp()].epargne.tail(12).mean()
+        st.caption(f"Ton épargne ({ui.eur(saving)} / mois sur les 12 derniers mois complets) mettrait "
+                   f"{loss.sum() / max(saving, 1):.0f} mois à combler cette perte.")
+    with c2:
+        t = risk.assign(loss=-loss, share=risk.value / wealth).sort_values("loss")
+        st.dataframe(t[["name", "account", "cur", "lev", "value", "share", "loss"]], hide_index=True, width="stretch",
+                     column_config={"name": "Ligne", "account": "Compte", "cur": "Devise des actifs",
+                                    "lev": st.column_config.NumberColumn("Levier", format="x%.0f"),
+                                    "value": st.column_config.NumberColumn("Valeur", format="%.0f €"),
+                                    "share": st.column_config.ProgressColumn("Part du patrimoine", format="percent",
+                                                                             min_value=0, max_value=1),
+                                    "loss": st.column_config.NumberColumn("Si baisse", format="%.0f €")})
+
 # ---------- one line in detail ----------
 with st.container(border=True):
     st.markdown("**Détail d'une ligne**")
     names = dict(zip(pos.name, pos["isin"]))
-    choice = st.selectbox("Ligne", list(names), label_visibility="collapsed")
+    choice = st.selectbox("Ligne", list(names), label_visibility="collapsed", key="pf_line")
     isin = names[choice]
     px_s = ui.prices(isin)
     tr = ui.trades(isin)
