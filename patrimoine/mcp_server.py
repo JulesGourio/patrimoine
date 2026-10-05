@@ -20,8 +20,9 @@ server = MCPServer(
         "PEA), PEG Airbus, livrets. Montants en euros. Profil : recherche la performance, tolère le risque, horizon "
         "long ; rester honnête sur les risques, la concentration (Airbus : PEG + salaire passé) et la fiscalité. "
         "Toujours partir de ces données ; utiliser `marche` pour les cours et fondamentaux, la recherche web pour "
-        "l'actualité. Jamais d'ordre passé : proposer avec `preparer_ordre`, Jules exécute. Pour un rapport, "
-        "l'enregistrer avec `enregistrer_rapport` (il est envoyé sur son téléphone et par mail)."
+        "l'actualité. Jamais d'ordre passé : proposer avec `preparer_ordre`, Jules exécute. Analyse de marché "
+        "(quotidienne ou hebdo) : `faits_du_jour` puis `publier_analyse` (format fixe, mail court avec graphique, "
+        "page Analyses). Rapport libre à la demande : `enregistrer_rapport`."
     ),
 )
 
@@ -141,8 +142,8 @@ def depenses(mois: int = 12) -> dict:
 @server.tool()
 def flux(mois: int = 12) -> dict:
     """Par mois : revenus (salaire, aides, intérêts, dividendes), dépenses nettes des remboursements (amis qui
-    rendent leur part, sécu), épargne (revenus - dépenses), taux d'épargne, montants investis (achats nets de
-    titres) et Saveback. Mêmes chiffres que la page Dépenses du tableau de bord."""
+    rendent leur part, sécu), épargne (revenus - dépenses), taux d'épargne, héritages et donations (à part : ni
+    revenu ni épargne), montants investis (achats nets de titres) et Saveback. Mêmes chiffres que la page Dépenses du tableau de bord."""
     from . import analytics
 
     con = _con()
@@ -341,6 +342,54 @@ def ordres_proposes(statut: str = "proposé") -> dict:
     con = _con()
     q = "SELECT * FROM order_ideas" + (" WHERE status = ?" if statut else "") + " ORDER BY created_at DESC"
     return {"ordres": [dict(r) for r in con.execute(q, (statut,) if statut else ())]}
+
+
+@server.tool()
+def faits_du_jour(periode: str = "jour") -> dict:
+    """Point de départ d'une analyse de marché. periode 'jour' (dernière séance) ou 'semaine' (5 séances).
+    Calcule et enregistre un brouillon : lignes de Jules contre leur indice (move = variation, z = écart en
+    écarts-types habituels, impact_eur), marchés, secteurs US, actions de ses ETF qui l'ont fait bouger
+    (moteurs_etf), changements d'avis d'analystes, résultats à venir, argent suivi, radar, et `a_expliquer` :
+    les mouvements inhabituels à expliquer en priorité. Renvoie l'id à passer à `publier_analyse`."""
+    from . import briefing
+
+    if periode not in briefing.PERIODS:
+        return {"erreur": "periode : 'jour' ou 'semaine'"}
+    con = _con()
+    bid, f = briefing.draft(con, periode)
+    f = {k: v for k, v in f.items() if k != "series"}
+    return {"id": bid, "faits": f}
+
+
+@server.tool()
+def publier_analyse(id: int, analyse: dict, notifier: bool = True) -> dict:
+    """Publie l'analyse du brouillon `id` (de `faits_du_jour`) : page Analyses, mail court avec graphique et push.
+    Format (voir scripts/analyse.md) : titre, ton, points_cles (3), lignes [{isin, cause, these, verdict,
+    confiance, action?, sources}], marche {resume, themes [{titre, detail, sources}]}, idees [{ticker, nom, these,
+    risque, sources}], conseils [{action, cible, ticker, cours_ref, montant_eur, prix_limite, horizon, pourquoi, risque,
+    invalidation, confiance, sources}] (2 à 4), agenda [{date, evenement, enjeu}], bilan_semaine (hebdo), sources [{id, titre,
+    media, url, date}]. Renvoie les erreurs à corriger s'il y en a (rien n'est publié dans ce cas)."""
+    from . import briefing
+
+    return briefing.publish(_con(), id, analyse, send=notifier)
+
+
+@server.tool()
+def analyses(n: int = 5) -> dict:
+    """Les N dernières analyses publiées (titre, points clés, verdicts par ligne) et le suivi des verdicts
+    (cours depuis) : pour assurer la continuité et corriger ce qui s'est révélé faux."""
+    from . import briefing
+
+    con = _con()
+    b = briefing.load(con).head(n)
+    v = briefing.verdicts(con)
+    return _clean({
+        "analyses": [{"id": r.id, "type": r.kind, "seance": r.session, "titre": r.analysis.get("titre"),
+                      "points_cles": r.analysis.get("points_cles"), "lignes": r.analysis.get("lignes"),
+                      "idees": [i.get("nom") for i in r.analysis.get("idees", [])],
+                      "conseils": r.analysis.get("conseils")} for r in b.itertuples()],
+        "suivi_verdicts": _records(v.head(40)) if not v.empty else [],
+    })
 
 
 @server.tool()

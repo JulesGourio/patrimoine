@@ -38,7 +38,8 @@ def mail_ready() -> bool:
     return bool(vault.get("smtp_password"))
 
 
-def mail(subject: str, text: str, html: str | None = None) -> bool:
+def mail(subject: str, text: str, html: str | None = None, images: dict[str, bytes] | None = None) -> bool:
+    """``images``: PNGs the HTML shows as ``<img src="cid:{name}">`` (inline, no remote loading)."""
     password = vault.get("smtp_password")
     if not password:
         return False
@@ -47,6 +48,8 @@ def mail(subject: str, text: str, html: str | None = None) -> bool:
     msg.set_content(text)
     if html:
         msg.add_alternative(html, subtype="html")
+        for name, png in (images or {}).items():
+            msg.get_payload()[1].add_related(png, "image", "png", cid=f"<{name}>")
     try:
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as s:
             s.starttls()

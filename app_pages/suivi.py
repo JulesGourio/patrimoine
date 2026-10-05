@@ -9,18 +9,8 @@ st.subheader("Suivi", icon=":material/notifications:")
 con = ui.connect()
 alerts.seed(con)
 
-tab_reports, tab_orders, tab_alerts, tab_budgets = st.tabs(
-    [":material/article: Rapports", ":material/shopping_cart: Ordres préparés", ":material/notifications: Alertes",
-     ":material/savings: Budgets"])
-
-with tab_reports:
-    reports = pd.read_sql_query("SELECT created_at, kind, title, body_md FROM reports ORDER BY created_at DESC", con)
-    if reports.empty:
-        st.caption("Aucun rapport pour l'instant : le premier rapport hebdo arrive dimanche soir, ou demande-en un "
-                   "à Claude.")
-    for r in reports.itertuples():
-        with st.expander(f"{r.title} · {r.created_at[:10]}", expanded=r.Index == 0, icon=":material/article:"):
-            st.markdown(r.body_md)
+tab_orders, tab_alerts, tab_budgets = st.tabs(
+    [":material/shopping_cart: Ordres préparés", ":material/notifications: Alertes", ":material/savings: Budgets"])
 
 with tab_orders:
     st.caption("Ordres préparés par Claude. Rien n'est passé automatiquement : tu les exécutes dans Trade Republic.")

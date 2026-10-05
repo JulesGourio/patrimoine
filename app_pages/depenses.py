@@ -60,6 +60,7 @@ variable = complete[~complete.category.isin(ui.FIXED)].groupby("month")["amount"
 cur_variable = view[(view.month == this_month) & ~view.category.isin(ui.FIXED)].amount.sum()
 bal = ui.monthly_balance()
 bal_full = bal[(bal.index < this_month) & (bal.index >= start)]
+bal_view = bal[bal.index >= start]  # charts: the month in progress too (averages stay on complete months)
 spent_lines = view[view.amount > 0]
 salaries = bal[(bal.index < this_month) & (bal.salaire > 0)].salaire
 inc = ui.income()
@@ -120,6 +121,7 @@ if search.strip():
                              labels={"amount": "", "mois": ""})
                 fig.update_traces(marker_color=ui.CATEGORICAL[1] if focus is found_sp else ui.CATEGORICAL[0],
                                   hovertemplate="%{x} : %{y:,.2f} €<extra></extra>")
+                ui.keep_months(fig, flabels)
                 ui.plotly_layout(fig, 220)
                 fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
                 st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
@@ -151,7 +153,7 @@ with st.container(horizontal=True):
               delta_color="off", border=True, height="stretch",
               help="(Revenus − dépenses) / revenus, sur les mois complets de la période, tous comptes (les filtres "
                    "catégorie et compte ne s'y appliquent pas). Les remboursements d'amis et de la sécu viennent en "
-                   "déduction des dépenses : ce ne sont pas des revenus.")
+                   "déduction des dépenses : ce ne sont pas des revenus. Les héritages et donations sont exclus.")
     st.metric("Opérations", f"{len(spent_lines)}", f"panier moyen {ui.eur(spent_lines.amount.mean(), 2)}",
               delta_color="off", border=True, height="stretch")
 
@@ -222,6 +224,7 @@ if not sal.empty:
                 fig.add_hline(y=last12_sal.mean(), line_dash="dot", line_color=ui.OTHER,
                               annotation_text=f"moyenne 12 mois {ui.eur(last12_sal.mean())}",
                               annotation_position="top left")
+            ui.keep_months(fig, slabels)
             ui.plotly_layout(fig, 280)
             fig.update_layout(bargap=0.3, hovermode="closest")
             fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
@@ -291,7 +294,7 @@ for p in clicked("cal"):
 
 # ---------- months ----------
 with st.container(border=True):
-    st.markdown("**Par mois** · dépenses par catégorie et revenus (mois complets) · clique sur un mois, ou sur "
+    st.markdown("**Par mois** · dépenses par catégorie et revenus · clique sur un mois, ou sur "
                "une couleur pour filtrer aussi la catégorie")
     per_month, labels = ui.month_axis(view.groupby(["month", "groupe"], as_index=False)["amount"].sum())
     per_month["month_iso"] = per_month.month.dt.strftime("%Y-%m-%d")
@@ -303,8 +306,8 @@ with st.container(border=True):
     if avg:
         fig.add_hline(y=avg, line_dash="dot", line_color=ui.OTHER, annotation_text=f"moyenne {ui.eur(avg)}",
                       annotation_position="top left")
-    # Income, complete months only (the salary lands at the end of the month); internal transfers excluded.
-    rev = bal_full[[ui.short_month(m) in labels for m in bal_full.index]]
+    # Income (the month in progress has no salary yet: it lands at the end of the month); internal transfers excluded.
+    rev = bal_view[[ui.short_month(m) in labels for m in bal_view.index]]
     rev_labels = [ui.short_month(m) for m in rev.index]
     fig.add_trace(go.Scatter(x=rev_labels, y=rev.revenus.values, mode="lines+markers", name="Revenus",
                              line=dict(width=2, color="#111827", dash="dot"), marker=dict(size=6),
@@ -313,6 +316,7 @@ with st.container(border=True):
     if chosen_label in labels:
         i = labels.index(chosen_label)
         fig.add_vrect(x0=i - 0.45, x1=i + 0.45, fillcolor="rgba(42,120,214,0.10)", line_width=0, layer="below")
+    ui.keep_months(fig, labels)
     ui.plotly_layout(fig, 380)
     # One segment per click: with a unified hover, a click would select the whole month column.
     fig.update_layout(bargap=0.3, hovermode="closest")
@@ -487,11 +491,11 @@ with st.container(border=True):
                              "date": st.column_config.DateColumn("Date", format="DD/MM"), "merchant": "Origine",
                              "category": "Catégorie", "amount": st.column_config.NumberColumn("Montant", format="%+.2f €")})
 
-# ---------- income and savings (complete months only: the salary lands at the end of the month) ----------
+# ---------- income and savings (the month in progress has no salary yet: it lands at the end of the month) ----------
 col1, col2 = st.columns(2)
 with col1, st.container(border=True):
-    st.markdown("**Revenus, dépenses et épargne** · mois complets")
-    b, labels = ui.month_axis(bal_full.reset_index(names="month"))
+    st.markdown("**Revenus, dépenses et épargne**")
+    b, labels = ui.month_axis(bal_view.reset_index(names="month"))
     b["autres"] = b.revenus - b.salaire
     fig = go.Figure([
         go.Bar(x=b.mois, y=b.salaire, name="Salaire", marker_color=ui.CATEGORICAL[0], offsetgroup="r",
@@ -507,11 +511,12 @@ with col1, st.container(border=True):
     ui.plotly_layout(fig, 320)
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f", zeroline=True)
     st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
-    st.caption("Le mois en cours n'apparaît qu'une fois terminé : le salaire arrive en fin de mois. Autres revenus : "
-               "aides, famille, intérêts, dividendes. Dépenses nettes des remboursements (amis, sécu).")
+    st.caption("Mois en cours partiel : le salaire arrive en fin de mois. Autres revenus : "
+               "aides, famille, intérêts, dividendes (héritages et donations exclus). Dépenses nettes des remboursements "
+               "(amis, sécu).")
 with col2, st.container(border=True):
-    st.markdown("**Taux d'épargne** · mois complets")
-    t, labels = ui.month_axis(bal_full[["taux"]].reset_index(names="month"))
+    st.markdown("**Taux d'épargne** · moyenne sur les mois complets")
+    t, labels = ui.month_axis(bal_view[["taux"]].reset_index(names="month"))
     fig = px.line(t, x="mois", y="taux", markers=True, category_orders={"mois": labels}, labels={"taux": "", "mois": ""})
     fig.update_traces(line=dict(width=2, color=ui.CATEGORICAL[2]), marker=dict(size=8), hovertemplate="%{y:.0%}")
     if len(bal_full) and bal_full.revenus.sum():
@@ -523,7 +528,7 @@ with col2, st.container(border=True):
     st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
 
 # ---------- income, in detail (mirrors the spending breakdown above; internal transfers excluded) ----------
-inc_view = inc[(inc.month >= start) & (inc.month <= view.month.max())] if not inc.empty else inc
+inc_view = inc[inc.month >= start] if not inc.empty else inc
 if not inc_view.empty:
     col1, col2 = st.columns([2, 3])
     with col1, st.container(border=True):
@@ -537,13 +542,15 @@ if not inc_view.empty:
         fig.update_traces(hovertemplate="%{customdata[1]} · %{x} : %{y:,.0f} €<extra></extra>", marker_line_width=1,
                           marker_line_color="white", selected=dict(marker=dict(opacity=1)),
                           unselected=dict(marker=dict(opacity=0.35)))
+        ui.keep_months(fig, ilabels)
         ui.plotly_layout(fig, 360)
         fig.update_layout(bargap=0.3, hovermode="closest")
         fig.update_yaxes(ticksuffix=" €", tickformat=",.0f")
         ev = st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG, on_select="rerun", selection_mode="points",
                              key="inc_chart")
         st.caption("Virements entre tes propres comptes exclus. « Remboursements » : amis qui rendent leur part, "
-                   "sécu, mutuelle ; déduits des dépenses dans le taux d'épargne.")
+                   "sécu, mutuelle ; déduits des dépenses dans le taux d'épargne. « Héritage et donations » : hors revenus et "
+                   "épargne, compté seulement dans le patrimoine.")
 
     pts = (ev.selection.points if ev and ev.selection else []) or []
     inc_sel = inc_view

@@ -160,7 +160,34 @@ def cmd_alerts(args: argparse.Namespace, settings: Settings) -> None:
 def cmd_report(args: argparse.Namespace, settings: Settings) -> None:
     from . import tasks
 
-    raise SystemExit(tasks.weekly_report(settings, sync_first=not args.sans_sync))
+    raise SystemExit(tasks.analysis("semaine", settings, sync_first=not args.sans_sync))
+
+
+def cmd_analysis(args: argparse.Namespace, settings: Settings) -> None:
+    from . import tasks
+
+    raise SystemExit(tasks.analysis("jour", settings, sync_first=not args.sans_sync))
+
+
+def cmd_app(args: argparse.Namespace, settings: Settings) -> None:
+    """Open the dashboard; start it first unless it is already running."""
+    import socket
+    import subprocess
+    import sys
+    import webbrowser
+
+    from .config import ROOT
+
+    url = "http://localhost:8501"
+    with socket.socket() as s:
+        running = s.connect_ex(("127.0.0.1", 8501)) == 0
+    if running:
+        webbrowser.open(url)
+        print(f"Tableau de bord déjà lancé : {url}")
+        return
+    print(f"Tableau de bord sur {url} (Ctrl+C pour l'arrêter)")
+    subprocess.run([sys.executable, "-m", "streamlit", "run", str(ROOT / "streamlit_app.py"),
+                    "--server.port", "8501", "--server.headless", "false"], cwd=ROOT)
 
 
 def cmd_tasks(args: argparse.Namespace, settings: Settings) -> None:
@@ -266,9 +293,13 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--note")
     p.add_argument("--mail", action="store_true")
     p.set_defaults(func=cmd_alerts)
-    p = sub.add_parser("rapport", help="Rapport hebdomadaire rédigé par Claude Code")
+    p = sub.add_parser("rapport", help="Bilan de la semaine rédigé par Claude Code")
     p.add_argument("--sans-sync", action="store_true")
     p.set_defaults(func=cmd_report)
+    p = sub.add_parser("analyse", help="Analyse de la dernière séance rédigée par Claude Code")
+    p.add_argument("--sans-sync", action="store_true")
+    p.set_defaults(func=cmd_analysis)
+    sub.add_parser("app", help="Ouvrir le tableau de bord (le lance s'il ne tourne pas)").set_defaults(func=cmd_app)
     sub.add_parser("taches", help="Installer les tâches planifiées Windows").set_defaults(func=cmd_tasks)
     p = sub.add_parser("cmb-csv", help="Importer les exports CSV de la CMB (RELEVE_*.csv)")
     p.add_argument("dossier", nargs="?", help="Dossier où prendre les RELEVE_*.csv (ex. Téléchargements)")

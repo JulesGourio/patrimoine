@@ -5,6 +5,7 @@ import streamlit as st
 
 from patrimoine import ui
 from patrimoine.analytics import kind_of
+from patrimoine.categories import WINDFALLS
 
 hist = ui.history()
 if hist.empty:
@@ -82,7 +83,8 @@ with st.container(horizontal=True):
               if at(today - pd.DateOffset(years=1)) else "–", border=True)
     st.metric("Épargne moyenne", ui.eur(full.epargne.mean()) + " / mois", ui.pct(full.epargne.sum() / full.revenus.sum(),
               sign=False) + " des revenus" if full.revenus.sum() else None, delta_color="off", border=True,
-              help="Revenus moins dépenses, moyenne des 12 derniers mois complets.")
+              help="Revenus moins dépenses, moyenne des 12 derniers mois complets. Les héritages et donations "
+                   "n'en font pas partie : ils comptent dans le patrimoine, pas dans l'épargne.")
 
 pea_note = ""
 if pea_open:
@@ -140,10 +142,13 @@ with st.container(border=True):
     items = []
     if w_total is not None:
         market = sum(m[2] for m in movers)
+        inc_all = ui.income()
+        windfall = inc_all[(inc_all.date > week_ago) & inc_all.category.isin(WINDFALLS)].amount.sum()
         items.append(f"Patrimoine **{ui.eur(w_total, sign=True)}** ({ui.pct(w_total / (now - w_total))}) en 7 jours, "
-                     f"dont {ui.eur(market, sign=True)} dus aux marchés sur tes lignes et "
-                     f"{ui.eur(w_total - market, sign=True)} d'argent entré ou sorti (salaire moins dépenses ; les "
-                     "virements entre tes comptes ne comptent pas).")
+                     f"dont {ui.eur(market, sign=True)} dus aux marchés sur tes lignes, "
+                     + (f"{ui.eur(windfall, sign=True)} d'héritage ou de donation, " if windfall else "")
+                     + f"et {ui.eur(w_total - market - windfall, sign=True)} d'argent entré ou sorti (salaire moins "
+                     "dépenses ; les virements entre tes comptes ne comptent pas).")
     if movers:
         best = max(movers, key=lambda m: m[1])
         worst = min(movers, key=lambda m: m[1])
@@ -226,21 +231,22 @@ with col2, st.container(border=True):
     change = monthly.diff().dropna()
     change.index = change.index.to_period("M").to_timestamp()
     saving = bal.epargne.reindex(change.index).fillna(0.0)
-    decomposition = pd.DataFrame({"Épargne du mois": saving, "Effet marché et autres": change - saving})
-    this_month = pd.Timestamp.today().to_period("M").to_timestamp()
-    decomposition = decomposition[(decomposition.index >= start.to_period("M").to_timestamp())
-                                  & (decomposition.index < this_month)]
+    windfall = bal.heritage.reindex(change.index).fillna(0.0)
+    decomposition = pd.DataFrame({"Épargne du mois": saving, "Héritage et donations": windfall,
+                                  "Effet marché et autres": change - saving - windfall})
+    decomposition = decomposition[decomposition.index >= start.to_period("M").to_timestamp()]
     long, labels = ui.month_axis(decomposition.reset_index(names="month")
                                  .melt("month", var_name="part", value_name="eur"))
     fig = px.bar(long, x="mois", y="eur", color="part", barmode="relative", category_orders={"mois": labels},
-                 color_discrete_map={"Épargne du mois": ui.CATEGORICAL[2], "Effet marché et autres": ui.CATEGORICAL[0]},
+                 color_discrete_map={"Épargne du mois": ui.CATEGORICAL[2], "Héritage et donations": ui.CATEGORICAL[3],
+                                     "Effet marché et autres": ui.CATEGORICAL[0]},
                  labels={"eur": "", "mois": "", "part": ""})
     fig.update_traces(hovertemplate="%{y:+,.0f} €", marker_line_width=1, marker_line_color="white")
     ui.plotly_layout(fig, 60 + 42 * max(len(a), 5))
     fig.update_yaxes(ticksuffix=" €", tickformat=",.0f", zeroline=True)
     st.plotly_chart(fig, width="stretch", config=ui.PLOT_CONFIG)
-    st.caption("Mois complets. Épargne = revenus moins dépenses du mois ; le reste de la variation vient surtout "
-               "des marchés.")
+    st.caption("Mois en cours jusqu'à aujourd'hui. Épargne = revenus moins dépenses du mois, hors héritages et "
+               "donations (montrés à part) ; le reste de la variation vient surtout des marchés.")
 
 with st.container(border=True):
     st.markdown("**Patrimoine total et investissement Trade Republic**")

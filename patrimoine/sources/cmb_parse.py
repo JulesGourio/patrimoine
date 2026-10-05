@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 from collections import Counter
+from datetime import date, timedelta
 from typing import Any
 
 from .tr_parse import Row, words
@@ -36,6 +37,11 @@ def counterparty(label: str, first: str) -> str | None:
     return first
 
 
+def signed_cents(tx: dict[str, Any]) -> int:
+    amount = round(abs(float(tx["transaction_amount"]["amount"])) * 100)
+    return -amount if tx.get("credit_debit_indicator") == "DBIT" else amount
+
+
 def parse(dump: dict[str, Any], owner: set[str], account_id: str = "cmb_courant") -> tuple[list[Row], Counter]:
     rows: list[Row] = []
     kinds: Counter = Counter()
@@ -47,9 +53,7 @@ def parse(dump: dict[str, Any], owner: set[str], account_id: str = "cmb_courant"
             p = parts(tx)
             label = " ".join(p)
             first = p[0] if p else ""
-            amount = round(float(tx["transaction_amount"]["amount"]) * 100)
-            if tx.get("credit_debit_indicator") == "DBIT":
-                amount = -abs(amount)
+            amount = signed_cents(tx)
             who = counterparty(label, first)
 
             if INTERNAL.search(label) or (who and owner and owner <= set(words(who))):
@@ -88,12 +92,31 @@ def livret_mirror(rows: list[Row], livret: str = "cmb_livret_a") -> list[Row]:
     return out
 
 
+# Balance types that only count booked lines; the others (the CMB's "realtime" XPCD) already include the
+# pending ones.
+BOOKED_BALANCES = {"CLBD", "ITBD", "OPBD", "PRCD"}
+
+
 def balance(dump: dict[str, Any]) -> tuple[str, int] | None:
+    """Balance of the booked lines only, since pending lines are not imported: otherwise a pending transfer
+    to the livret would vanish from both accounts, and anchoring would shift the whole history by its amount."""
     for acc in dump.get("accounts", []):
         for b in acc.get("balances", []):
             amount = b.get("balance_amount") or {}
-            if amount.get("amount") is not None:
-                return b.get("reference_date") or "", round(float(amount["amount"]) * 100)
+            if amount.get("amount") is None:
+                continue
+            cents, day = round(float(amount["amount"]) * 100), b.get("reference_date") or ""
+            txs = acc.get("transactions", [])
+            pending = [tx for tx in txs if tx.get("status") not in (None, "BOOK")]
+            if b.get("balance_type") not in BOOKED_BALANCES and pending:
+                # A pending line books later, often dated the day it was made: anchor on the eve of the first
+                # one, with the booked lines from that day on taken off too.
+                day = (date.fromisoformat(min(tx.get("booking_date") or tx.get("value_date") for tx in pending))
+                       - timedelta(days=1)).isoformat()
+                for tx in txs:
+                    if tx in pending or (tx.get("booking_date") or "") > day:
+                        cents -= signed_cents(tx)
+            return day, cents
     return None
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from . import db, queries
@@ -178,14 +179,26 @@ FIXED = ("Logement et énergie", "Abonnements et télécom", "Impôts et taxes")
 def short_month(ts) -> str:
     months = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
     ts = pd.Timestamp(ts)
-    return f"{months[ts.month - 1]} {str(ts.year)[2:]}"
+    label = f"{months[ts.month - 1]} {str(ts.year)[2:]}"
+    return label + " (en cours)" if ts.to_period("M") == pd.Timestamp.today().to_period("M") else label
 
 
-def month_axis(df: pd.DataFrame, col: str = "month") -> tuple[pd.DataFrame, list[str]]:
-    """Months as ordered text labels, so each label sits centred under its bar (no tilted date ticks)."""
-    months = sorted(df[col].unique())
+def month_axis(df: pd.DataFrame, col: str = "month", through_now: bool = True) -> tuple[pd.DataFrame, list[str]]:
+    """Months as ordered text labels, so each label sits centred under its bar (no tilted date ticks). The
+    current month is part of the axis even before its first line (pass the labels to ``keep_months``)."""
+    months = sorted(pd.Timestamp(m) for m in df[col].unique())
+    now = pd.Timestamp.today().to_period("M").to_timestamp()
+    if through_now and months and now not in months:
+        months.append(now)
     df = df.assign(mois=df[col].map(short_month))
     return df, [short_month(m) for m in months]
+
+
+def keep_months(fig, labels: list[str]) -> None:
+    """Show every month of ``labels`` on the x axis, even one with no data yet (an invisible marker)."""
+    fig.add_trace(go.Scatter(x=labels, y=[0] * len(labels), mode="markers", marker=dict(opacity=0),
+                             showlegend=False, hoverinfo="skip"))
+    fig.update_xaxes(categoryorder="array", categoryarray=labels)
 
 
 def reset_filters_button(values: dict, pop: list[str] | None = None,

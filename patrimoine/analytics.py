@@ -222,8 +222,9 @@ def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
 
     Refunds (friends paying back their share, health insurance) are netted off spending rather than counted
     as income: otherwise a shared dinner paid by Jules would inflate both sides and the savings rate.
+    Windfalls (inheritance, gifts) are kept apart in ``heritage``: neither income nor savings.
     """
-    from .categories import REFUNDS
+    from .categories import REFUNDS, WINDFALLS
 
     f = pd.read_sql_query("SELECT date, flow, amount_cents, COALESCE(category_override, category) AS category"
                           " FROM transactions WHERE flow IN ('revenu','depense','frais','interets','dividende')",
@@ -231,12 +232,14 @@ def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
     f["month"] = f.date.dt.to_period("M").dt.to_timestamp()
     f.loc[(f.flow == "revenu") & f.category.isin(REFUNDS), "flow"] = "remboursement"
     f.loc[(f.flow == "revenu") & (f.category == "Salaire"), "flow"] = "salaire"
+    f.loc[(f.flow == "revenu") & f.category.isin(WINDFALLS), "flow"] = "heritage"
     p = f.pivot_table(index="month", columns="flow", values="amount_cents", aggfunc="sum", fill_value=0) / 100
     col = lambda c: p[c] if c in p else 0.0  # noqa: E731
     out = pd.DataFrame({"revenus": col("salaire") + col("revenu") + col("interets") + col("dividende"),
                         "depenses": -(col("depense") + col("frais")) - col("remboursement")})
     out["salaire"] = col("salaire")
     out["remboursements"] = col("remboursement")
+    out["heritage"] = col("heritage")
     out["epargne"] = out.revenus - out.depenses
     out["taux"] = (out.epargne / out.revenus).where(out.revenus > 0)
     return out

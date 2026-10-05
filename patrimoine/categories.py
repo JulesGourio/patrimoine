@@ -45,10 +45,13 @@ SPENDING = [
     "Virements à des particuliers",
     "Divers",
 ]
-INCOME = ["Salaire", "Aides et allocations", "Famille", "Remboursements", "Autres revenus"]
+INCOME = ["Salaire", "Aides et allocations", "Famille", "Remboursements", "Héritage et donations", "Autres revenus"]
 # Income that only gives back money already spent (friends paying their share, health insurance): the
 # savings rate nets it off spending instead of counting it as income.
 REFUNDS = ("Remboursements",)
+# Capital received once (inheritance, life insurance paid on a death, gifts): it adds to the wealth but is
+# neither income nor savings, otherwise one cheque would inflate the savings rate and the projection.
+WINDFALLS = ("Héritage et donations",)
 # Flows that bring securities without moving cash: their amount is the value received.
 NON_CASH_FLOWS = {"saveback", "titres_offerts", "operation_titres", "transfert_titres"}
 CATEGORIES = SPENDING + INCOME
@@ -192,6 +195,7 @@ DEFAULT_RULES: dict[str, str] = {
     # Revenus
     "AIRBUS": "Salaire", "SALAIRE": "Salaire", "CPAM": "Remboursements",
     "AMELI": "Remboursements", "CAF": "Aides et allocations", "LYDIA": "Remboursements",
+    "REGLT DECES": "Héritage et donations", "SUCCESSION": "Héritage et donations",
 }
 
 
