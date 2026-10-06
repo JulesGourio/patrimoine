@@ -1,5 +1,6 @@
-"""Scheduled work: the daily sync and the market analyses written by Claude Code (daily on the previous session,
-Tuesday to Saturday; weekly on Sunday).
+"""Scheduled work: the daily sync, and the publication of the market analyses written by the Claude cloud routines
+(claude.ai/code/routines: daily on the previous session, Tuesday to Saturday; weekly on Sunday; see `cloud`).
+`analysis` still writes one locally, on demand (Analyses page, `patrimoine analyse`).
 
 The Windows tasks call `uvw` (uv without a console window) on the `patrimoine` commands directly,
 with no PowerShell script in between.
@@ -15,8 +16,8 @@ from . import db, pipeline
 from .config import ROOT, Settings
 
 DAILY = "Patrimoine - synchronisation"
-WEEKLY = "Patrimoine - rapport hebdo"
-BRIEF = "Patrimoine - analyse du jour"
+CLOUD = "Patrimoine - analyses cloud"
+REPLACED = ("Patrimoine - rapport hebdo", "Patrimoine - analyse du jour")  # now cloud routines
 
 
 def claude_exe() -> Path:
@@ -61,11 +62,13 @@ def install() -> list[str]:
         raise FileNotFoundError("uv introuvable")
     jobs = [
         (DAILY, "sync", "New-ScheduledTaskTrigger -Daily -At 7:30"),
-        (WEEKLY, "rapport", "New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 18:00"),
-        (BRIEF, "analyse", "New-ScheduledTaskTrigger -Weekly -DaysOfWeek Tuesday,Wednesday,Thursday,Friday,Saturday"
-                           " -At 8:00"),
+        (CLOUD, "cloud", "New-ScheduledTaskTrigger -Once -At 00:05 -RepetitionInterval (New-TimeSpan -Minutes 15)"),
     ]
     out = []
+    for name in REPLACED:
+        subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+                        f"Unregister-ScheduledTask -TaskName '{name}' -Confirm:$false -ErrorAction SilentlyContinue"],
+                       capture_output=True, stdin=subprocess.DEVNULL, timeout=60)
     for name, command, trigger in jobs:
         # schtasks.exe waits on stdin when started from Python; the ScheduledTasks cmdlets do not.
         script = (

@@ -248,6 +248,13 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
         fired = alerts.run(con, send=send_alerts)
         lines.append(f"Alertes : {len(fired)} nouvelle(s)" + "".join(f"\n  - {f.title}" for f in fired))
         db.set_meta(con, "last_sync", {"at": db.now_iso(), "summary": lines})
+    try:  # after the session is closed: the export opens its own connections
+        from . import cloud
+
+        lines.append(cloud.export(settings))
+    except Exception as e:  # noqa: BLE001
+        log.error("cloud: %s", traceback.format_exc())
+        lines.append(f"Cloud : ÉCHEC de l'export — {e}")
     return lines
 
 

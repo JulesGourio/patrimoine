@@ -39,8 +39,8 @@ with st.container(horizontal=True, vertical_alignment="center"):
             launch("semaine")
 
 if b.empty:
-    st.info("Pas encore d'analyse publiée. La première arrive demain à 8 h (du mardi au samedi, sur la séance de "
-            "la veille, et le dimanche à 18 h pour la semaine), ou lance-la avec « Nouvelle analyse ».",
+    st.info("Pas encore d'analyse publiée. Les routines Claude (claude.ai/code/routines) en écrivent une du mardi au samedi "
+            "à 8 h et le dimanche à 18 h ; tu peux aussi les lancer là-bas, ou ici avec « Nouvelle analyse ».",
             icon=":material/info:")
     st.stop()
 

@@ -42,9 +42,13 @@ et la feuille de route.
   (lignes contre leur indice, écart en écarts-types, marchés, secteurs, moteurs des ETF, analystes, résultats à
   venir), Claude Code (`-p`) cherche les causes sur le web (24–72 h, sources citées) et publie un JSON au format
   fixe via `faits_du_jour` puis `publier_analyse`. Rendus : mail court avec graphique (`brief_mail.py`), push d'une
-  ligne, page Analyses (verdicts suivis dans le temps). Tâches : « Patrimoine - analyse du jour » (mar.–sam. 8 h,
-  `uv run patrimoine analyse`, séance de la veille) et « Patrimoine - rapport hebdo » (dimanche 18 h,
-  `uv run patrimoine rapport`, 5 séances). `enregistrer_rapport` reste pour les rapports libres (Markdown).
+  ligne, page Analyses (verdicts suivis dans le temps). Planification : routines Claude cloud « Patrimoine - analyse
+  du jour » (mar.–sam. 8 h 05) et « Patrimoine - bilan de la semaine » (dimanche 18 h 05), visibles et déclenchables
+  sur claude.ai/code/routines. Elles n'ont pas accès au PC (`patrimoine/cloud.py`, `scripts/analyse_cloud.md`) :
+  chaque synchro pousse `jour.json` et `semaine.json` sur la branche `donnees` (un seul commit, écrasé) ; la routine
+  pousse son analyse sur `claude/analyses` ; la tâche Windows « Patrimoine - analyses cloud » (toutes les 15 min,
+  `uv run patrimoine cloud`) la publie. `uv run patrimoine analyse` / `rapport` et le bouton « Nouvelle analyse »
+  restent pour une analyse locale à la demande. `enregistrer_rapport` reste pour les rapports libres (Markdown).
   `uv run patrimoine taches` recrée les tâches (appel direct de `uvw`, pas de script PowerShell : l'antivirus avait
   mis le .ps1 en quarantaine). Si la
   commande bloque, enregistrer les tâches avec `Register-ScheduledTask` depuis l'outil PowerShell de Claude.

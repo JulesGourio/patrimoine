@@ -169,6 +169,13 @@ def cmd_analysis(args: argparse.Namespace, settings: Settings) -> None:
     raise SystemExit(tasks.analysis("jour", settings, sync_first=not args.sans_sync))
 
 
+def cmd_cloud(args: argparse.Namespace, settings: Settings) -> None:
+    from . import cloud
+
+    for line in ([cloud.export(settings)] if args.action == "export" else cloud.pull(settings)):
+        print(line)
+
+
 def cmd_app(args: argparse.Namespace, settings: Settings) -> None:
     """Open the dashboard; start it first unless it is already running."""
     import socket
@@ -299,6 +306,9 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("analyse", help="Analyse de la dernière séance rédigée par Claude Code")
     p.add_argument("--sans-sync", action="store_true")
     p.set_defaults(func=cmd_analysis)
+    p = sub.add_parser("cloud", help="Routines Claude : publier leurs analyses (import) ou leur envoyer les données")
+    p.add_argument("action", nargs="?", choices=["import", "export"], default="import")
+    p.set_defaults(func=cmd_cloud)
     sub.add_parser("app", help="Ouvrir le tableau de bord (le lance s'il ne tourne pas)").set_defaults(func=cmd_app)
     sub.add_parser("taches", help="Installer les tâches planifiées Windows").set_defaults(func=cmd_tasks)
     p = sub.add_parser("cmb-csv", help="Importer les exports CSV de la CMB (RELEVE_*.csv)")
