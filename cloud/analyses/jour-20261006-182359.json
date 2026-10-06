@@ -1,0 +1,259 @@
+{
+ "id": 10,
+ "periode": "jour",
+ "analyse": {
+  "titre": "+270 € lundi ; mardi, taux et pétrole reculent : Wall Street et Paris montent",
+  "ton": "haussier",
+  "points_cles": [
+   "Séance du 5/10 : +270 €, dont S&P 500 +155 €. Le 6/10, Wall Street prolonge (S&P 500 +0,75 % en séance) et le CAC reprend 0,4 % : Nasdaq x2 et Space doivent rattraper.",
+   "Détente des taux : 10 ans US à 5,27 % le 6/10 (−5 pb), Brent vers 99 $. Le seuil de 5,5 % pour réduire le levier s'éloigne à 0,23 point.",
+   "Kospi −0,9 % le 6/10 (pas de cotation le 5/10) : la Corée s'éloigne de la limite de 110 $. Jeudi 8/10 : Samsung et bulletin Airbus ; mercredi 14 : inflation US."
+  ],
+  "lignes": [
+   {
+    "isin": "FR0011550185",
+    "cause": "+1,0 % contre +0,66 % pour l'indice : rattrapage de vendredi et Nvidia (+2,1 %), Microsoft (+1,5 %). Le 6/10, le S&P 500 gagne encore 0,75 % en séance, porté par la tech et la baisse des taux et du pétrole.",
+    "these": "Ligne au plus haut (35,09 €) : pas d'achat ici, l'ordre à 33,70 € reste en attente (conseil n° 3). Thèse intacte.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2
+    ]
+   },
+   {
+    "isin": "FR0010342592",
+    "cause": "+0,8 % pour un indice ×2 à +1,7 % : l'ETF ferme à 17 h 30. Le 6/10, Nasdaq +0,64 % en séance et 10 ans US à 5,27 % : la cotation de mardi doit intégrer les deux séances.",
+    "these": "La baisse des taux longs desserre la menace principale du levier ; seuil de 5,5 % à 0,23 point. Inflation du 14/10 décisive.",
+    "verdict": "rien à faire",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "+0,6 % le 5/10 sans séance coréenne ce jour-là (dernier Kospi : 2/10) : effet de change. Le 6/10, Kospi −0,89 % à 6 941, Samsung −1,45 % à 272 000 wons sur la crainte des taux longs.",
+    "these": "Recul attendu à la prochaine cotation. Ligne +97 %, 12,6 % du portefeuille ; tout se joue sur Samsung jeudi 8/10.",
+    "verdict": "agir",
+    "confiance": "faible",
+    "action": "Ordre de vente de 1 000 € à 110 $ maintenu avant le 8/10 (conseil n° 2), à ne servir que sur une hausse après Samsung.",
+    "sources": [
+     4
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "−0,45 % : l'ETF a fermé avant la hausse de SpaceX (+7 % lundi, Morgan Stanley acheteur), qui ajoute +1,5 % mardi à ~172 $. Viasat −3,1 % : pas de cause identifiée, mouvement de marché.",
+    "these": "SpaceX (~5 % de l'ETF) tire le thème mais peu la ligne. Rattrapage probable : l'ordre fiscal à 69,50 € s'éloigne, sans urgence avant décembre.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": [
+     5
+    ]
+   },
+   {
+    "isin": "NL0000235190",
+    "cause": "−0,1 % contre −0,8 % pour le CAC (Schneider −10 % sur le rachat de PTC, 22,6 Md$ en numéraire). Le 6/10, ouverture à 190,18 €, fourchette 187,06–191,50 € ; CAC +0,4 % sur la détente des taux.",
+    "these": "Rien de neuf avant le bulletin du 8/10 (~72 livraisons attendues en septembre). Toujours sous les 195 € du conseil d'arbitrage.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     6,
+     7
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "+1,2 % contre +0,5 % pour REMX : cuivre +1,4 %, matériaux US +1,3 % ; Lynas −2,5 % pèse. UBS abaisse l'objectif d'Albemarle de 175 à 150 $ (achat maintenu).",
+    "these": "Thème −7 % sur un mois, marge de 6,9 % avant le prix de revient (43,13 €). Pas de catalyseur cette semaine.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": [
+     8
+    ]
+   }
+  ],
+  "marche": {
+   "resume": "Lundi 5/10 : Wall Street au record porté par les semi-conducteurs, Paris −0,8 % (Schneider, budget). Mardi 6/10 : le pétrole et les taux reculent, le S&P 500 vise un nouveau record et le CAC reprend 0,4 % à 7 865.",
+   "themes": [
+    {
+     "titre": "Taux et pétrole se détendent",
+     "detail": "10 ans US à 5,27 % (−5 pb) après 5,311 % lundi ; Brent −1 % vers 99 $, WTI vers 88 $. C'est le premier soutien du Nasdaq x2 (−20 % si le Nasdaq recule de 10 %).",
+     "sources": [
+      2,
+      3
+     ]
+    },
+    {
+     "titre": "Fusions : Schneider–PTC",
+     "detail": "Schneider rachète PTC 22,6 Md$ en numéraire : PTC +33,5 %, Schneider −10 % lundi, ce qui explique la moitié de la baisse du CAC. C.H. Robinson rachète RXO (5,8 Md$).",
+     "sources": [
+      1
+     ]
+    },
+    {
+     "titre": "Corée sous pression des taux",
+     "detail": "Kospi −0,89 % à 6 941 le 6/10, Samsung et SK Hynix en tête de la baisse : la remontée des taux mondiaux pèse sur la mémoire avant les résultats de Samsung jeudi.",
+     "sources": [
+      4
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-07",
+    "evenement": "Compte rendu de la réunion de septembre de la Fed (date habituelle, à confirmer)",
+    "enjeu": "Ton sur l'inflation : décide de la suite des taux longs, donc du Nasdaq x2."
+   },
+   {
+    "date": "2026-10-08",
+    "evenement": "Samsung : résultats préliminaires du T3",
+    "enjeu": "Déclencheur de l'allègement Corée (110 $)."
+   },
+   {
+    "date": "2026-10-08",
+    "evenement": "Airbus : livraisons de septembre",
+    "enjeu": "Sous 65 : pas de vente ; ~72 : arbitrage à 195 € maintenu."
+   },
+   {
+    "date": "2026-10-13",
+    "evenement": "JPMorgan ouvre les résultats américains",
+    "enjeu": "Premier test des bénéfices, 25 % du portefeuille sur le S&P 500."
+   },
+   {
+    "date": "2026-10-14",
+    "evenement": "Inflation américaine de septembre",
+    "enjeu": "Au-dessus du consensus : 10 ans vers 5,5 % et réduction du levier."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA)",
+    "ticker": "AIR.PA",
+    "cours_ref": 189.08,
+    "montant_eur": 3000,
+    "prix_limite": 195,
+    "horizon": "3 à 6 mois",
+    "pourquoi": "Maintenu, non déclenché (plus haut du 6/10 : 191,50 €). Airbus pèse 32,8 % des titres. Après le bulletin du 8/10, vendre ~15 actions du PEG à 195 € et placer 3 000 € sur le S&P 500 du PEA (18 734 € versés sur 150 000 €). Palier suivant : 205 €.",
+    "risque": "Si Airbus rejoint l'objectif moyen de 231 € (+22 %), manque à gagner d'environ 650 €. Prélèvements sociaux dus sur la plus-value du PEG.",
+    "invalidation": "Bulletin du 8/10 sous 65 livraisons : ne pas vendre au plus bas.",
+    "confiance": "moyenne",
+    "sources": [
+     6,
+     7
+    ]
+   },
+   {
+    "action": "alléger",
+    "cible": "FTSE Korea (CTO)",
+    "ticker": "FLXK.L",
+    "cours_ref": 107.2,
+    "montant_eur": 1000,
+    "prix_limite": 110,
+    "horizon": "1 à 2 semaines",
+    "pourquoi": "Maintenu, mais la limite s'éloigne : Kospi −0,9 % le 6/10, soit ~106 $ attendus (+4 % à faire). Ligne +97 %, 12,6 % du portefeuille : vendre 1 000 € seulement si Samsung fait monter le cours jeudi.",
+    "risque": "Si la mémoire repart, +10 % manqués sur 1 000 € = 100 €. ~490 € de plus-value imposable (PFU ~147 €), compensable par la vente du Space.",
+    "invalidation": "Samsung au-dessus de 111 000 Md de wons avec un Kospi en hausse : garder la ligne entière.",
+    "confiance": "faible",
+    "sources": [
+     4
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), espèces Trade Republic",
+    "ticker": "ESE.PA",
+    "cours_ref": 35.09,
+    "montant_eur": 1000,
+    "prix_limite": 33.7,
+    "horizon": "ordre valable jusqu'à fin octobre",
+    "pourquoi": "Maintenu : 1 290 € d'espèces chez Trade Republic. Indice vers un nouveau record le 6/10 : pas d'achat à 35 €, limite à 33,70 € (−4 %) avant l'inflation du 14/10. PEA d'abord ; la ligne la plus diversifiée dilue Airbus et les thèmes.",
+    "risque": "Si le marché ne recule pas, l'ordre n'est pas servi. Après achat, un S&P 500 à −10 % coûterait 100 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % : annuler l'ordre et garder les espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2
+    ]
+   },
+   {
+    "action": "attendre",
+    "cible": "Space Innovators (CTO), ordre fiscal n° 1",
+    "horizon": "jusqu'à mi-décembre",
+    "pourquoi": "Garder l'ordre n° 1 (61 parts à 69,50 €, cours 70,82 €). SpaceX +1,5 % de plus le 6/10 : le rattrapage éloigne la limite. La moins-value (~1 466 €, ~435 € d'impôt évité) ne sert qu'avant le 31/12.",
+    "risque": "Si l'ETF monte de 10 %, la moins-value réalisable baisse d'environ 430 € (~130 € d'impôt en moins).",
+    "invalidation": "Cours au-dessus de 80 € : chercher une autre moins-value (terres rares sous 43,13 €).",
+    "confiance": "moyenne",
+    "sources": [
+     5
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Stock Market Today (Oct. 6, 2026): S&P rises as oil prices, Treasury yields retreat",
+    "media": "TheStreet / Yahoo Finance",
+    "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-oct-06-2026",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 2,
+    "titre": "US 10 Year Treasury Note Yield",
+    "media": "Trading Economics",
+    "url": "https://tradingeconomics.com/united-states/government-bond-yield",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 3,
+    "titre": "Treasury yields fall as oil prices slide",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/06/treasury-yields-fed-fomc-minutes.html",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 4,
+    "titre": "South Korea Stock Market (Kospi −0,89 % à 6 941,39)",
+    "media": "Trading Economics",
+    "url": "https://tradingeconomics.com/south-korea/stock-market",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 5,
+    "titre": "SpaceX stock climbs higher, poised for another multimonth closing high",
+    "media": "Yahoo Finance",
+    "url": "https://finance.yahoo.com/markets/stocks/article/spacex-jumps-to-highest-close-since-june-on-bullish-morgan-stanley-call-150109145.html",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 6,
+    "titre": "AIRBUS : cours de l'action AIR",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/cours/1rPAIR/",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 7,
+    "titre": "Historique CAC 40 (clôture du 6/10 : 7 865,07, +0,40 %)",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/bourse/indices/cours/historique/1rPCAC",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 8,
+    "titre": "Faits de la séance (dossier Patrimoine : secteurs, analystes)",
+    "media": "Yahoo Finance",
+    "url": "https://finance.yahoo.com/quote/REMX/",
+    "date": "2026-10-05"
+   }
+  ]
+ },
+ "ordres": []
+}
