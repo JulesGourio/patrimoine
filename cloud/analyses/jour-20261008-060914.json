@@ -1,0 +1,277 @@
+{
+ "id": 18,
+ "periode": "jour",
+ "analyse": {
+  "titre": "Samsung record mais sans élan : la Corée recule, l'ordre à 110 $ ne sera pas servi",
+  "ton": "mitigé",
+  "points_cles": [
+   "Corée : Kospi −0,9 % le 6/10 puis −2,0 % le 7/10 (6 804) ; la ligne passe de 95,23 € à 92,29 €, environ −235 €. L'ordre de vente à 110 $ (fin le 9/10) est hors d'atteinte.",
+   "Samsung publie 107 400 Md de wons de bénéfice au T3 (record, consensus ~106 000) mais reste sous le seuil de 111 000 : titre −0,2 %, Kospi −0,6 % à l'ouverture du 8/10.",
+   "Le 7/10, Wall Street recule de 0,2 % après son record : le compte rendu de la Fed penche pour une hausse de plus d'ici fin 2026. Bulletin Airbus ce jour, inflation US le 14/10."
+  ],
+  "lignes": [
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "Le +0,3 % du dossier date du 5/10. Depuis : Kospi −0,9 % le 6/10 (SK hynix −3,4 %, ventes avant résultats) et −2,0 % le 7/10. Le 8/10, Samsung : 107 400 Md de wons de bénéfice, mais 195 000 Md de chiffre d'affaires contre 206 800 attendus (FactSet).",
+    "these": "Thèse mémoire IA confirmée (bénéfice ×8,8 sur un an) mais déjà payée : les étrangers ont vendu plus de 20 000 Md de wons en un mois. Ligne ~12 % des titres, +90 % latents.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2,
+     3,
+     4
+    ]
+   },
+   {
+    "isin": "NL0000235190",
+    "cause": "7/10 : −0,3 % à 187,44 €, malgré une commande de 10 avions de Biman Bangladesh annoncée le matin. Pas de cause propre identifiée, mouvement de marché ; le titre n'a pas repassé 190 € depuis le 2/10.",
+    "these": "Le bulletin de septembre (8/10) devrait confirmer ~72 livraisons (Reuters, 2/10), déjà dans le cours. Vrai test : résultats du T3 le 28/10 et l'objectif de 870 avions.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     7,
+     12
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "6/10 : AST SpaceMobile +8 % (partenariat Rakuten reconnu par les États-Unis et le Japon, essai TELUS satellite-smartphone) ; Viasat +6,6 %, pas de cause identifiée. Le 7/10, ASTS retombe à 61,51 $ après un lancement raté (Pluang seul).",
+    "these": "ASTS et Viasat font ~9 % de la ligne : volatiles. Cours 69,76 € : l'ordre fiscal n° 1 (61 parts à 69,50 €) est à 0,4 %. S'il est placé, il peut passer : c'est le but.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": [
+     9,
+     10,
+     13
+    ]
+   },
+   {
+    "isin": "FR0011550185",
+    "cause": "Le +0,99 % (z = 1,5) est la cotation du 5/10, qui couvre deux séances américaines (2/10 et 5/10). Le 7/10, S&P 500 −0,2 % à 7 802 : premier recul d'octobre, taux et pétrole (~100 $) en hausse.",
+    "these": "Thèse intacte. Un recul après le compte rendu de la Fed rapproche l'ordre à 33,70 € (cours 35,25 €, −4,4 %).",
+    "verdict": "rien à faire",
+    "confiance": "moyenne",
+    "sources": [
+     5,
+     6
+    ]
+   }
+  ],
+  "marche": {
+   "resume": "6/10 : record du S&P 500 (7 819, +0,6 %), services publics +3 % (Constellation +14 %, Vistra +11 %). 7/10 : premier recul d'octobre (−0,2 %) avec la remontée des taux et du pétrole ; Kospi −2 % avant Samsung.",
+   "themes": [
+    {
+     "titre": "Fed : une hausse de plus d'ici fin 2026",
+     "detail": "Compte rendu de septembre (hausse à 3,75–4,00 %) : la plupart des membres voient une hausse supplémentaire cette année, sans date. Le 10 ans US était à 5,33–5,35 % le 5/10 (plus haut depuis 2002) ; 5,27 % le 6/10 dans le dossier.",
+     "sources": [
+      5,
+      6,
+      11
+     ]
+    },
+    {
+     "titre": "Mémoire : Samsung record, marché vendeur",
+     "detail": "107 400 Md de wons de bénéfice (×8,8), mais chiffre d'affaires sous le consensus et marges mémoire jugées plates : Samsung −0,2 %, SK hynix +0,5 à +1 % le 8/10 après −3,4 % le 6/10.",
+     "sources": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "titre": "Services publics : rebond des producteurs d'électricité",
+     "detail": "XLU +3,0 % le 6/10 (z = 3,4) depuis un plus bas annuel (39,03 le 29/9) ; Constellation +14 % et Vistra +11 % (11,8 % de l'ETF). Pas de cause précise trouvée pour ces deux titres.",
+     "sources": [
+      8
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-08",
+    "evenement": "Bulletin Airbus des livraisons de septembre",
+    "enjeu": "~72 attendues (Reuters) : déjà dans le cours ; une surprise sous 65 pèserait sur le PEG."
+   },
+   {
+    "date": "2026-10-09",
+    "evenement": "Fin de l'ordre Corée à 110 $",
+    "enjeu": "Le laisser expirer (conseil n° 1)."
+   },
+   {
+    "date": "2026-10-14",
+    "evenement": "Inflation US (septembre)",
+    "enjeu": "Décide du 10 ans (seuil de 5,5 % pour le Nasdaq x2) et de l'ordre S&P 500 à 33,70 €."
+   },
+   {
+    "date": "2026-10-21",
+    "evenement": "Résultats de Tesla",
+    "enjeu": "Poids du Nasdaq 100 et du S&P 500 ; ARK a encore renforcé le 6/10."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Résultats du T3 d'Airbus et décision de la Fed",
+    "enjeu": "Objectif de 870 livraisons et hausse de taux possible : la journée qui compte pour le PEG et le levier."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "attendre",
+    "cible": "FTSE Korea (CTO), ordre de vente à 110 $",
+    "horizon": "jusqu'aux résultats détaillés de Samsung",
+    "pourquoi": "Correction du conseil du 29/9 : la vente à 110 $ supposait une hausse après Samsung ; elle n'est pas venue (Kospi −2,9 % en deux séances, Samsung −0,2 %). Laisser l'ordre expirer le 9/10, ne pas vendre dans la baisse : bénéfice record, thèse intacte.",
+    "risque": "Si les ventes étrangères continuent, un Kospi à −10 % coûterait ~730 € sur la ligne (7 300 € environ).",
+    "invalidation": "Kospi de retour au-dessus de 7 000 : replacer la vente de 1 000 € à 110 $.",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA)",
+    "ticker": "AIR.PA",
+    "cours_ref": 187.44,
+    "montant_eur": 3000,
+    "prix_limite": 195,
+    "horizon": "jusqu'au T3 du 28/10",
+    "pourquoi": "Maintenu, non déclenché (187,44 €, à 4 % de la limite). Airbus ~33 % des titres. Vendre ~15 actions du PEG à 195 € et placer 3 000 € sur le S&P 500 du PEA (18 734 € versés sur 150 000 €). Le bulletin du jour ne devrait pas suffire ; le T3 peut le faire.",
+    "risque": "Si Airbus rejoint l'objectif moyen de 231 €, manque à gagner d'environ 550 €. Prélèvements sociaux sur la plus-value du PEG.",
+    "invalidation": "Objectif de ~870 livraisons abaissé le 28/10 : ne pas vendre dans la baisse, revoir le palier.",
+    "confiance": "moyenne",
+    "sources": [
+     7,
+     12
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), espèces Trade Republic",
+    "ticker": "ESE.PA",
+    "cours_ref": 35.25,
+    "montant_eur": 1000,
+    "prix_limite": 33.7,
+    "horizon": "ordre valable jusqu'à fin octobre",
+    "pourquoi": "Maintenu : 1 290 € d'espèces chez Trade Republic. Le compte rendu de la Fed (hausse de plus envisagée) et le pétrole vers 100 $ ont fait reculer l'indice le 7/10 : un repli de 4,4 % vers 33,70 € avant l'inflation du 14/10 reste plausible.",
+    "risque": "Si le marché ne recule pas, l'ordre n'est pas servi. Après achat, un S&P 500 à −10 % coûterait 100 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % : annuler l'ordre et garder les espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     5,
+     6
+    ]
+   },
+   {
+    "action": "attendre",
+    "cible": "Nasdaq 100 x2 (PEA)",
+    "horizon": "jusqu'au 14/10",
+    "pourquoi": "Seuil inchangé : réduire le levier de moitié (≈ 3 250 €) si le 10 ans clôture au-dessus de 5,5 %. Il a touché 5,35 % le 5/10 ; le compte rendu de la Fed pousse plutôt les taux vers le haut. L'inflation du 14/10 tranchera.",
+    "risque": "Levier x2 : un Nasdaq à −10 % coûterait ~1 300 € sur 6 515 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % : passer à l'allègement.",
+    "confiance": "moyenne",
+    "sources": [
+     5,
+     11
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Samsung Q3 profit surges 783% to record 107.4T won",
+    "media": "TradingKey",
+    "url": "https://www.tradingkey.com/analysis/stocks/us-stocks/262205271-samsung-q3-skhy-dram-hbm-mu-skhynix-ai-tradingkey",
+    "date": "2026-10-08"
+   },
+   {
+    "id": 2,
+    "titre": "KOSPI Mixed in the 6,700s Despite Samsung's 100 Trillion Won Operating Profit Era",
+    "media": "SBS",
+    "url": "https://news.sbs.co.kr/english/article.do?news_id=N1008788584",
+    "date": "2026-10-08"
+   },
+   {
+    "id": 3,
+    "titre": "Samsung, SK Hynix shares drop as Q3 earnings loom",
+    "media": "Investing.com",
+    "url": "https://www.investing.com/news/stock-market-news/samsung-sk-hynix-shares-drop-as-q3-earnings-loom-4933402",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 4,
+    "titre": "Samsung's Q3 profit seen jumping nine-fold, but chip margins may be flat",
+    "media": "BusinessWorld (Reuters)",
+    "url": "https://bworldonline.com/technology/2026/10/07/785210/samsungs-q3-profit-seen-jumping-nine-fold-but-chip-margins-may-be-flat/",
+    "date": "2026-10-07"
+   },
+   {
+    "id": 5,
+    "titre": "Wall Street posts first red session of October a day after notching a record close",
+    "media": "Investing.com",
+    "url": "https://www.investing.com/news/stock-market-news/us-stock-futures-steady-after-tech-rally-lifts-sp-500-nasdaq-to-records-4935463",
+    "date": "2026-10-07"
+   },
+   {
+    "id": 6,
+    "titre": "Stock Market Today (Oct. 7, 2026): Market faces pullback after S&P 500, Nasdaq records",
+    "media": "TheStreet",
+    "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-oct-07-2026",
+    "date": "2026-10-07"
+   },
+   {
+    "id": 7,
+    "titre": "Action Airbus SE (clôture du 7/10, commande Biman Bangladesh)",
+    "media": "Zonebourse",
+    "url": "https://www.zonebourse.com/cours/action/AIRBUS-SE-4637/",
+    "date": "2026-10-07 17:55"
+   },
+   {
+    "id": 8,
+    "titre": "Utilities and Materials Lead Tuesday Sector Gains as CEG and VST Surge",
+    "media": "Dividend Channel",
+    "url": "https://www.dividendchannel.com/article/202610/utilities-and-materials-lead-tuesday-sector-gains-as-ceg-and-vst-surge-XLU10062026spxldr.htm/",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 9,
+    "titre": "AST SpaceMobile (NASDAQ:ASTS) Shares Up 8% - What's Next?",
+    "media": "MarketBeat",
+    "url": "https://www.marketbeat.com/instant-alerts/price-ast-spacemobile-nasdaq-asts-shares-up-8-whats-next-2026-10-06/",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 10,
+    "titre": "Why is AST SpaceMobile stock surging today?",
+    "media": "Investing.com",
+    "url": "https://www.investing.com/news/stock-market-news/why-is-ast-spacemobile-stock-surging-today-93CH-4934779",
+    "date": "2026-10-06"
+   },
+   {
+    "id": 11,
+    "titre": "US 10Y Bond Yield Hits 24-1/2-year High",
+    "media": "Trading Economics",
+    "url": "https://tradingeconomics.com/united-states/government-bond-yield/news/589647",
+    "date": "2026-10-05"
+   },
+   {
+    "id": 12,
+    "titre": "Airbus September deliveries around 72 jets, sources say (Reuters)",
+    "media": "Digg / Reuters",
+    "url": "https://digg.com/world-business/y39io3i0",
+    "date": "2026-10-02"
+   },
+   {
+    "id": 13,
+    "titre": "AST SpaceMobile stock drops after failed launch",
+    "media": "Pluang",
+    "url": "https://pluang.com/en/news-feed/ast-spacemobile-2026-analis-wall-street-prediksi-keuntungan-70-persen",
+    "date": "2026-10-07"
+   }
+  ]
+ },
+ "ordres": []
+}
