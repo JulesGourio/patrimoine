@@ -1,0 +1,316 @@
+{
+ "id": 28,
+ "periode": "jour",
+ "analyse": {
+  "titre": "Corée −11 % en deux séances (Kospi < 6 000) : seuil de révision franchi, ~−700 €",
+  "ton": "baissier",
+  "points_cles": [
+   "Lundi ~−250 € (cours de clôture européens) dont Corée −237 € ; ce mardi, Kospi −7,4 % à 5 914 : ~−450 € de plus probable sur la ligne FTSE Korea à l'ouverture de Londres.",
+   "Cause : le chinois CXMT annonce une DRAM 4F² et de la DDR5 serveur d'ici fin 2026. Samsung −7,7 %, SK hynix −8,8 % ce matin ; Micron −3,9 % lundi. 10e séance de ventes étrangères.",
+   "Semaine décisive : inflation US mercredi 14/10 (3,6 % attendus) et ASML, TSMC jeudi 15/10. Le 10 ans US (5,24 % vendredi) reste sous le seuil de 5,5 % du Nasdaq x2."
+  ],
+  "lignes": [
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "Lundi 85,69 € (−3,4 %) : Kospi −3,65 % à 6 384, 2 020 Md de wons vendus par les étrangers. Mardi : −7,4 % à 5 914, coupe-circuit vendeur ; Samsung −7,7 %, SK hynix −8,8 % sur la DRAM 4F² de CXMT.",
+    "these": "Le « surveiller » du 6/10 était trop indulgent : −10 % depuis, avant la baisse de ce mardi. La thèse passe de « valorisation » à « concurrence chinoise » : à trancher avec TSMC jeudi.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     3,
+     4,
+     5,
+     13,
+     14
+    ]
+   },
+   {
+    "isin": "FR0010342592",
+    "cause": "Lundi 10,60 € (−0,8 %) : Nasdaq Composite −0,44 % ; les mémoires reculent (Micron −3,9 %, SanDisk −6 %) sur CXMT et le Brent repasse ~106 $ après des attaques en Arabie saoudite.",
+    "these": "Pas de changement de seuil : alléger de moitié seulement si le 10 ans clôture au-dessus de 5,5 %. L'inflation de mercredi et TSMC jeudi décident de la suite.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     2,
+     6,
+     9
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "Vendredi +2,0 % malgré Pilbara −5,4 % (pas de cause identifiée pour Pilbara) ; lundi 45,26 € (−1,5 %), pas de cause identifiée, mouvement de marché.",
+    "these": "À 4,9 % du prix de revient (43,13 €) : sous ce niveau, elle devient une seconde réserve de moins-value pour le CTO.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": []
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "Lundi 67,06 € (+0,3 %). Vendredi, ASTS −10,5 % après l'achat par SpaceX du spectre 800 MHz qu'AST visait (déjà commenté le 9/10).",
+    "these": "Inchangé : la ligne sert surtout de moins-value (~1 680 € sur 61 parts à 67,06 €, PMP 94,55 €), de quoi effacer les 1 440 € de plus-values 2026.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Vendre 61 parts à 66 € (≈ 4 030 €), conseil n° 2 ; annuler l'ancien ordre n° 1 à 69,50 €.",
+    "sources": [
+     15
+    ]
+   },
+   {
+    "isin": "FR0011550185",
+    "cause": "Lundi 35,46 € (+0,4 %) quand le S&P 500 finit à 7 807 (−0,06 %) : l'écart vient de la clôture européenne, avant le repli de Wall Street. Vendredi, Amazon +3,3 % (Prime Big Deal Days).",
+    "these": "Thèse intacte : ligne la plus diversifiée, elle a amorti lundi la chute de la Corée.",
+    "verdict": "rien à faire",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     11,
+     12
+    ]
+   },
+   {
+    "isin": "NL0000235190",
+    "cause": "Lundi 188,14 € (+0,18 %, plage 187,42–188,74 €) : pas d'annonce, mouvement de marché.",
+    "these": "Rien avant le T3 du 28/10 (~313 livraisons nécessaires au T4). Concentration inchangée : ~33 % des titres.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     8
+    ]
+   }
+  ],
+  "marche": {
+   "resume": "Lundi : Dow +0,38 %, S&P 500 −0,06 % à 7 807, Nasdaq −0,44 % ; les mémoires plongent sur la concurrence chinoise, le pétrole remonte. Mardi en Asie, la Corée décroche de 7,4 %.",
+   "themes": [
+    {
+     "titre": "CXMT menace les mémoires coréennes",
+     "detail": "CXMT présente le 10/10 une DRAM 4F² et prévoit de la DDR5 serveur avant fin 2026. Micron −3,9 %, SanDisk −6 % lundi ; Samsung −7,7 %, SK hynix −8,8 % mardi. Les étrangers ont vendu 20 300 Md de wons en un mois.",
+     "sources": [
+      4,
+      6,
+      7,
+      14
+     ]
+    },
+    {
+     "titre": "Pétrole : attaques en Arabie saoudite",
+     "detail": "Nouvelles attaques sur l'Arabie saoudite et des pétroliers près d'Ormuz : Brent +2 % à ~106,8 $ lundi matin selon OilPrice. Plus de pétrole, c'est plus d'inflation avant le chiffre de mercredi.",
+     "sources": [
+      9
+     ]
+    },
+    {
+     "titre": "Saison des résultats et inflation",
+     "detail": "JPMorgan, Goldman, Citi et Wells Fargo ouvrent mardi ; inflation US mercredi (3,6 % sur un an attendu après 3,4 %) : un chiffre fort relancerait le pari d'une hausse de la Fed les 27-28/10.",
+     "sources": [
+      10
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-13",
+    "evenement": "Résultats JPMorgan, Goldman Sachs, Citigroup, Wells Fargo",
+    "enjeu": "Premier test du T3 pour le S&P 500 (finance ~13 % de l'indice)."
+   },
+   {
+    "date": "2026-10-14",
+    "evenement": "Inflation US de septembre (3,6 % attendus) ; résultats ASML",
+    "enjeu": "Un chiffre fort pousse le 10 ans vers 5,5 % (seuil du Nasdaq x2) et peut servir l'achat S&P 500 à 33,70 €."
+   },
+   {
+    "date": "2026-10-15",
+    "evenement": "Résultats de TSMC",
+    "enjeu": "Verdict sur la demande IA : décide du sort de la ligne Corée et du Nasdaq x2."
+   },
+   {
+    "date": "2026-10-21",
+    "evenement": "Résultats de Tesla",
+    "enjeu": "Poids du S&P 500 et du Nasdaq x2."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Fed (27-28/10) et T3 d'Airbus",
+    "enjeu": "Livraisons et objectif 2026 d'Airbus : déclencheur de l'arbitrage du PEG."
+   },
+   {
+    "date": "2026-10-29",
+    "evenement": "Comptes détaillés de Samsung",
+    "enjeu": "Marge de la mémoire face à CXMT : confirme ou non la thèse Corée."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "attendre",
+    "cible": "FTSE Korea (CTO), seuil de 6 200 franchi",
+    "horizon": "jusqu'à TSMC, le 15/10",
+    "pourquoi": "Révision promise sous 6 200 faite : la baisse vient d'une crainte de concurrence (CXMT), pas d'une baisse de demande ; vendre après −11 % en deux séances, c'est vendre au coupe-circuit. Alléger 1 500 € (~19 parts) si TSMC déçoit jeudi ou si le Kospi clôture sous 5 600.",
+    "risque": "Si la concurrence chinoise se confirme, un Kospi à −10 % de plus coûte ~640 € sur ~6 400 €. La ligne est encore à ~+60 % latents.",
+    "invalidation": "TSMC relève ses prévisions et le Kospi repasse 6 400 : garder la ligne entière.",
+    "confiance": "moyenne",
+    "sources": [
+     4,
+     5
+    ]
+   },
+   {
+    "action": "vendre",
+    "cible": "Space Innovators (CTO), 61 parts : vente fiscale",
+    "ticker": "JEDI.L",
+    "cours_ref": 67.06,
+    "montant_eur": 4030,
+    "prix_limite": 66.0,
+    "horizon": "avant fin octobre",
+    "pourquoi": "Maintenu depuis le 9/10 : à 66 €, moins-value ~1 740 € (PMP 94,55 €) qui efface les 1 440 € de plus-values 2026 (~430 € d'impôt évité) et laisse ~300 € de marge si la Corée est allégée. Produit à verser sur le PEA.",
+    "risque": "Rebond du spatial manqué sur 61 parts : +10 % coûterait ~400 €. Les 23,6 parts restantes gardent l'exposition.",
+    "invalidation": "Cours au-dessus de 75 € : la moins-value se réduit, chercher plutôt les terres rares sous 43,13 €.",
+    "confiance": "moyenne",
+    "sources": [
+     15
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), espèces Trade Republic",
+    "ticker": "ESE.PA",
+    "cours_ref": 35.46,
+    "montant_eur": 1000,
+    "prix_limite": 33.7,
+    "horizon": "ordre valable jusqu'à fin octobre",
+    "pourquoi": "Maintenu : 1 290 € d'espèces chez Trade Republic. La limite est 5 % sous le cours ; une inflation au-dessus de 3,6 % mercredi et un pétrole à ~106 $ peuvent offrir ce repli. Ligne qui dilue Airbus et la Corée.",
+    "risque": "Ordre non servi si le marché tient. Après achat, un S&P 500 à −10 % coûterait 100 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % en clôture : annuler l'ordre et garder les espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     9,
+     10
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA)",
+    "ticker": "AIR.PA",
+    "cours_ref": 188.14,
+    "montant_eur": 3000,
+    "prix_limite": 195,
+    "horizon": "jusqu'au T3 du 28/10",
+    "pourquoi": "Maintenu, non déclenché : 188,14 €, à 3,6 % de 195 €. Airbus pèse ~33 % des titres ; vendre ~15 actions du PEG à 195 € et placer 3 000 € sur le S&P 500 du PEA (18 734 € versés sur 150 000 €).",
+    "risque": "Si Airbus rejoint l'objectif moyen (~234 €), ~600 € de gain manqué. Prélèvements sociaux sur la plus-value du PEG.",
+    "invalidation": "Objectif de livraisons abaissé le 28/10 : ne pas vendre dans la baisse, revoir le palier.",
+    "confiance": "moyenne",
+    "sources": [
+     8
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Stock market today: Dow gains, S&P 500 and Nasdaq slip as focus turns to earnings season kickoff",
+    "media": "Yahoo Finance",
+    "url": "https://finance.yahoo.com/markets/live/stock-market-today-monday-october-12-dow-sp-500-nasdaq-080321571.html",
+    "date": "2026-10-12 22:00"
+   },
+   {
+    "id": 2,
+    "titre": "Stock Market Today, Oct. 12: Dow Gains as Memory Stocks Weigh on Nasdaq",
+    "media": "Motley Fool / Yahoo Finance",
+    "url": "https://finance.yahoo.com/markets/stocks/articles/stock-market-today-oct-12-212311190.html",
+    "date": "2026-10-12 21:23"
+   },
+   {
+    "id": 3,
+    "titre": "South Korea's Kospi Slumps 3.65% Below 6,400; Samsung, SK Hynix Drop Over 4%",
+    "media": "TradingKey",
+    "url": "https://www.tradingkey.com/analysis/stocks/more/262210977-japan-south-korea-stocks-kospi-sk-hynix-samsung-tradingkey",
+    "date": "2026-10-12"
+   },
+   {
+    "id": 4,
+    "titre": "South Korea's Kospi index sinks more than 7% on semiconductor share sell-off over AI boom worries",
+    "media": "AP / NBC News",
+    "url": "https://www.nbcnews.com/world/asia/south-korea-kospi-index-sinks-semiconductor-share-sell-ai-boom-worries-rcna603143",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 5,
+    "titre": "Kospi plunges more than 6% below 6,000 as chip selloff and oil fears hit Asian stocks",
+    "media": "investingLive",
+    "url": "https://investinglive.com/stock-market-update/kospi-plunges-more-than-6-below-6-000-as-chip-selloff-and-oil-fears-hit-asian-stocks/",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 6,
+    "titre": "Micron and SanDisk lead declines as memory sector undergoes continuous correction",
+    "media": "Futu News",
+    "url": "https://news.futunn.com/en/post/1000926157/micron-and-sandisk-lead-declines-as-memory-sector-undergoes-continuous",
+    "date": "2026-10-12"
+   },
+   {
+    "id": 7,
+    "titre": "US memory-chip stocks slide premarket; Micron and SanDisk losses widen (CXMT)",
+    "media": "BigGo Finance",
+    "url": "https://finance.biggo.com/news/824ef407-ffe8-4f53-82df-07e54aa52bd2",
+    "date": "2026-10-12"
+   },
+   {
+    "id": 8,
+    "titre": "AIRBUS : cours de l'action, clôture du 12/10",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/cours/1rPAIR/",
+    "date": "2026-10-12 17:36"
+   },
+   {
+    "id": 9,
+    "titre": "Oil Jumps 2% as Saudi Attacks and Tanker Strikes Revive Hormuz Fears",
+    "media": "OilPrice",
+    "url": "https://oilprice.com/Latest-Energy-News/World-News/Oil-Jumps-2-as-Saudi-Attacks-and-Tanker-Strikes-Revive-Hormuz-Fears.html",
+    "date": "2026-10-12"
+   },
+   {
+    "id": 10,
+    "titre": "Week Ahead: US CPI, Big Bank Earnings and TSMC in Focus",
+    "media": "Gotrade",
+    "url": "https://www.heygotrade.com/en/news/weekly-economic-outlook-2026-10-12/",
+    "date": "2026-10-11"
+   },
+   {
+    "id": 11,
+    "titre": "Amazon.com Inc Stock (AMZN) Closed Up by 3.29% on Oct 9",
+    "media": "TradingKey",
+    "url": "https://www.tradingkey.com/news/market-movers/262209293-market-movers-amzn-20261009",
+    "date": "2026-10-09"
+   },
+   {
+    "id": 12,
+    "titre": "Stock Market Today (Oct. 9, 2026): Dow, S&P 500 end week higher",
+    "media": "TheStreet",
+    "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-oct-09-2026",
+    "date": "2026-10-09"
+   },
+   {
+    "id": 13,
+    "titre": "KOSPI falls 3.7% to under 6,400",
+    "media": "AJU Press",
+    "url": "https://www.ajupress.com/view/20261012153519049",
+    "date": "2026-10-12 15:35"
+   },
+   {
+    "id": 15,
+    "titre": "Why AST SpaceMobile sank today",
+    "media": "Motley Fool / Nasdaq",
+    "url": "https://www.nasdaq.com/articles/why-ast-spacemobile-sank-today",
+    "date": "2026-10-09"
+   },
+   {
+    "id": 14,
+    "titre": "Foreign investors sell W20.3tr in Korean stocks, led by SK hynix and Samsung Electronics",
+    "media": "The Korea Herald",
+    "url": "https://www.koreaherald.com/article/10892894",
+    "date": "2026-10-12"
+   }
+  ]
+ },
+ "ordres": []
+}
