@@ -1,0 +1,289 @@
+{
+ "id": 28,
+ "periode": "jour",
+ "analyse": {
+  "titre": "Kospi −5,5 % mardi, rebond ce matin ; ASML voit la demande dépasser l'offre en 2027",
+  "ton": "mitigé",
+  "points_cles": [
+   "Mardi 13/10 (estimé, cours de l'ETF non disponibles) : Corée ~−370 € (Kospi −5,46 % à 6 035), Airbus −178 € (186,50 €). Correctif d'hier : 5 914 était un plus bas de séance.",
+   "ASML ce matin : 11,7 Md€ de ventes au T3, 14,2–15,2 Md€ visés au T4 et une offre 2027-2028 qui ne couvrira pas la demande. Démenti du doute sur les dépenses IA ; Kospi +1,9 % à l'ouverture.",
+   "Inflation US à 14 h 30 : 3,6 % attendus, sous-jacent 2,4–2,5 %. Le 10 ans US (~5,21 %) reste loin du seuil de 5,5 % du Nasdaq x2 ; TSMC demain."
+  ],
+  "lignes": [
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "13/10 : Kospi −5,46 % à 6 035 (plus bas 5 911), 5e séance de baisse, sur CXMT et le doute sur les dépenses IA. 14/10 : +1,9 % à l'ouverture, Samsung +3,2 %, SK hynix +2,6 %, mais les étrangers vendent encore.",
+    "these": "La thèse mémoire est contestée, pas cassée : ASML annonce une demande de puces supérieure à l'offre jusqu'en 2028. TSMC demain tranche. Kospi encore au-dessus du seuil de 5 600.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     2,
+     3,
+     12
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "13/10 : AST SpaceMobile −9 % à 46,58 $ (plus bas sur un an) : Piper Sandler passe à « neutre » face à l'offre directe au téléphone de SpaceX. Planet Labs −4 %, Rocket Lab en baisse.",
+    "these": "Deuxième coup en 3 séances pour ASTS (~5 % de l'ETF). Le cours de l'ETF approche la limite de 66 € de la vente fiscale : elle peut être servie cette semaine.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Vendre 61 parts à 66 € (≈ 4 030 €), conseil n° 2 ; annuler l'ancien ordre n° 1 à 69,50 €.",
+    "sources": [
+     5
+    ]
+   },
+   {
+    "isin": "NL0000235190",
+    "cause": "13/10 : 186,50 € (−0,87 %) quand le CAC finit à 7 828 (−0,07 %) ; pas d'annonce trouvée, pas de cause identifiée, mouvement de marché.",
+    "these": "Inchangé avant le T3 du 28/10. Le palier de 195 € s'éloigne (+4,6 %) ; ~33 % des titres.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     4,
+     10
+    ]
+   },
+   {
+    "isin": "FR0010342592",
+    "cause": "13/10 : Nasdaq Composite −0,15 % à 27 204 ; les mémoires (Micron, SK hynix) baissent encore sur CXMT, ASML −1,2 % avant ses comptes. Le 10 ans US recule à ~5,21 % (−3 pb).",
+    "these": "Le levier tient : taux sous 5,5 %, et ASML relance la thèse IA avant l'ouverture américaine. Inflation à 14 h 30 puis TSMC jeudi.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     6,
+     11
+    ]
+   },
+   {
+    "isin": "FR0011550185",
+    "cause": "13/10 : S&P 500 7 805 (−0,02 %). JPMorgan déçoit (BPA 5,57 $ contre 5,90 $, −0,9 %) mais relève sa marge d'intérêts 2026 ; Brent 105,7 $ (−0,9 %).",
+    "these": "Thèse intacte. L'ordre à 33,70 € (−5 % environ) ne sera servi que sur une inflation nettement au-dessus de 3,6 %.",
+    "verdict": "rien à faire",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     6
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "13/10 : Lynas −2,9 % à 11,67 A$, près du plus bas sur un an (11,40 A$) ; pas de cause identifiée, mouvement de marché. Cours de l'ETF non disponible.",
+    "these": "Si la ligne repasse sous le prix de revient (43,13 €), elle devient une seconde réserve de moins-value pour le CTO.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": [
+     9
+    ]
+   }
+  ],
+  "marche": {
+   "resume": "Mardi : S&P 500 −0,02 %, Nasdaq −0,15 %, Dow −0,35 % ; banques mitigées, mémoires encore vendues. Europe : Stoxx 600 −0,1 %, CAC −0,07 %, la tech rend ses gains ; Séoul chute de 5,5 %.",
+   "themes": [
+    {
+     "titre": "ASML contredit la peur sur l'IA",
+     "detail": "T3 : 11,7 Md€ de ventes, marge brute 57,5 %, 5,0 Md€ de bénéfice ; T4 visé à 14,2–15,2 Md€. L'offre prévue pour 2027-2028 ne couvrira pas la demande, extension au-delà de +30 % à l'étude. Le titre avait perdu 1,2 % mardi.",
+     "sources": [
+      3,
+      11
+     ]
+    },
+    {
+     "titre": "Banques : JPMorgan sous les attentes",
+     "detail": "JPMorgan : bénéfice +6 % à 15,3 Md$, BPA 5,57 $ contre 5,90 $ attendus, banque d'affaires plus faible ; marge d'intérêts 2026 relevée. Action −0,9 %.",
+     "sources": [
+      1
+     ]
+    },
+    {
+     "titre": "Fed : la hausse de décembre est jouée",
+     "detail": "Les marchés voient 19 % de chances d'une hausse le 28/10 et 88 % en décembre (Kitco). Inflation 3,6 % attendue (0,6 % sur un mois, énergie) ; un sous-jacent au-dessus de 2,5 % relancerait octobre.",
+     "sources": [
+      6,
+      7
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-14",
+    "evenement": "Inflation US de septembre (14 h 30) ; réaction à ASML",
+    "enjeu": "Sous-jacent au-dessus de 2,5 % : taux en hausse, pression sur le Nasdaq x2 ; chance de servir l'achat S&P 500 à 33,70 €."
+   },
+   {
+    "date": "2026-10-15",
+    "evenement": "Résultats de TSMC",
+    "enjeu": "Décide de la Corée (allègement si déception) et conforte ou non le Nasdaq x2."
+   },
+   {
+    "date": "2026-10-21",
+    "evenement": "Résultats de Tesla",
+    "enjeu": "Poids lourd du Nasdaq x2 et du S&P 500."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Fed (27-28/10) et T3 d'Airbus",
+    "enjeu": "Livraisons et objectif 2026 : déclencheur de l'arbitrage du PEG ; hausse de taux possible."
+   },
+   {
+    "date": "2026-10-29",
+    "evenement": "Comptes détaillés de Samsung",
+    "enjeu": "Marge de la mémoire face à CXMT : confirme ou non la thèse Corée."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "attendre",
+    "cible": "FTSE Korea (CTO)",
+    "horizon": "jusqu'à TSMC, le 15/10",
+    "pourquoi": "Kospi 6 035 à la clôture, rebond de +1,9 % ce matin, et ASML annonce une demande supérieure à l'offre jusqu'en 2028 : vendre au plus bas après −9 % en deux séances serait prématuré. Alléger 1 500 € (~18 parts) si TSMC abaisse ses prévisions ou si le Kospi clôture sous 5 600.",
+    "risque": "Si CXMT fait baisser les prix de la DRAM, −10 % de plus sur le Kospi coûterait ~650 € sur ~6 450 € estimés.",
+    "invalidation": "TSMC relève ses prévisions et le Kospi repasse 6 400 : garder la ligne entière.",
+    "confiance": "moyenne",
+    "sources": [
+     2,
+     3
+    ]
+   },
+   {
+    "action": "vendre",
+    "cible": "Space Innovators (CTO), 61 parts : vente fiscale",
+    "ticker": "JEDI.L",
+    "cours_ref": 67.06,
+    "montant_eur": 4030,
+    "prix_limite": 66.0,
+    "horizon": "avant fin octobre",
+    "pourquoi": "Maintenu : la dégradation d'ASTS par Piper Sandler rapproche le cours de 66 €. Moins-value ~1 740 € (PMP 94,55 €) qui efface les 1 440 € de plus-values 2026 (~430 € d'impôt évité). Produit à verser sur le PEA. Annuler l'ordre n° 1 à 69,50 €.",
+    "risque": "Rebond du spatial manqué sur 61 parts : +10 % coûterait ~400 €. Les 23,6 parts restantes gardent l'exposition.",
+    "invalidation": "Cours au-dessus de 75 € : la moins-value se réduit, viser plutôt les terres rares sous 43,13 €.",
+    "confiance": "moyenne",
+    "sources": [
+     5
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), espèces Trade Republic",
+    "ticker": "ESE.PA",
+    "cours_ref": 35.46,
+    "montant_eur": 1000,
+    "prix_limite": 33.7,
+    "horizon": "ordre valable jusqu'à fin octobre",
+    "pourquoi": "Maintenu : 1 290 € d'espèces chez Trade Republic. Le S&P 500 tient (7 805) malgré JPMorgan ; seule une inflation forte aujourd'hui peut offrir le repli de ~5 % visé. Ligne qui dilue Airbus et la Corée.",
+    "risque": "Ordre non servi si le marché tient. Après achat, un S&P 500 à −10 % coûterait 100 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % en clôture : annuler l'ordre et garder les espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     7
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA)",
+    "ticker": "AIR.PA",
+    "cours_ref": 186.5,
+    "montant_eur": 3000,
+    "prix_limite": 195,
+    "horizon": "jusqu'au T3 du 28/10",
+    "pourquoi": "Maintenu, non déclenché : 186,50 €, à 4,6 % de 195 €. Airbus pèse ~33 % des titres ; vendre ~15 actions du PEG à 195 € et placer 3 000 € sur le S&P 500 du PEA (18 734 € versés sur 150 000 €).",
+    "risque": "Si Airbus rejoint l'objectif moyen (~231 €), ~550 € de gain manqué. Prélèvements sociaux sur la plus-value du PEG.",
+    "invalidation": "Objectif de livraisons abaissé le 28/10 : ne pas vendre dans la baisse, revoir le palier.",
+    "confiance": "moyenne",
+    "sources": [
+     4
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "id": 1,
+    "titre": "S&P 500 closes near flat after big banks post earnings and memory chip stocks decline",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/12/stock-market-today-live-updates.html",
+    "date": "2026-10-13 22:00"
+   },
+   {
+    "id": 2,
+    "titre": "KOSPI Rebounds 1.91% After Five-Day Slide",
+    "media": "Seoul Economic Daily",
+    "url": "https://en.sedaily.com/finance/2026/10/14/kospi-rebounds-191-percent-after-five-day-slide",
+    "date": "2026-10-14"
+   },
+   {
+    "id": 3,
+    "titre": "ASML reports €11.7 billion total net sales and €5.0 billion net income in Q3 2026",
+    "media": "ASML (GlobeNewswire)",
+    "url": "https://www.globenewswire.com/news-release/2026/10/14/3380319/0/en/asml-reports-11-7-billion-total-net-sales-and-5-0-billion-net-income-in-q3-2026.html",
+    "date": "2026-10-14 07:00"
+   },
+   {
+    "id": 4,
+    "titre": "Airbus SE (AIR) - cotation Euronext Paris, clôture du 13/10",
+    "media": "MarketScreener",
+    "url": "https://www.marketscreener.com/quote/stock/AIRBUS-SE-4637/",
+    "date": "2026-10-13 17:35"
+   },
+   {
+    "id": 5,
+    "titre": "AST SpaceMobile Sinks 9% as Piper Sandler Cuts to Neutral on SpaceX Direct-to-Cell Threat",
+    "media": "24/7 Wall St.",
+    "url": "https://247wallst.com/investing/2026/10/13/ast-spacemobile-sinks-9-as-piper-sandler-cuts-to-neutral-on-spacex-direct-to-cell-threat-planet-labs-drops-4-rocket-lab-slips/",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 6,
+    "titre": "Metals weaken as front-end yields, Hormuz risk offset softer dollar - Kitco PM Report",
+    "media": "Kitco",
+    "url": "https://kitco.com/news/article/2026-10-13/metals-weaken-front-end-yields-hormuz-risk-offset-softer-dollar-kitco-pm",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 7,
+    "titre": "September CPI report: What to expect",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/13/september-consumer-price-index-inflation.html",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 8,
+    "titre": "European shares hand back gains as tech valuations return to haunt",
+    "media": "The Irish Times (Reuters)",
+    "url": "https://irishtimes.com/business/2026/10/13/european-shares-hand-back-gains-as-tech-valuations-return-to-haunt",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 9,
+    "titre": "Lynas Rare Earths Ltd (LYC) cotation du 13/10",
+    "media": "Morningstar",
+    "url": "https://www.morningstar.com/stocks/xasx/lyc/quote",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 10,
+    "titre": "CAC 40 - cours et clôture",
+    "media": "Zonebourse",
+    "url": "https://www.zonebourse.com/cours/indice/CAC-40-4941/",
+    "date": "2026-10-13 18:05"
+   },
+   {
+    "id": 11,
+    "titre": "Why is ASML stock sliding today?",
+    "media": "Investing.com",
+    "url": "https://investing.com/news/stock-market-news/why-is-asml-stock-sliding-today-93CH-4945877",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 12,
+    "titre": "Japan and South Korea Stocks Rebound in Early Trading as Kospi Gains Over 1.7%",
+    "media": "TradingKey",
+    "url": "https://www.tradingkey.com/analysis/stocks/more/262215131-japan-south-korea-stocks-kospi-nikkei-softbank-sk-hynix-samsung-kioxia-tradingkey",
+    "date": "2026-10-14"
+   }
+  ]
+ },
+ "ordres": []
+}
