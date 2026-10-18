@@ -1,0 +1,317 @@
+{
+ "id": 40,
+ "periode": "semaine",
+ "analyse": {
+  "titre": "Semaine −1 407 € : puces et Corée en chute, Airbus +5,9 % ; vendre le spatial lundi",
+  "ton": "baissier",
+  "points_cles": [
+   "Semaine −1 407 € sur les titres (≈ −2,3 %) : Corée −972 €, Nasdaq x2 −570 €, terres rares −447 €, spatial −386 €, S&P 500 −225 € ; Airbus +1 193 € (198,82 €).",
+   "Cause : dette de l'IA (CDS de CoreWeave en zone de détresse) et inflation US à 3,7 %. Semi-conducteurs −11 % sur la semaine, Kospi −14,5 % : pire semaine depuis 2008.",
+   "Synchro Trade Republic en échec ce matin : exécution de l'ordre n° 3 (spatial) non vérifiable. Meta et Tesla le 21/10, Airbus et la Fed le 28/10."
+  ],
+  "lignes": [
+   {
+    "isin": "NL0000235190",
+    "cause": "+5,9 % à 198,82 € quand le CAC prend +2 % : rachats après le pré-bilan du 14/10, puis commande ferme de 75 A320neo par ACG le 16/10 (plus grosse de son histoire, livraisons 2032–2035). Paris profite de sa faible part de tech.",
+    "these": "Thèse renforcée par le carnet, mais la marge du T3 reste le risque du 28/10. Le conseil de vendre à 194,78 € a coûté ~60 € sur 15 actions : il reste juste, la ligne pèse 35,8 % des titres.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Demander le rachat de 15 actions du PEG (≈ 2 980 €) avant le 28/10, conseil n° 2.",
+    "sources": [
+     6,
+     7,
+     8
+    ]
+   },
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "−13,3 % (indice −14,5 %) : SK hynix −24,3 %, Samsung −17,8 %, pires semaines depuis 2008, sur les ventes record des étrangers, la crainte d'une bulle IA, la DRAM chinoise (CXMT) et les taux US. Coupe-circuit jeudi (−7,57 %), +2,05 % vendredi à 5 668.",
+    "these": "Plus-value latente encore +58 % (2 334 €). La règle des 5 600 a joué ; l'allègement à 78 € n'est pas servi (76,88 €). SK hynix publie le 27/10.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Alléger 19 parts, limite 78 € (≈ 1 480 €), conseil n° 3.",
+    "sources": [
+     1,
+     2
+    ]
+   },
+   {
+    "isin": "FR0010342592",
+    "cause": "−8,8 % quand le Nasdaq 100 fait −5,5 % (×2 = −11 %) : Paris a clôturé avant le −2,1 % de vendredi à New York. Micron −14,6 %, AMD −13 %, Nvidia −6,6 % : 8e baisse d'affilée des semi-conducteurs.",
+    "these": "Rattrapage négatif probable lundi (−2 à −3 %). Plus-value latente ramenée à +0,6 %. La thèse tient tant que le 10 ans US (5,10 %) reste sous 5,5 % ; test avec Meta et Tesla le 21/10.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     3,
+     4,
+     5
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "−7,6 % (REMX −11 %, l'ETF européen n'a pas tout encaissé) : Lynas −13 % sur la semaine, Pilbara −14,9 %. Détente diplomatique États-Unis–Chine en début de semaine, qui réduit la prime de rareté.",
+    "these": "Moins-value latente −93 €, sans enjeu fiscal. Thème toujours dépendant de Pékin ; rien à décider avant une nouvelle sur les exportations chinoises.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": [
+     10
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "−6,8 % à 62,30 € (indice spatial −6,4 %) : Rocket Lab −25 % (Neutron reporté à 2027), AST SpaceMobile −20 % après la dégradation de Piper Sandler (objectif 54 $, concurrence de SpaceX). SpaceX −10 % avant ses comptes du 20/10.",
+    "these": "La ligne sert d'abord de moins-value : ~1 970 € sur 61 parts à 62,30 €. Les comptes de SpaceX le 20/10 peuvent faire rebondir ou plonger le secteur : vendre avant.",
+    "verdict": "agir",
+    "confiance": "forte",
+    "action": "Passer l'ordre n° 3 (61 parts, limite 60 €) lundi s'il n'a pas été exécuté ; annuler n° 1 et n° 2. Conseil n° 1.",
+    "sources": [
+     9
+    ]
+   },
+   {
+    "isin": "FR0011550185",
+    "cause": "−1,4 % à 34,81 € (S&P 500 −1,9 %) : la tech pèse, la consommation de base (+5 %), l'énergie (+4,9 %) et la santé (+3,5 %) amortissent. Le −1,1 % de vendredi soir n'est pas encore dans le cours.",
+    "these": "Thèse intacte ; ouverture attendue vers 34,4 € lundi, la première limite d'achat. C'est la ligne qui dilue Airbus, la Corée et le levier.",
+    "verdict": "rien à faire",
+    "confiance": "moyenne",
+    "sources": [
+     4
+    ]
+   }
+  ],
+  "marche": {
+   "resume": "Rotation brutale hors de l'IA : Nasdaq 100 −5,5 %, semi-conducteurs −11 %, Kospi −14,5 %, VIX +35 % à 20. L'Europe gagne 2 % (CAC +2 %, Stoxx 600 +2,1 %) grâce à sa faible part de tech.",
+   "themes": [
+    {
+     "titre": "La dette de l'IA fait peur",
+     "detail": "Les CDS à 5 ans de CoreWeave ont dépassé 1 100 pb en cours de semaine et ses obligations rapportent près de 15 % : le marché doute que les centres de données remboursent leur dette. Micron, Intel et les mémoires coréennes en paient le prix.",
+     "sources": [
+      3,
+      15
+     ]
+    },
+    {
+     "titre": "Inflation US à 3,7 % : la Fed peut monter le 28/10",
+     "detail": "L'inflation de septembre (3,7 % contre 3,6 % attendus) a relancé l'hypothèse d'une hausse de taux. Le 10 ans recule pourtant à 5,10 % (−15 pb) avec la fuite vers la sécurité ; la Fed est en période de silence avant le 28/10.",
+     "sources": [
+      12,
+      15
+     ]
+    },
+    {
+     "titre": "La Corée, maillon faible",
+     "detail": "Ventes étrangères record sur Samsung et SK hynix, qui pèsent l'essentiel du Kospi : l'indice est 38 % sous son record mais garde +34,5 % sur 2026.",
+     "sources": [
+      1,
+      2
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-20",
+    "evenement": "Résultats de SpaceX (premiers comptes publics) et de Netflix",
+    "enjeu": "SpaceX est la 1re ligne de Space Innovators : sortir avant, la vente fiscale ne doit pas dépendre de ce pari."
+   },
+   {
+    "date": "2026-10-21",
+    "evenement": "Résultats de Meta et Tesla",
+    "enjeu": "Premier test des dépenses IA après la chute des puces : sensible pour le Nasdaq x2 (×2) et le S&P 500."
+   },
+   {
+    "date": "2026-10-23",
+    "evenement": "Indices PMI d'octobre (États-Unis, zone euro)",
+    "enjeu": "Un ralentissement net calmerait la Fed et la BCE ; une hausse des prix payés l'inverse."
+   },
+   {
+    "date": "2026-10-27",
+    "evenement": "Résultats de SK hynix",
+    "enjeu": "1re position de FTSE Korea : dira si la demande de mémoire IA tient face à CXMT."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Résultats d'Airbus (T3) et décision de la Fed",
+    "enjeu": "Marge du T3 attendue faible ; hausse de taux possible. Le rachat PEG doit être demandé avant."
+   },
+   {
+    "date": "2026-10-29",
+    "evenement": "Décision de la BCE (dépôt à 2,5 %)",
+    "enjeu": "Une nouvelle hausse est jugée probable d'ici fin 2026 si l'énergie reste chère (Brent ~110 $)."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "vendre",
+    "cible": "Space Innovators (CTO), 61 parts : vente fiscale",
+    "ticker": "JEDI.L",
+    "cours_ref": 62.3,
+    "montant_eur": 3800,
+    "prix_limite": 60.0,
+    "horizon": "lundi 19/10 à l'ouverture",
+    "pourquoi": "Ordre n° 3 déjà préparé, maintenu ; vérifier dans l'appli s'il est parti (synchro TR en échec). À 62,30 €, moins-value ~1 970 € (PMP 94,55 €) : efface les 1 440 € de plus-values 2026 (~430 € d'impôt) et l'essentiel de celle de la Corée. Sortir avant les comptes de SpaceX le 20/10.",
+    "risque": "Rebond du spatial après SpaceX : +10 % coûterait ~380 €. Les ~23,6 parts restantes gardent l'exposition.",
+    "invalidation": "Aucune avant le 31/12 tant que le cours reste sous 70 €.",
+    "confiance": "forte",
+    "sources": [
+     9
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA), 15 actions",
+    "ticker": "AIR.PA",
+    "cours_ref": 198.82,
+    "montant_eur": 2980,
+    "prix_limite": 192.0,
+    "horizon": "avant les résultats du 28/10",
+    "pourquoi": "Maintenu. +5,9 % sur la semaine et la commande ACG : on vend dans la force, pas dans la baisse. Airbus = 35,8 % des titres et 29 % du patrimoine ; 15 actions le ramènent à ~31 % des titres avant une marge du T3 annoncée faible.",
+    "risque": "Si Airbus rejoint le consensus (~218 €), ~290 € manqués. Prélèvements sociaux sur la plus-value ; règlement en quelques jours, pas de limite au PEG.",
+    "invalidation": "Airbus sous 185 € avant la demande : attendre les comptes du 28/10.",
+    "confiance": "moyenne",
+    "sources": [
+     6,
+     7,
+     14
+    ]
+   },
+   {
+    "action": "alléger",
+    "cible": "FTSE Korea (CTO), 19 parts",
+    "ticker": "FLXK.DE",
+    "cours_ref": 76.88,
+    "montant_eur": 1480,
+    "prix_limite": 78.0,
+    "horizon": "jusqu'au 26/10",
+    "pourquoi": "Maintenu : règle des 5 600 déclenchée, vendre dans un rebond (+1,5 %) plutôt qu'après une semaine à −13 %. Ligne à 10,5 % des titres et +58 % de gain ; plus-value ~560 € à 78 €, presque entièrement couverte par la vente du spatial. Garder ~4 900 € pour SK hynix le 27/10.",
+    "risque": "Rebond prolongé : +10 % coûterait ~150 € sur la part vendue. Si 78 € n'est pas atteint, rien n'est vendu.",
+    "invalidation": "Kospi au-dessus de 6 000 en clôture avant l'exécution : garder la ligne entière.",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), produit des ventes",
+    "ticker": "ESE.PA",
+    "cours_ref": 34.81,
+    "montant_eur": 5000,
+    "prix_limite": 34.4,
+    "horizon": "d'ici fin octobre",
+    "pourquoi": "Le −1,1 % de vendredi soir à Wall Street doit faire ouvrir l'ETF vers 34,4 € lundi. Verser le produit du spatial et de la Corée sur le PEA (18 734 € versés sur 150 000 €) : 2 500 € à 34,40 €, 2 500 € à 33,70 €. Espèces TR actuelles : 1 066 € seulement.",
+    "risque": "Hausse de la Fed le 28/10 et nouvelle vague sur la tech : un S&P 500 à −10 % coûterait ~500 € sur ces achats.",
+    "invalidation": "10 ans US au-dessus de 5,5 % en clôture : garder la seconde moitié en espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     4,
+     12
+    ]
+   }
+  ],
+  "bilan_semaine": "Titres −1 407 € (≈ −2,3 %), entre le S&P 500 (−1,9 %) et le Nasdaq 100 (−5,5 %), loin du CAC (+2 %). Sans Airbus (+1 193 €), le reste du portefeuille perd ~2 600 € (≈ −6,3 %) : les paris IA, Corée, spatial et terres rares (38 % des titres) ont fait toute la baisse. Patrimoine 73 647 €, +4 750 € sur 30 jours. Concentration : Airbus 35,8 % des titres, 29 % du patrimoine ; la semaine montre qu'il amortit, mais un T3 décevant le 28/10 coûterait ~2 150 € à −10 %. Fiscalité avant le 31/12 : 1 440 € de plus-values réalisées sur le CTO (PFU ~435 €). La vente de 61 parts du spatial (~−1 970 €) les efface ; avec l'allègement coréen (~+560 €), le solde reste neutre à ~30 € près. Le PEA (18 734 € versés) doit recevoir le produit des ventes. Verdicts passés : la vente d'Airbus à 194,78 € coûte ~60 € à ce jour ; l'allègement coréen à 79 puis 78 € n'est pas servi.",
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Samsung, SK hynix suffer worst weekly stock rout since 2008",
+    "media": "The Korea Herald",
+    "url": "https://www.koreaherald.com/article/10906189",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 2,
+    "titre": "KOSPI Logs Worst Week Since 2008 As Korean Chipmakers Sink",
+    "media": "Benzinga",
+    "url": "https://www.benzinga.com/markets/equities/26/10/62414195/kospi-worst-week-since-2008-sk-hynix-samsung-ai-selloff",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 3,
+    "titre": "CoreWeave credit default swaps hit distress levels as investors sour on AI debt",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/15/coreweave-credit-default-swaps-hit-distress-levels-as-investors-sour-on-ai-debt.html",
+    "date": "2026-10-15"
+   },
+   {
+    "id": 4,
+    "titre": "Nasdaq sinks more than 2% as investors raise questions about AI debt",
+    "media": "CNN",
+    "url": "https://www.cnn.com/2026/10/16/investing/tech-stocks-ai-coreweave",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 5,
+    "titre": "Chip index SOX posts longest losing streak as AI worries deepen",
+    "media": "Investing.com",
+    "url": "https://www.investing.com/news/stock-market-news/chip-index-sox-posts-longest-losing-streak-since-2008-as-ai-worries-deepen-4955401",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 6,
+    "titre": "Airbus engrange une commande de 75 appareils auprès d'ACG",
+    "media": "Option Finance",
+    "url": "https://www.optionfinance.fr/info-financiere-en-continu/d/2026-10-16-airbus-engrange-une-commande-de-75-appareils-aupres-dacg.html",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 7,
+    "titre": "Aviation Capital Group: 75 Airbus A320neo family order",
+    "media": "Airways",
+    "url": "https://airwaysmag.com/new-post/aviation-capital-group-75-airbus-a320neo-family-order",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 8,
+    "titre": "Le CAC 40 fait mieux que Wall Street : le journal de la bourse",
+    "media": "Moneyvox",
+    "url": "https://www.moneyvox.fr/bourse/actualites/110881/le-cac-40-fait-mieux-que-wall-street-le-journal-de-la-bourse-du-15-octobre-2026",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 9,
+    "titre": "AST SpaceMobile Sinks 9% as Piper Sandler Cuts to Neutral on SpaceX Direct-to-Cell Threat",
+    "media": "24/7 Wall St.",
+    "url": "https://247wallst.com/investing/2026/10/13/ast-spacemobile-sinks-9-as-piper-sandler-cuts-to-neutral-on-spacex-direct-to-cell-threat-planet-labs-drops-4-rocket-lab-slips/",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 10,
+    "titre": "Lynas Slips as Sector Rout and Chinese Export Signals Muddy the Outlook",
+    "media": "ad-hoc-news",
+    "url": "https://www.ad-hoc-news.de/boerse/news/unternehmensnachrichten/lynas-slips-as-sector-rout-and-chinese-export-signals-muddy-the-outlook/70354923",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 12,
+    "titre": "Meta, Tesla earnings preview: Week of Oct. 19",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/18/meta-tesla-netflix-earnings-preview.html",
+    "date": "2026-10-18"
+   },
+   {
+    "id": 13,
+    "titre": "Taux directeur BCE & calendrier des réunions 2026",
+    "media": "Newtrading",
+    "url": "https://newtrading.fr/taux-directeur-bce",
+    "date": "2026-10"
+   },
+   {
+    "id": 14,
+    "titre": "Airbus SE : performances et cotations",
+    "media": "Zonebourse",
+    "url": "https://www.zonebourse.com/cours/action/AIRBUS-SE-4637/cotations/",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 15,
+    "titre": "Hotter Inflation Data Sent Chip Stocks Tumbling on AI Debt Fears",
+    "media": "Startup Fortune",
+    "url": "https://startupfortune.com/hotter-inflation-data-sent-chip-stocks-tumbling-on-ai-debt-fears/",
+    "date": "2026-10-14"
+   }
+  ]
+ },
+ "ordres": []
+}
