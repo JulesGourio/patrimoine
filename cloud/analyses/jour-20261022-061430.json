@@ -1,0 +1,304 @@
+{
+ "id": 45,
+ "periode": "jour",
+ "analyse": {
+  "titre": "Airbus revient à 198,78 € avant Moody's : vendre le spatial et 15 Airbus cette semaine",
+  "ton": "haussier",
+  "points_cles": [
+   "Mercredi +806 € : Airbus +563 € (+2,69 % à 198,78 €), le spatial +122 €, la Corée +85 €. Seules les terres rares reculent (−89 €).",
+   "L'Europe efface les pertes liées aux violences en France grâce aux résultats ; Kospi +3,3 % sur Super Micro. Ce matin le Kospi rechute de 2 à 4 %.",
+   "L'OAT 10 ans a touché 5 % : Moody's devrait abaisser la France vendredi (Aa3 vers A1). Ordres n° 3 (spatial) et Corée toujours pas passés : à faire."
+  ],
+  "lignes": [
+   {
+    "isin": "NL0000235190",
+    "cause": "+2,69 % à 198,78 € (CAC +1,06 %) : cité parmi les fortes hausses d'une Europe portée par les résultats, qui efface les pertes des violences en France. Aucune annonce propre à Airbus identifiée.",
+    "these": "Thèse intacte (carnet ACG). Le titre revient au cours du conseil du 16/10 (198,82 €) : attendre n'a finalement rien coûté. Moody's vendredi, Boeing le 27/10, T3 le 28/10.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Demander le rachat de 15 actions du PEG (≈ 2 980 €) avant le 28/10, conseil n° 2.",
+    "sources": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "+2,37 % (UFO +3,04 %) : SpaceX (~15 % de l'ETF) +7,8 % après son T3 (CA 14,6 Md$, +161 %) et une salve de relèvements d'objectifs (JPMorgan 240 → 500 $). L'ETF européen clôture avant Wall Street.",
+    "these": "Toujours ~84 parts : la vente fiscale n'est pas faite. À 62,60 €, la limite de 60 € de l'ordre n° 3 est servie ; le rebond SpaceX donne la fenêtre de sortie.",
+    "verdict": "agir",
+    "confiance": "forte",
+    "action": "Passer l'ordre n° 3 (61 parts, limite 60 €) aujourd'hui ; annuler n° 1 et n° 2. Conseil n° 1.",
+    "sources": [
+     7,
+     8
+    ]
+   },
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "+1,33 % à 78,38 € : rattrapage partiel du Kospi +3,29 % (5 736) ; Samsung +5,67 %, SK hynix +5,81 % après les résultats de Super Micro. Ce matin Kospi −2 à −4 % (craintes sur l'IA, prises de bénéfices).",
+    "these": "La limite de 78 € était de nouveau servie hier (78,38 €), ordre non passé une 2e fois. Avec la rechute de ce matin, elle risque d'être hors de portée aujourd'hui.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Alléger 19 parts, limite abaissée à 76 € (≈ 1 450 €), conseil n° 3.",
+    "sources": [
+     4,
+     5,
+     6
+    ]
+   },
+   {
+    "isin": "FR0010342592",
+    "cause": "+0,85 % contre +2,25 % attendu (Nasdaq 100 +1,13 % × 2) : Paris ferme avant la hausse de fin de séance de Nvidia (+2,5 %) et Tesla (+3,4 %). Hors séance, Meta +2,5 à 3 % (CA 64,6 Md$), Tesla −2 %.",
+    "these": "Rien de changé : levier sur la tech avant Microsoft et Alphabet le 28/10. Le rattrapage d'aujourd'hui dépend de Meta et Tesla en ouverture.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     9,
+     10
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "−1,64 % (REMX −1,28 %) : pas de cause identifiée, mouvement de marché. −12,8 % sur un mois.",
+    "these": "Thème spéculatif à 8,9 % des titres, −3,6 % de latent : toujours pas de catalyseur, tendance baissière. Albemarle publie le 4/11.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": []
+   }
+  ],
+  "marche": {
+   "resume": "Séance de rebond : CAC +1,06 %, Stoxx 600 +0,92 %, Nasdaq 100 +1,13 %, portés par les résultats (Randstad, Super Micro, SpaceX). Mais le 10 ans US à 5,15 % et le Brent à 110 $ restent des freins.",
+   "themes": [
+    {
+     "titre": "France : le risque souverain avant Moody's",
+     "detail": "L'OAT 10 ans a touché 5 % le 21/10, une première depuis 2002. La plupart des économistes attendent une baisse d'un cran (Aa3 vers A1) vendredi 23/10 ; Airbus a souffert lundi de ce risque France.",
+     "sources": [
+      3,
+      14
+     ]
+    },
+    {
+     "titre": "Pétrole : frappe houthie près de Shaybah",
+     "detail": "Le Brent dépasse 110 $ ce matin après un drone houthi près du champ saoudien de Shaybah (1 Mb/j). Un baril cher pèse sur les compagnies aériennes clientes d'Airbus et entretient l'inflation.",
+     "sources": [
+      11
+     ]
+    },
+    {
+     "titre": "Mémoires : un jour de répit",
+     "detail": "Super Micro dépasse ses prévisions, le Kospi reprend 3,3 % et les étrangers rachètent Samsung et SK hynix. Le rebond s'efface dès jeudi matin : la volatilité reste extrême avant leurs résultats des 27 et 28/10.",
+     "sources": [
+      4,
+      6
+     ]
+    }
+   ]
+  },
+  "idees": [
+   {
+    "ticker": "SPCX",
+    "nom": "SpaceX",
+    "these": "T3 bien au-dessus du consensus (CA +161 %, bénéfice 4,4 Md$) et prévision de CA du T1 2027 de 33 à 37 Md$ contre 22 à 25 Md$ attendus ; 9 objectifs relevés le 21/10. À regarder en direct pour garder l'exposition après la vente fiscale de l'ETF.",
+    "risque": "Capitalisation ~2 200 Md$, objectifs de 176 $ (Susquehanna) à 500 $ : très large dispersion. Fusion avec Tesla évoquée, sans détail.",
+    "sources": [
+     7,
+     8
+    ]
+   }
+  ],
+  "agenda": [
+   {
+    "date": "2026-10-23",
+    "evenement": "Moody's sur la note de la France",
+    "enjeu": "Une baisse attendue ; une surprise (perspective négative) toucherait le CAC et Airbus."
+   },
+   {
+    "date": "2026-10-27",
+    "evenement": "Résultats Boeing et SK hynix",
+    "enjeu": "Boeing éclaire la chaîne d'approvisionnement ; SK hynix pèse ~24 % de la ligne Corée."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Fed, résultats Airbus, Microsoft, Alphabet, Samsung",
+    "enjeu": "La journée la plus chargée : Airbus (35 % des titres), Nasdaq x2 et Corée."
+   },
+   {
+    "date": "2026-10-29",
+    "evenement": "PIB US T3 et inflation PCE de septembre, résultats Amazon",
+    "enjeu": "Avec le 10 ans à 5,15 %, une inflation forte pèserait sur le Nasdaq x2."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "vendre",
+    "cible": "Space Innovators (CTO), 61 parts : vente fiscale",
+    "ticker": "JEDI.L",
+    "cours_ref": 62.6,
+    "montant_eur": 3700,
+    "prix_limite": 60.0,
+    "horizon": "jeudi 22/10",
+    "pourquoi": "Ordre n° 3 maintenu, toujours pas passé (~84 parts). Le cours de 62,60 € est au-dessus de la limite : vendre dans le rebond SpaceX. À 61 €, moins-value ~2 050 € (PMP 94,55 €) qui efface les 1 440 € de plus-values 2026 et celle de la Corée (~430 € d'impôt évité).",
+    "risque": "Rebond du spatial manqué sur 61 parts (+10 % ≈ 380 €) ; les ~23 parts restantes gardent l'exposition.",
+    "invalidation": "Aucune avant le 31/12 tant que le cours reste sous 70 €.",
+    "confiance": "forte",
+    "sources": [
+     7,
+     8
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA), 15 actions",
+    "ticker": "AIR.PA",
+    "cours_ref": 198.78,
+    "montant_eur": 2980,
+    "prix_limite": 190.0,
+    "horizon": "avant les résultats du 28/10",
+    "pourquoi": "Maintenu, et le prix s'est amélioré : 198,78 € contre 193,58 € mardi. Moody's vendredi et la marge du T3 le 28/10 sont deux risques à la baisse ; 15 actions ramènent Airbus de 35,7 % à ~31 % des titres.",
+    "risque": "Bonne surprise le 28/10 (+5 % ≈ 150 € manqués sur 15 actions). Rachat PEG à la valeur liquidative : prix connu après coup.",
+    "invalidation": "Airbus sous 185 € avant la demande : attendre les comptes du 28/10.",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     3
+    ]
+   },
+   {
+    "action": "alléger",
+    "cible": "FTSE Korea (CTO), 19 parts",
+    "ticker": "FLXK.DE",
+    "cours_ref": 78.38,
+    "montant_eur": 1450,
+    "prix_limite": 76.0,
+    "horizon": "jusqu'au 26/10",
+    "pourquoi": "Limite abaissée de 78 à 76 € : 78 € était servie lundi et mercredi sans ordre passé, et le Kospi rechute de 2 à 4 % ce matin. Vendre avant SK hynix (27/10) et Samsung (28/10) ; ligne à 10,7 % des titres, +61 % de gain.",
+    "risque": "Rebond durable des mémoires manqué : +10 % sur 19 parts ≈ 145 €. Plus-value ~540 € couverte par la vente du spatial.",
+    "invalidation": "Kospi au-dessus de 6 000 en clôture avant l'exécution : garder la ligne entière.",
+    "confiance": "moyenne",
+    "sources": [
+     4,
+     6
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), produit des ventes",
+    "ticker": "ESE.PA",
+    "cours_ref": 35.01,
+    "montant_eur": 5000,
+    "prix_limite": 34.4,
+    "horizon": "d'ici fin octobre",
+    "pourquoi": "Inchangé : verser le produit du spatial et de la Corée (~5 150 €) sur le PEA (18 734 € versés sur 150 000 €). 2 500 € à 34,40 €, 2 500 € à 33,70 € si la Fed du 28/10 ou le PCE du 29/10 déçoivent. Dilue Airbus et le levier.",
+    "risque": "Si les résultats tech déçoivent, −5 % sur le S&P 500 ≈ −250 € sur 5 000 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % en clôture (5,15 % hier) : garder la seconde moitié en espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     13
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Earnings help European shares erase nearly all losses from French unrest",
+    "media": "Reuters via Business Recorder",
+    "url": "https://brecorder.com/news/40445372/earnings-help-european-shares-erase-nearly-all-losses-from-french-unrest",
+    "date": "2026-10-21 18:00"
+   },
+   {
+    "id": 2,
+    "titre": "European Stocks Close On Firm Note As Focus Shifts To Earnings",
+    "media": "RTTNews via finanzen.at",
+    "url": "https://finanzen.at/nachrichten/aktien/european-stocks-close-on-firm-note-as-focus-shifts-to-earnings-1036650505",
+    "date": "2026-10-21 18:30"
+   },
+   {
+    "id": 3,
+    "titre": "Dette française : Moody's devrait dégrader la note de la France vendredi",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/bourse/actualites/dette-francaise-l-agence-moody-s-devrait-degrader-la-note-de-la-france-vendredi-estime-la-plupart-des-economistes-2f9bf4142e1dd174c99a6f728c1c7129",
+    "date": "2026-10-21 17:34"
+   },
+   {
+    "id": 4,
+    "titre": "Kospi jumps 3.3% as Samsung, SK hynix rally on easing AI spending fears",
+    "media": "Korea JoongAng Daily",
+    "url": "https://www.koreajoongangdaily.com/business/kospi-rebounds-over-3-on-eased-ai-spending-woes/12932490",
+    "date": "2026-10-21"
+   },
+   {
+    "id": 5,
+    "titre": "Samsung Electronics, SK hynix Jump Over 5% as KOSPI Reclaims 5,700",
+    "media": "Seoul Economic Daily",
+    "url": "https://en.sedaily.com/finance/2026/10/21/samsung-electronics-sk-hynix-jump-over-5-percent-as-kospi",
+    "date": "2026-10-21"
+   },
+   {
+    "id": 6,
+    "titre": "Seoul stocks sharply down late Thursday morning amid AI concerns",
+    "media": "Korea Times",
+    "url": "https://www.koreatimes.co.kr/economy/20261022/seoul-stocks-sharply-down-late-thursday-morning-amid-ai-concerns",
+    "date": "2026-10-22 11:20"
+   },
+   {
+    "id": 7,
+    "titre": "SpaceX stock gets a slew of price target boosts after bullish earnings call",
+    "media": "Teslarati",
+    "url": "https://www.teslarati.com/spacex-spcx-price-target-boosts-bullish-earnings-call/",
+    "date": "2026-10-21"
+   },
+   {
+    "id": 8,
+    "titre": "JPMorgan raises SpaceX stock price target to $500 on growth outlook",
+    "media": "Investing.com",
+    "url": "https://www.investing.com/news/analyst-ratings/jpmorgan-raises-spacex-stock-price-target-to-500-on-growth-outlook-93CH-4962780",
+    "date": "2026-10-21"
+   },
+   {
+    "id": 9,
+    "titre": "Stocks making the biggest moves after hours: Meta, Tesla, Lam Research, IBM",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/21/stocks-making-the-biggest-moves-after-hours-meta-tsla-lrcx-ibm.html",
+    "date": "2026-10-21 22:30"
+   },
+   {
+    "id": 10,
+    "titre": "Meta (META) Q3 2026 earnings report: live updates",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/21/meta-earnings-q3-2026-live-updates.html",
+    "date": "2026-10-21 22:00"
+   },
+   {
+    "id": 11,
+    "titre": "Oil tops $110 as Houthi drone strike near Saudi Shaybah field rattles markets",
+    "media": "The National",
+    "url": "https://www.thenationalnews.com/business/energy/2026/10/22/oil-tops-110-as-houthi-drone-strike-near-saudi-shaybah-field-rattles-markets/",
+    "date": "2026-10-22 07:36"
+   },
+   {
+    "id": 12,
+    "titre": "Boeing Announces Third Quarter Deliveries (résultats T3 le 27/10)",
+    "media": "Boeing",
+    "url": "https://investors.boeing.com/investors/news/press-release-details/2026/Boeing-Announces-Third-Quarter-Deliveries/default.aspx",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 13,
+    "titre": "October 2026 U.S. Economic Calendar: CPI, Jobs & Fed",
+    "media": "fedratecalc.com",
+    "url": "https://fedratecalc.com/us-economic-calendar/october-2026/",
+    "date": "2026-10-21"
+   },
+   {
+    "id": 14,
+    "titre": "France's credit ratings (prochaine revue Moody's 23/10/2026)",
+    "media": "Agence France Trésor",
+    "url": "https://www.aft.gouv.fr/en/frances-credit-ratings",
+    "date": "2026-10-21"
+   }
+  ]
+ },
+ "ordres": []
+}
