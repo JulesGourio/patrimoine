@@ -1,0 +1,282 @@
+{
+ "id": 47,
+ "periode": "jour",
+ "analyse": {
+  "titre": "Jeudi ≈ −1 270 € sur la tech et la dette française : Moody's ce soir, vendre le spatial",
+  "ton": "baissier",
+  "points_cles": [
+   "Jeudi 22/10 ≈ −1 270 € hors S&P 500 (cours manquant) : Airbus −424 €, Nasdaq x2 −279 €, Corée −223 €, spatial −188 €, terres rares −152 €. Le gain de mercredi est effacé.",
+   "Cause : Meta −7 % (investissements 135–145 Md$, flux de trésorerie négatif), Nasdaq −2,6 %, Brent 113 $ (Houthis). Paris −1,39 %, OAT 10 ans 5,08 %.",
+   "Ce soir Moody's sur la France (Aa3, baisse attendue). Kospi −4 % ce matin vers 5 300 : la limite Corée de 76 € est hors de portée, ne pas la courir."
+  ],
+  "lignes": [
+   {
+    "isin": "NL0000235190",
+    "cause": "−2,01 % à 194,78 € (CAC −1,39 %) : vendu avec Paris, OAT 10 ans à 5,08 % et banques −2,5 à −4,9 % avant Moody's. Aucune annonce Airbus ; seule nouvelle : prévision de flotte cargo +46 % d'ici 2045.",
+    "these": "Thèse intacte. Le conseil du 21/10 à 198,78 € a déjà coûté ~60 € sur 15 actions en attendant ; Moody's ce soir puis le T3 le 28/10 restent les deux risques.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Demander le rachat de 15 actions du PEG (≈ 2 920 €) avant le 28/10, conseil n° 2.",
+    "sources": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "isin": "FR0010342592",
+    "cause": "≈ −4,0 % à 9,46 € (Nasdaq 100 sur la journée US ≈ −2,5 %) : Meta −7 % sur 135–145 Md$ d'investissements 2026 et un flux de trésorerie de −2,1 Md$ ; Tesla réduit ses investissements. Paris a fermé avant le creux.",
+    "these": "Le doute sur le retour de l'IA revient avant Microsoft et Alphabet le 28/10. Levier x2 : −10 % du Nasdaq ≈ −1 150 € sur la ligne. Pas de vente dans le creux.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     5,
+     6,
+     7
+    ]
+   },
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "≈ −3,5 % à 75,64 € : Kospi −3,52 % à 5 534 (SK hynix −5,5 %, Samsung −4,0 %), prises de bénéfices, fin des rachats d'actions des deux groupes, doutes sur l'IA. Ce matin Kospi −4 % vers 5 300.",
+    "these": "Le rebond de mercredi est rendu deux fois. La limite de 76 € n'est plus servie ; vendre plus bas reviendrait à vendre le creux avant les résultats des mémoires.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     8,
+     9
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "≈ −3,6 % à 60,34 € : repli de la tech américaine (Nasdaq −2,6 %) après le pic des résultats SpaceX ; pas de cause propre identifiée.",
+    "these": "Ligne non vendue (~81 parts). À 60,34 €, la limite de 60 € de l'ordre n° 3 est à 0,6 % : risque de ne plus être servie. Moins-value ~2 090 € sur 61 parts.",
+    "verdict": "agir",
+    "confiance": "forte",
+    "action": "Vendre 61 parts à cours limité 58 € (≈ 3 540 €) aujourd'hui ; annuler les ordres n° 1, 2 et 3. Conseil n° 1.",
+    "sources": [
+     7
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "≈ −2,9 % à 40,42 € : pas de cause identifiée, mouvement de marché (aversion au risque).",
+    "these": "Tendance baissière intacte, −12,8 % sur un mois avant la séance ; pas de catalyseur avant Albemarle le 4/11 et MP le 5/11.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": []
+   }
+  ],
+  "marche": {
+   "resume": "Jeudi de repli : Nasdaq −2,6 %, S&P 500 −1,2 %, Dow stable ; CAC −1,39 % à 7 811. Le doute sur la rentabilité des dépenses d'IA revient avec Meta, le pétrole et les taux français ajoutent la pression.",
+   "themes": [
+    {
+     "titre": "IA : la facture inquiète de nouveau",
+     "detail": "Meta relève le bas de sa fourchette d'investissements 2026 (135–145 Md$), ne donne pas 2027 et affiche −2,1 Md$ de flux de trésorerie : −7 %. CoreWeave −10 %. Effet direct sur Nasdaq x2, S&P 500 et Corée (mémoires).",
+     "sources": [
+      5,
+      6,
+      7
+     ]
+    },
+    {
+     "titre": "Brent à 113 $, plus haut depuis début mai",
+     "detail": "Attaques houthies sur des navires et des installations saoudiennes, évacuation du siège d'Aramco à Dhahran. Pétrole cher = taux longs sous pression, défavorable aux valeurs de croissance.",
+     "sources": [
+      10
+     ]
+    },
+    {
+     "titre": "France : OAT à 5,08 % avant Moody's",
+     "detail": "Hausse de 8 pb jeudi, banques en tête des baisses (BNP −4,9 %). Moody's rend son avis ce soir (Aa3 perspective négative) : une baisse vers A1 est le scénario majoritaire, donc en partie déjà dans les cours.",
+     "sources": [
+      2,
+      3,
+      4,
+      11
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-23",
+    "evenement": "Moody's sur la note de la France (après Bourse)",
+    "enjeu": "Une baisse est attendue ; une perspective encore négative pèserait sur Paris et Airbus lundi."
+   },
+   {
+    "date": "2026-10-27",
+    "evenement": "Résultats SK hynix",
+    "enjeu": "≈ 1 480 € d'exposition via l'ETF Corée ; dit si le recul des mémoires est justifié."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Résultats Airbus T3, Microsoft, Alphabet, Samsung ; Fed",
+    "enjeu": "Journée clé : Airbus (36 % des titres), levier Nasdaq et Corée en même temps."
+   },
+   {
+    "date": "2026-10-29",
+    "evenement": "Résultats Amazon",
+    "enjeu": "Après Meta, juge de la rentabilité des investissements IA pour S&P 500 et Nasdaq x2."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "vendre",
+    "cible": "Space Innovators (CTO), 61 parts : vente fiscale",
+    "ticker": "JEDI.L",
+    "cours_ref": 60.34,
+    "montant_eur": 3540,
+    "prix_limite": 58.0,
+    "horizon": "vendredi 23/10",
+    "pourquoi": "4e fois que le conseil est donné, toujours pas exécuté. À 60,34 € la limite de 60 € risque de ne plus passer : la baisser à 58 € garantit l'exécution. Moins-value ~2 090 € (PMP 94,55 €) qui efface les 1 440 € de plus-values 2026 (~430 € d'impôt évité).",
+    "risque": "Rebond du spatial manqué sur 61 parts (+10 % ≈ 360 €) ; les ~20 parts restantes gardent l'exposition. Vendre plus bas ne coûte rien fiscalement.",
+    "invalidation": "Aucune avant le 31/12 tant que le cours reste sous 70 €.",
+    "confiance": "forte",
+    "sources": [
+     7
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA), 15 actions",
+    "ticker": "AIR.PA",
+    "cours_ref": 194.78,
+    "montant_eur": 2920,
+    "prix_limite": 190.0,
+    "horizon": "avant les résultats du 28/10",
+    "pourquoi": "Maintenu : 36 % des titres sur une seule action, exposée au risque France (OAT 5,08 %, Moody's ce soir) et à la marge du T3 le 28/10. 15 actions ramènent le poids à ~31 % ; consensus à 231 € : pas une vente de conviction, une réduction de concentration.",
+    "risque": "Bonne surprise le 28/10 (+5 % ≈ 145 € manqués sur 15 actions). Rachat PEG à la valeur liquidative : prix connu après coup.",
+    "invalidation": "Airbus sous 185 € avant la demande : attendre les comptes du 28/10.",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     3
+    ]
+   },
+   {
+    "action": "attendre",
+    "cible": "FTSE Korea (CTO), allègement de 19 parts",
+    "cours_ref": 75.64,
+    "montant_eur": 1440,
+    "prix_limite": 76.0,
+    "horizon": "jusqu'au 27/10",
+    "pourquoi": "Le conseil d'alléger tient (11 % des titres, +50 % de gain) mais ne pas courir le marché : Kospi −7,6 % en deux séances. Laisser 19 parts à 76 € jusqu'aux résultats SK hynix ; sans exécution, revoir après le 28/10.",
+    "risque": "Si les mémoires déçoivent, −10 % sur la ligne ≈ −620 €. Plus-value ~500 € si exécuté, couverte par la vente du spatial.",
+    "invalidation": "Kospi sous 5 000 en clôture : la baisse devient une tendance, alléger au marché.",
+    "confiance": "moyenne",
+    "sources": [
+     8,
+     9
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), produit des ventes",
+    "ticker": "ESE.PA",
+    "cours_ref": 35.01,
+    "montant_eur": 2500,
+    "prix_limite": 34.4,
+    "horizon": "d'ici fin octobre",
+    "pourquoi": "Première tranche de 2 500 € à 34,40 € dès que le spatial est vendu (S&P 500 −1,2 % jeudi : la limite se rapproche ; cours du 22/10 manquant, 35,01 € le 21/10). Seconde tranche à 33,70 € après Fed et PCE. PEA : 18 734 € versés sur 150 000 €.",
+    "risque": "Si les résultats tech déçoivent, −5 % sur le S&P 500 ≈ −125 € sur 2 500 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % en clôture : garder la seconde moitié en espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     7
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Airbus : cours et séance du 22/10",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/cours/1rPAIR/",
+    "date": "2026-10-22 17:35"
+   },
+   {
+    "id": 2,
+    "titre": "La Bourse de Paris termine dans le rouge, la dette française flambe",
+    "media": "Boursorama (AFP)",
+    "url": "https://www.boursorama.com/bourse/actualites/la-bourse-de-paris-termine-dans-le-rouge-la-dette-francaise-flambe-269950711b8efffbd5f1751d7c2d7282",
+    "date": "2026-10-22 19:09"
+   },
+   {
+    "id": 3,
+    "titre": "Notation de la France : un maintien de la note par Moody's jugé peu probable",
+    "media": "Boursorama (AFP)",
+    "url": "https://www.boursorama.com/bourse/actualites/notation-de-la-france-un-maintien-de-la-note-par-moody-s-juge-peu-probable-ac1b80e40c12cf716c6c9eb73260e1e0",
+    "date": "2026-10-23 00:34"
+   },
+   {
+    "id": 4,
+    "titre": "France's credit ratings (calendrier des agences)",
+    "media": "Agence France Trésor",
+    "url": "https://www.aft.gouv.fr/en/frances-credit-ratings",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 5,
+    "titre": "Meta stock sinks nearly 7% as AI spend pushes free cash flow negative",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/22/meta-stock-q3-earnings-free-cash-flow.html",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 6,
+    "titre": "Nasdaq Futures Drop Over 1% as AI Worries Resurface, Oil Climbs",
+    "media": "US News (Reuters)",
+    "url": "https://money.usnews.com/investing/news/articles/2026-10-22/nasdaq-futures-drop-over-1-as-ai-worries-resurface-oil-climbs",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 7,
+    "titre": "S&P 500, Nasdaq Fall After Tesla and Meta Earnings",
+    "media": "Coinpaper",
+    "url": "https://coinpaper.com/37726/stock-market-today-s-and-p-500-nasdaq-fall-after-tesla-and-meta-earnings",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 8,
+    "titre": "Kospi falls 3.5% as Samsung Electronics, SK hynix slide on AI investment worries",
+    "media": "Korea JoongAng Daily",
+    "url": "https://koreajoongangdaily.com/business/kospi-declines-over-3-on-profittaking-due-to-persistent-ai-concerns/12934263",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 9,
+    "titre": "KOSPI Drops More Than 4% Intraday on US AI Shock, Briefly Slips Below 5,300",
+    "media": "Bloomingbit",
+    "url": "https://en.bloomingbit.io/feed/news/122779",
+    "date": "2026-10-23"
+   },
+   {
+    "id": 10,
+    "titre": "Brent at 5 month high on escalating Middle East conflict",
+    "media": "RTÉ",
+    "url": "https://www.rte.ie/news/business/2026/1022/1596480-world-oil-prices/",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 11,
+    "titre": "Crédit Agricole, Société Générale et BNP Paribas font chuter le CAC 40",
+    "media": "Moneyvox",
+    "url": "https://www.moneyvox.fr/bourse/actualites/110955/credit-agricole-societe-generale-et-bnp-paribas-font-chuter-le-cac-40-le-journal-de-la-bourse-du-22-octobre",
+    "date": "2026-10-22"
+   }
+  ]
+ },
+ "ordres": [
+  {
+   "sens": "vente",
+   "titre": "VanEck Space Innovators UCITS ETF (Acc) — 61 parts",
+   "justification": "Vente fiscale avant le 31/12 : à 60,34 € (22/10), la limite de 60 € de l'ordre n° 3 risque de ne plus être servie. À 58 €, moins-value ~2 230 € (PMP 94,55 €) qui efface les 1 440 € de plus-values 2026. Remplace les ordres n° 1, 2 et 3, à annuler. Produit à verser sur le PEA (S&P 500).",
+   "risques": "Rebond du spatial manqué (+10 % ≈ 360 €) ; les ~20 parts restantes gardent l'exposition. Frais 1 €.",
+   "compte": "tr_cto",
+   "isin": "IE000YU9K6K2",
+   "montant_eur": 3540,
+   "limite": 58.0
+  }
+ ]
+}
