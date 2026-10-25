@@ -1,0 +1,351 @@
+{
+ "id": 52,
+ "periode": "semaine",
+ "analyse": {
+  "titre": "Semaine −1 446 € (−2,4 %), Airbus et terres rares en tête : vendre le spatial lundi",
+  "ton": "baissier",
+  "points_cles": [
+   "Semaine −1 446 € sur les titres (−2,4 %) contre S&P 500 −0,5 % et CAC −2,2 % : Airbus −689 €, terres rares −362 €, Nasdaq x2 −160 €, spatial −151 €.",
+   "Cause : Meta −9,4 % (flux de trésorerie négatif, investissements 135–145 Md$), Alphabet −6 % ; Paris plombé par la dette avant Moody's, qui a finalement maintenu Aa3.",
+   "Semaine décisive : Boeing mardi, Fed, Airbus, Microsoft, Alphabet et SK hynix mercredi, BCE jeudi. Brent 116,7 $ (+6,2 %) : risque d'inflation et de Fed dure."
+  ],
+  "lignes": [
+   {
+    "isin": "NL0000235190",
+    "cause": "−3,2 % à 192,46 € contre CAC −2,2 % : Paris vendu sur la dette (−2,19 % sur la semaine) avant Moody's ; aucune annonce Airbus. Moody's maintient Aa3 vendredi soir, soulagement possible lundi.",
+    "these": "Thèse intacte mais le T4 doit livrer 323 avions (61/mois jusqu'ici). Le conseil de vendre 15 actions (16/10, 198,82 €) a déjà épargné ~95 €. Résultats mercredi soir.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Demander lundi le rachat de 15 actions du PEG (≈ 2 890 €), conseil n° 2.",
+    "sources": [
+     5,
+     6,
+     7,
+     8
+    ]
+   },
+   {
+    "isin": "FR0011550185",
+    "cause": "−0,4 % à 34,68 €, en ligne avec le S&P 500 (−0,5 %) : jeudi −1,2 % sur Meta et les puces, vendredi −0,5 % avec le pétrole ; l'énergie (+1,6 %) et la santé (+1,5 %) ont amorti.",
+    "these": "Cœur du portefeuille, +21 % de gain latent. 10 ans US à 4,99 % (−11 pb) : pas de choc de taux. C'est la ligne à renforcer avec le produit des ventes.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Renforcer de 2 500 € à 34,40 € une fois le spatial vendu, conseil n° 4.",
+    "sources": [
+     2,
+     17
+    ]
+   },
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "−0,4 % contre Kospi −2,1 % : l'ETF cote à Londres après Séoul et intègre le rebond de vendredi (Kospi +0,3 % après −4 % en séance, EWY +0,5 % sur la semaine).",
+    "these": "Kospi −19,5 % sur un mois malgré des profits records attendus (Samsung 107 400 Md₩ au T3). SK hynix et Samsung publient mercredi-jeudi : la ligne reste à 10,7 % des titres.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Alléger 19 parts à cours limité 76 € (≈ 1 440 €) lundi, conseil n° 3.",
+    "sources": [
+     9
+    ]
+   },
+   {
+    "isin": "FR0010342592",
+    "cause": "−2,7 % contre −1,6 % attendu (Nasdaq 100 −0,8 % × 2) : Meta −9,4 % et Alphabet −6 % sur la semaine (Nasdaq −2,6 % jeudi, pire séance depuis juin) ; écart de ~1 pt dû au décalage des clôtures.",
+    "these": "Ligne à −2 % sous son prix de revient. Microsoft et Alphabet mercredi soir décident de la suite ; levier x2 : −10 % du Nasdaq ≈ −1 150 €. Ni vente dans le creux ni renfort avant.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "−6,6 % contre REMX −5,1 % : lithium en repli (fonds LIT −4 % et SQM −3,5 % jeudi), Pilbara (PLS) −12 %, MP −4,7 % ; Goldman abaisse l'objectif de MP de 65 à 57 $ le 22/10.",
+    "these": "−15,7 % sur un mois, moins-value latente 451 € : tendance baissière sans catalyseur avant Albemarle (4/11) et MP (5/11). Deuxième candidate à une vente fiscale si besoin.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": [
+     10,
+     11
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "−2,9 % contre UFO +1,5 % : SpaceX (~15 % de l'ETF) −9,1 % jeudi puis +1,9 % vendredi à 147,49 $ après le passage de clôture européenne ; double relèvement à l'achat (Phillip, 250 $).",
+    "these": "Toujours 84,62 parts (synchro Trade Republic en échec ce matin : à vérifier). À 60,52 € la limite de 58 € de l'ordre n° 4 est servie ; moins-value ~2 080 € sur 61 parts.",
+    "verdict": "agir",
+    "confiance": "forte",
+    "action": "Passer l'ordre n° 4 lundi (61 parts, limite 58 €) ; annuler n° 1, 2 et 3. Conseil n° 1.",
+    "sources": [
+     12
+    ]
+   }
+  ],
+  "marche": {
+   "resume": "Semaine d'aversion au risque : la tech recule sur le coût de l'IA (Meta), l'Europe et le Japon (Nikkei −4 %) font pire que Wall Street (S&P 500 −0,5 %). Énergie (+1,6 %) et santé (+1,5 %) résistent, Brent à 116,7 $.",
+   "themes": [
+    {
+     "titre": "Le coût de l'IA refait peur",
+     "detail": "Meta −7 % jeudi : flux de trésorerie négatif au T3 (−2,1 Md$) et investissements 2026 relevés à 135–145 Md$. Le Nasdaq perd 2,6 %, les semi-conducteurs 6,7 %, Nvidia 4,4 %. Alphabet −4,35 % du 21 au 23/10 sans annonce propre.",
+     "sources": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "titre": "Pétrole au plus haut depuis avril",
+     "detail": "Brent 116,72 $ vendredi (+3,1 %), +6,2 % sur la semaine, 3e hausse d'affilée : attaques houthies sur des sites d'Aramco et crainte de frappes américaines sur l'Iran. Risque d'inflation pour la Fed et la BCE.",
+     "sources": [
+      4
+     ]
+    },
+    {
+     "titre": "Paris sous la pression de la dette",
+     "detail": "CAC 40 −2,19 % sur la semaine avant Moody's. L'agence maintient vendredi soir la France en Aa3 (perspective négative), conditionné au budget 2027 : un risque levé à court terme.",
+     "sources": [
+      5,
+      6
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-27",
+    "evenement": "Boeing, résultats du T3 (avant Wall Street)",
+    "enjeu": "Cadence du 737 (47/mois) et certification du 777X : la concurrence d'Airbus, la veille de ses comptes."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Fed, décision à 19 h (heure de Paris)",
+    "enjeu": "Statu quo à 94 % (Kalshi) mais Warsh peut surprendre : une hausse frapperait le Nasdaq x2 et le S&P 500."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Airbus, 9 mois (après la clôture) ; Microsoft, Alphabet",
+    "enjeu": "Airbus = 35 % des titres : confirmation des 870 livraisons et de la marge. Microsoft et Alphabet pèsent sur le Nasdaq x2."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "SK hynix, résultats du T3",
+    "enjeu": "Consensus ~74 000 Md₩ de résultat d'exploitation : le moteur du Kospi et de la ligne Corée."
+   },
+   {
+    "date": "2026-10-29",
+    "evenement": "BCE (14 h 15) ; PIB US du T3 ; Samsung ; Amazon",
+    "enjeu": "Taux de dépôt attendu à 2,50 %, mais pétrole au-dessus de 100 $ : un ton dur pèserait sur Paris."
+   },
+   {
+    "date": "2026-11-03",
+    "evenement": "Élections de mi-mandat américaines ; AMD",
+    "enjeu": "Le NYT évoque des frappes sur l'Iran après le scrutin : risque pétrole et marchés."
+   },
+   {
+    "date": "2026-11-05",
+    "evenement": "MP Materials, résultats (Albemarle le 4/11)",
+    "enjeu": "Premiers catalyseurs pour la ligne terres rares, −15,7 % sur un mois."
+   },
+   {
+    "date": "2026-11-06",
+    "evenement": "Emploi américain d'octobre",
+    "enjeu": "Conditionne une hausse de la Fed le 9/12, déjà attendue par le marché."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "vendre",
+    "cible": "Space Innovators (CTO), 61 parts : vente fiscale",
+    "ticker": "JEDI.L",
+    "cours_ref": 60.52,
+    "montant_eur": 3540,
+    "prix_limite": 58.0,
+    "horizon": "lundi 26/10",
+    "pourquoi": "Ordre n° 4 déjà préparé, pas de nouvel ordre : à 60,52 € la limite de 58 € est servie. Moins-value ~2 080 € (PMP 94,55 €) qui efface les 1 440 € de plus-values 2026 et celle de la Corée (~430 € d'impôt évité). Annuler n° 1, 2 et 3.",
+    "risque": "Rebond du spatial manqué sur 61 parts (+10 % ≈ 370 €) ; 328 M d'actions SpaceX débloquées bientôt. Les ~24 parts restantes gardent l'exposition.",
+    "invalidation": "Aucune avant le 31/12 tant que le cours reste sous 70 €.",
+    "confiance": "forte",
+    "sources": [
+     12
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA), 15 actions",
+    "ticker": "AIR.PA",
+    "cours_ref": 192.46,
+    "montant_eur": 2890,
+    "prix_limite": 185.0,
+    "horizon": "lundi 26/10, avant le 28/10",
+    "pourquoi": "Maintenu depuis le 16/10 (−3,2 % depuis). Moody's lève un risque : lundi est la fenêtre avant des comptes où le T4 doit livrer 323 avions. 15 actions ramènent Airbus de 35 % à ~31 % des titres ; réduction de risque, pas vente de conviction.",
+    "risque": "Bonne surprise le 28/10 (+5 % ≈ 145 € manqués). Rachat PEG à la valeur liquidative : prix connu après coup, possiblement après les comptes.",
+    "invalidation": "Airbus sous 185 € avant la demande : attendre les comptes du 28/10.",
+    "confiance": "moyenne",
+    "sources": [
+     5,
+     7,
+     8
+    ]
+   },
+   {
+    "action": "alléger",
+    "cible": "FTSE Korea (CTO), 19 parts",
+    "ticker": "FLXK.DE",
+    "cours_ref": 76.59,
+    "montant_eur": 1440,
+    "prix_limite": 76.0,
+    "horizon": "lundi 26/10",
+    "pourquoi": "Limite de 76 € servie (76,59 €). Vendre avant SK hynix et Samsung : ligne à 10,7 % des titres, +58 % de gain, Kospi −19,5 % sur un mois. Plus-value ~530 €, couverte par la vente du spatial.",
+    "risque": "Bonnes nouvelles des mémoires mercredi : +10 % sur 19 parts ≈ 145 € manqués ; les ~63 parts restantes en profitent.",
+    "invalidation": "Kospi sous 5 300 lundi à l'ouverture : laisser la limite à 76 € sans la baisser.",
+    "confiance": "moyenne",
+    "sources": [
+     9
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), produit des ventes",
+    "ticker": "ESE.PA",
+    "cours_ref": 34.68,
+    "montant_eur": 2500,
+    "prix_limite": 34.4,
+    "horizon": "d'ici le 6/11",
+    "pourquoi": "Inchangé : 2 500 € à 34,40 € dès que le spatial est vendu (virement CTO → PEA), 2 500 € à 33,70 € si la Fed durcit le ton. PEA : 18 734 € versés sur 150 000 €. Dilue Airbus et le levier.",
+    "risque": "Si les résultats tech déçoivent : −5 % sur le S&P 500 ≈ −125 € sur 2 500 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % en clôture (4,99 % vendredi) : garder la seconde moitié en espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     13,
+     14,
+     17
+    ]
+   }
+  ],
+  "bilan_semaine": "Titres −2,4 % (−1 446 €) contre S&P 500 −0,5 %, Nasdaq 100 −0,8 %, CAC −2,2 % : le portefeuille souffre d'être européen et thématique. Patrimoine 72 134 €. Airbus fait près de la moitié de la perte (−689 €) : 35,5 % des titres, 29 % du patrimoine total. Les thèmes spéculatifs (terres rares, spatial) pèsent 17,5 % des titres et ont coûté 513 €. Fiscalité avant le 31/12 : 1 440 € de plus-values 2026 (PFU ~435 €). Vendre 61 parts du spatial (~−2 080 €) et 19 parts Corée (~+530 €) donne un solde net ~−100 € : zéro impôt, petite moins-value reportable. Les terres rares (−451 € latents) restent une réserve. Donnée manquante : synchro Trade Republic en échec le 25/10, positions et espèces TR (963 €) à confirmer ; dépenses mensuelles absentes du dossier.",
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Meta stock sinks nearly 7% as AI spend pushes free cash flow negative",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/22/meta-stock-q3-earnings-free-cash-flow.html",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 2,
+    "titre": "Stocks drop as Meta fans AI worries, Treasuries gain",
+    "media": "Reuters",
+    "url": "https://lufkindailynews.com/news_reuters/business/stocks-drop-as-meta-fans-ai-worries-treasuries-gain/article_0365a147-4a0d-5c32-86dd-9f4b72d10300.html",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 3,
+    "titre": "Alphabet Shares Fall 4.35% From Oct. 21 Through Oct. 23, Closing at $320.21",
+    "media": "TokenPost",
+    "url": "https://www.tokenpost.com/news/investing/40460",
+    "date": "2026-10-23"
+   },
+   {
+    "id": 4,
+    "titre": "Brent crude oil tops $116, a six-month high, as tensions swell in the Middle East",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/23/oil-price-brent-wti-iran-war-saudi-arabia.html",
+    "date": "2026-10-23"
+   },
+   {
+    "id": 5,
+    "titre": "Moody's maintient la note souveraine de la France à \"Aa3\"",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/actualite-economique/actualites/moody-s-maintient-la-note-souveraine-de-la-france-a-aa3-52e9ef42bff0b0b16c1ab1b8c10ca511",
+    "date": "2026-10-24 00:29"
+   },
+   {
+    "id": 6,
+    "titre": "CAC 40 : en attendant Moody's, le CAC 40 perd plus de 2 % sur la semaine",
+    "media": "BFM Bourse",
+    "url": "https://www.shango.media/bfm-bourse-cac-40-en-attendant-la-probable-degradation-de-la-note-de-la-france-par-moodys-le-cac-40-termine-en-baisse-et-perd-plus-de-2-sur-la-semaine-11977826",
+    "date": "2026-10-23"
+   },
+   {
+    "id": 7,
+    "titre": "Airbus confirms 870 deliveries",
+    "media": "ad-hoc-news",
+    "url": "https://www.ad-hoc-news.de/boerse/news/corporate-news/airbus-confirms-870-deliveries-airbus-stock-falls-1-52-percent/70397657",
+    "date": "2026-10-15"
+   },
+   {
+    "id": 8,
+    "titre": "Airbus's year-end sprint: 323 deliveries to go",
+    "media": "GP Aviation Intelligence",
+    "url": "https://gpaviationintelligence.com/2026/10/13/airbus-q4-2026-delivery-target-boeing-september-deliveries/",
+    "date": "2026-10-13"
+   },
+   {
+    "id": 9,
+    "titre": "Samsung earnings, SK hynix ADR listing to test Kospi rally this week",
+    "media": "Korea Herald",
+    "url": "https://www.koreaherald.com/article/10799594",
+    "date": "2026-10-25"
+   },
+   {
+    "id": 10,
+    "titre": "Lithium Fund Falls 3.99% as SQM Drops 3.54%",
+    "media": "Rio Times",
+    "url": "https://www.riotimesonline.com/lithium-markets-latam-thursday-october-22-2026",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 11,
+    "titre": "MP Materials stock: price target lowered to $57 from $65 at Goldman Sachs",
+    "media": "StockAnalysis",
+    "url": "https://stockanalysis.com/stocks/mp/",
+    "date": "2026-10-22"
+   },
+   {
+    "id": 12,
+    "titre": "Stock Market Today, Oct. 23: SpaceX Achieves Rare Double Upgrade to Buy",
+    "media": "Motley Fool",
+    "url": "https://www.fool.com/coverage/stock-market-today/2026/10/23/stock-market-today-oct-23-spacex-achieves-rare-double-upgrade-to-buy-on-ai-growth/",
+    "date": "2026-10-23"
+   },
+   {
+    "id": 13,
+    "titre": "Everyone expects the Fed to hold rates in October. Kevin Warsh could surprise us all",
+    "media": "CNBC",
+    "url": "https://www.cnbc.com/2026/10/16/kevin-warsh-fed-october-rate-hike-interest-rates-markets.html",
+    "date": "2026-10-16"
+   },
+   {
+    "id": 14,
+    "titre": "Fed decision in October? Odds",
+    "media": "Kalshi",
+    "url": "https://kalshi.com/markets/kxfeddecision/fed-meeting/kxfeddecision-26oct",
+    "date": "2026-10-25"
+   },
+   {
+    "id": 15,
+    "titre": "La BCE attendue sur un maintien des taux alors que l'énergie fait peser un risque d'inflation",
+    "media": "Renseignement Économique",
+    "url": "https://renseignementeconomique.fr/la-bce-attendue-sur-un-maintien-des-taux-alors-que-l-energie-fait-peser-un-risque-d-inflation",
+    "date": "2026-10-24"
+   },
+   {
+    "id": 16,
+    "titre": "Boeing (BA) — Q3 2026 Earnings Preview",
+    "media": "Hudson Labs",
+    "url": "https://www.hudson-labs.com/research/boeing-q3-2026-earnings-preview-ba-results-and-outlook",
+    "date": "2026-10-24"
+   },
+   {
+    "id": 17,
+    "titre": "S&P 500 falls 0.53% to 7622.86; 10-year yield 4.989%",
+    "media": "uCapital",
+    "url": "https://ucapital.com/en/news/markets/sp-500-falls-nasdaq-100-flat-10-year-yield-4989-6adbc7984bc7e3d4606f43cd",
+    "date": "2026-10-23"
+   }
+  ]
+ },
+ "ordres": []
+}
