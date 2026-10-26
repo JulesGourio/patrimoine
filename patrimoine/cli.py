@@ -198,7 +198,7 @@ def cmd_app(args: argparse.Namespace, settings: Settings) -> None:
 def cmd_tasks(args: argparse.Namespace, settings: Settings) -> None:
     from . import tasks
 
-    for line in tasks.install():
+    for line in (tasks.remove() if args.retirer else tasks.install()):
         print(line)
 
 
@@ -280,7 +280,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("action", nargs="?", choices=["import", "export"], default="import")
     p.set_defaults(func=cmd_cloud)
     sub.add_parser("app", help="Ouvrir le tableau de bord (le lance s'il ne tourne pas)").set_defaults(func=cmd_app)
-    sub.add_parser("taches", help="Installer les tâches planifiées Windows").set_defaults(func=cmd_tasks)
+    p = sub.add_parser("taches", help="Installer les tâches planifiées Windows")
+    p.add_argument("--retirer", action="store_true", help="Les retirer (le téléphone fait la synchro)")
+    p.set_defaults(func=cmd_tasks)
     p = sub.add_parser("cmb-csv", help="Importer les exports CSV de la CMB (RELEVE_*.csv)")
     p.add_argument("dossier", nargs="?", help="Dossier où prendre les RELEVE_*.csv (ex. Téléchargements)")
     p.set_defaults(func=cmd_cmb_csv)

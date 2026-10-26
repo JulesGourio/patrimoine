@@ -57,12 +57,15 @@ def cmb_csv(settings: Settings, files: list[Path] = ()) -> dict[str, tuple[int, 
 
     folder = settings.data_dir / "raw" / "cmb_csv"
     folder.mkdir(parents=True, exist_ok=True)
+    given = []
     for f in map(Path, files):
         if not (folder / f.name).exists():
             shutil.copyfile(f, folder / f.name)
+        given.append(folder / f.name)
+    # The exports keep their RELEVE_ name on the PC; a file picked on the phone may have been renamed.
     with db.session(settings.db_path) as con:
         db.init(con)
-        return sync.import_cmb_csv(con, sorted(folder.glob("RELEVE_*.csv")))
+        return sync.import_cmb_csv(con, sorted(set(folder.glob("RELEVE_*.csv")) | set(given)))
 
 
 def balance(settings: Settings, account: str, euros: str | float, day: str | None = None) -> int:

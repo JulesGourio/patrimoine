@@ -56,6 +56,17 @@ def analysis(period: str = "jour", settings: Settings | None = None, sync_first:
     return done.returncode
 
 
+def remove() -> list[str]:
+    """When the phone has taken over the daily sync: remove the PC's tasks, so alerts are not sent twice."""
+    out = []
+    for name in (DAILY, CLOUD, *REPLACED):
+        r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+                            f"Unregister-ScheduledTask -TaskName '{name}' -Confirm:$false -ErrorAction SilentlyContinue"],
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
+        out.append(f"{name} : {'retirée' if r.returncode == 0 else (r.stderr or r.stdout).strip()}")
+    return out
+
+
 def install() -> list[str]:
     uvw = shutil.which("uvw") or shutil.which("uv")
     if not uvw:

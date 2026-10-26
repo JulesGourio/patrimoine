@@ -13,7 +13,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from . import alerts, db, portfolio, queries
-from .categories import SPENDING
+from .categories import CATEGORIES, SPENDING
 from .config import Settings
 
 INSTRUCTIONS = (
@@ -201,9 +201,10 @@ def operations(recherche: str = "", jours: int = 90, compte: str = "", flux_type
 
 @tool
 def categoriser(transaction_id: str, categorie: str, tout_le_commercant: bool = False) -> dict:
-    """Reclasse une dépense ; avec tout_le_commercant, apprend la règle pour toutes ses lignes."""
-    if categorie not in SPENDING:
-        return {"erreur": f"catégorie inconnue, choisir parmi {SPENDING}"}
+    """Reclasse une dépense ou un revenu (catégories de dépenses ou de revenus, ex. « Remboursements ») ; avec
+    tout_le_commercant, apprend la règle pour toutes ses lignes."""
+    if categorie not in CATEGORIES:
+        return {"erreur": f"catégorie inconnue, choisir parmi {CATEGORIES}"}
     con = _con()
     row = con.execute("SELECT counterparty FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
     if not row:
@@ -350,6 +351,18 @@ def ordres_proposes(statut: str = "proposé") -> dict:
     con = _con()
     q = "SELECT * FROM order_ideas" + (" WHERE status = ?" if statut else "") + " ORDER BY created_at DESC"
     return {"ordres": [dict(r) for r in con.execute(q, (statut,) if statut else ())]}
+
+
+@tool
+def statut_ordre(id: int, statut: str) -> dict:
+    """Note ce que Jules a fait d'un ordre préparé : 'passé' (il l'a exécuté dans Trade Republic), 'abandonné', ou
+    'proposé' pour annuler. Ne passe aucun ordre."""
+    if statut not in ("proposé", "passé", "abandonné"):
+        return {"erreur": "statut : proposé, passé ou abandonné"}
+    con = _con()
+    done = con.execute("UPDATE order_ideas SET status = ? WHERE id = ?", (statut, id)).rowcount
+    con.commit()
+    return {"ok": True, "id": id, "statut": statut} if done else {"erreur": f"ordre {id} introuvable"}
 
 
 @tool

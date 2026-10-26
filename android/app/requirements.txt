@@ -1,0 +1,13 @@
+# The engine's dependencies on the phone: pyproject.toml without the PC-only ones
+# (streamlit, plotly, mcp, keyring, matplotlib). Chaquopy picks Android builds of the compiled ones.
+pandas
+python-dotenv
+pytr
+tzdata
+yfinance
+pyjwt[crypto]
+requests
+markdown
+pypdf
+defusedxml
+curl-cffi
