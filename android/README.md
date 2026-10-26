@@ -30,6 +30,11 @@ téléphone. L'appli se verrouille par empreinte ou par code après 5 minutes en
 
 ## PC et téléphone
 
+**Un seul appareil doit faire la synchro**, sinon les alertes, les analyses et le récapitulatif des investisseurs
+partent deux fois. Une fois le téléphone en service (base importée, synchro réussie), retire les tâches du PC :
+`uv run patrimoine taches --retirer`. Pour revenir au PC : `uv run patrimoine taches`. Sur le téléphone, les mails
+ne partent que si le mot de passe Gmail y est saisi.
+
 - Chaque appareil a sa propre base. Le téléphone peut devenir la base principale : Réglages → « Enregistrer
   une copie » produit un fichier à rapporter sur le PC si besoin.
 - Les deux appareils écrivent dans le même dépôt GitHub : l'export pour les routines et la lecture des

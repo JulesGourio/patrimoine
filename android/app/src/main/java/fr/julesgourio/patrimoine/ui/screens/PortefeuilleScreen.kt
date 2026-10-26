@@ -233,8 +233,8 @@ fun TitreScreen(symbole: String, onBack: () -> Unit) {
                         "Rendement du dividende",
                         when {
                             rendement == null -> "—"
-                            rendement > 1 -> number(rendement) + " %"
-                            else -> pct(rendement, sign = false)
+                            // Yahoo gives this one in percent already (0.41 = 0.41 %).
+                            else -> number(rendement) + " %"
                         },
                     )
                 }

@@ -22,8 +22,8 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -85,6 +85,7 @@ class MainActivity : FragmentActivity() {
     private var unlocked by mutableStateOf(false)
     private var leftAt = 0L
     private var prompting = false
+    private var cancelled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,7 +93,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             PatrimoineTheme {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    if (unlocked) App() else Locked(onUnlock = ::unlock)
+                    if (unlocked) App() else Locked(onUnlock = { cancelled = false; unlock() })
                 }
             }
         }
@@ -102,7 +103,12 @@ class MainActivity : FragmentActivity() {
         super.onResume()
         // Locked again after five minutes away.
         if (unlocked && leftAt > 0 && SystemClock.elapsedRealtime() - leftAt > LOCK_AFTER_MS) unlocked = false
-        if (!unlocked && !prompting) unlock()
+        if (!unlocked && !prompting && !cancelled) unlock()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        cancelled = false // back from another app: ask again
     }
 
     override fun onPause() {
@@ -126,6 +132,7 @@ class MainActivity : FragmentActivity() {
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     prompting = false // cancelled: the lock screen stays, with its button
+                    cancelled = true
                 }
             })
         prompting = true
@@ -160,8 +167,8 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 
 private val TABS = listOf(
     Tab(Routes.ACCUEIL, "Patrimoine", Icons.Filled.AccountBalance),
-    Tab(Routes.PORTEFEUILLE, "Portefeuille", Icons.Filled.ShowChart),
-    Tab(Routes.DEPENSES, "Dépenses", Icons.Filled.ReceiptLong),
+    Tab(Routes.PORTEFEUILLE, "Portefeuille", Icons.AutoMirrored.Filled.ShowChart),
+    Tab(Routes.DEPENSES, "Dépenses", Icons.AutoMirrored.Filled.ReceiptLong),
     Tab(Routes.ANALYSES, "Analyses", Icons.Filled.Insights),
     Tab(Routes.PLUS, "Plus", Icons.Filled.MoreHoriz),
 )

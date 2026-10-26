@@ -88,7 +88,11 @@ fun ReglagesScreen(nav: NavController, onBack: () -> Unit) {
                 } catch (e: Exception) {
                     return@run Reply.Err(e.message ?: "fichier illisible")
                 }
-                Engine.importFile(kind, file.absolutePath)
+                try {
+                    Engine.importFile(kind, file.absolutePath)
+                } finally {
+                    file.parentFile?.deleteRecursively()
+                }
             }
         }
 

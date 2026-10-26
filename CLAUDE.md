@@ -54,6 +54,8 @@ et la feuille de route.
   `mcp`, ni Plotly, ni keyring, ni matplotlib au chargement (`tests/test_portable.py`).
 - Appli Android : dossier `android/` (Kotlin, Jetpack Compose, Chaquopy), APK construit par GitHub Actions
   (`.github/workflows/android.yml`). Voir `android/README.md`.
+  Un seul appareil fait la synchro (sinon alertes et analyses en double) : quand le téléphone prend le relais,
+  `uv run patrimoine taches --retirer` sur le PC.
 
 - Serveur MCP local `patrimoine` (`.mcp.json`) : `patrimoine`, `positions`, `historique`, `depenses`, `flux`,
   `fiscalite`, `ventes_realisees`, `operations`, `categoriser`, `marche` (cours, fondamentaux, actualités Yahoo),

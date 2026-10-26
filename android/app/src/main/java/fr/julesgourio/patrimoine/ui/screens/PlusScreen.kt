@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.HorizontalDivider
@@ -31,7 +31,7 @@ fun PlusScreen(nav: NavController) {
             Entry(Icons.Filled.Groups, "Investisseurs", "Nouveautés, radar, fonds 13F, élus") { nav.navigate(Routes.INVESTISSEURS) }
             Entry(Icons.Filled.SwapHoriz, "Ordres préparés", "À passer toi-même dans Trade Republic") { nav.navigate(Routes.ORDRES) }
             Entry(Icons.Filled.NotificationsActive, "Alertes", "Règles et alertes déclenchées") { nav.navigate(Routes.ALERTES) }
-            Entry(Icons.Filled.ReceiptLong, "Opérations", "Recherche, recatégorisation") { nav.navigate(Routes.OPERATIONS) }
+            Entry(Icons.AutoMirrored.Filled.ReceiptLong, "Opérations", "Recherche, recatégorisation") { nav.navigate(Routes.OPERATIONS) }
             HorizontalDivider()
             Entry(Icons.Filled.Settings, "Réglages", "Comptes, imports, sauvegarde, notifications") { nav.navigate(Routes.REGLAGES) }
         }

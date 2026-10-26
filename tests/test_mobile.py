@@ -167,3 +167,16 @@ def test_analysis_detail(app):
     assert a["analyse"]["titre"] == "Séance calme"
     assert a["lignes"]["X"]["nom"] == "Airbus" and "series" not in a["lignes"]["X"]
     assert json.loads(mobile.call("analyse", '{"id": 999}'))["ok"] is False
+
+
+def test_income_lines_take_income_categories(app):
+    from patrimoine import db
+    from patrimoine.config import Settings
+
+    with db.session(Settings().db_path) as con:
+        con.execute("INSERT INTO transactions (id, account_id, date, amount_cents, flow, counterparty) VALUES "
+                    "('r1', 'cmb_courant', '2026-10-20', 2500, 'revenu', 'PAUL')")
+    ok(mobile.call("categoriser", json.dumps({"transaction_id": "r1", "categorie": "Remboursements"})))
+    with db.session(Settings().db_path) as con:
+        assert con.execute("SELECT category_override FROM transactions WHERE id = 'r1'").fetchone()[0] == "Remboursements"
+    assert json.loads(mobile.call("categoriser", json.dumps({"transaction_id": "r1", "categorie": "x"})))["ok"] is False
