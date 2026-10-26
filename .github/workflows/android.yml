@@ -45,6 +45,7 @@ jobs:
             CC="$TC/aarch64-linux-android24-clang" AR="$TC/llvm-ar" RANLIB="$TC/llvm-ranlib"
           make -j4 install
           ls -R "$GITHUB_WORKSPACE/ffi" | head -30
+          PKG_CONFIG_PATH="$GITHUB_WORKSPACE/ffi/lib/pkgconfig" pkg-config --cflags --libs libffi
       - if: steps.cache.outputs.cache-hit != 'true'
         name: Build cffi for Android
         env:
@@ -52,9 +53,10 @@ jobs:
           CIBW_BUILD: cp313-*
           CIBW_ARCHS: arm64_v8a
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_ENVIRONMENT: >-
-            CFLAGS="$CFLAGS -I${{ github.workspace }}/ffi/include"
-            LDFLAGS="$LDFLAGS -L${{ github.workspace }}/ffi/lib"
+          # cffi asks pkg-config for libffi: point it at the static Android build above.
+          PKG_CONFIG_PATH: ${{ github.workspace }}/ffi/lib/pkgconfig
+          CIBW_ENVIRONMENT_PASS_LINUX: PKG_CONFIG_PATH
+          CIBW_ENVIRONMENT: PKG_CONFIG_PATH="${{ github.workspace }}/ffi/lib/pkgconfig"
         run: |
           python -m pip install "cibuildwheel==4.3.4"
           python -m pip download --no-binary :all: --no-deps "cffi==${CFFI_VERSION}" -d src
