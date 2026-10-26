@@ -129,7 +129,7 @@ def _section(title: str) -> str:
             f'color:{INK}">{html.escape(title)}</h2>')
 
 
-def render(kind: str, facts: dict, a: dict) -> str:
+def render(kind: str, facts: dict, a: dict, with_chart: bool = True) -> str:
     e = html.escape
     weekly = kind == "hebdo"
     period = "sur 5 séances" if weekly else "sur la séance"
@@ -176,10 +176,11 @@ def render(kind: str, facts: dict, a: dict) -> str:
                 f'{e(c["confiance"])}</div></div>')
 
     out.append(_section(f"Tes lignes {period}"))
-    out.append(f'<img src="cid:lignes" width="600" alt="Variation de chaque ligne" style="width:100%;max-width:600px;'
-               f'height:auto;display:block">')
-    out.append(f'<div style="font-size:11px;color:{MUTED};margin:2px 0 10px">Barre : ta ligne (en euros). '
-               f'Trait noir : son indice (x2 pour le Nasdaq à levier, en devise locale).</div>')
+    if with_chart:
+        out.append(f'<img src="cid:lignes" width="600" alt="Variation de chaque ligne" style="width:100%;'
+                   f'max-width:600px;height:auto;display:block">')
+        out.append(f'<div style="font-size:11px;color:{MUTED};margin:2px 0 10px">Barre : ta ligne (en euros). '
+                   f'Trait noir : son indice (x2 pour le Nasdaq à levier, en devise locale).</div>')
     quiet = []
     for v in a.get("lignes", []):
         l = lines.get(v["isin"], {"nom": v["isin"], "isin": v["isin"]})
@@ -262,6 +263,10 @@ def send(kind: str, facts: dict, a: dict) -> str | None:
         if top else (a["points_cles"][0] if a["points_cles"] else ""))
     if notify.push(subject, push, priority=3, tags=["chart_with_upwards_trend"]):
         done.append("ntfy")
-    if notify.mail(subject, text(kind, facts, a), render(kind, facts, a), images={"lignes": chart(facts)}):
+    try:
+        images = {"lignes": chart(facts)}
+    except ImportError:  # no matplotlib (mobile app): the mail goes without its chart
+        images = {}
+    if notify.mail(subject, text(kind, facts, a), render(kind, facts, a, with_chart=bool(images)), images=images):
         done.append("mail")
     return "+".join(done) or None

@@ -67,6 +67,9 @@ uv run streamlit run streamlit_app.py   # tableau de bord
     récapitulatif quotidien. ✅
 11. Déclarations rapides : Form 4 et 13D/13G des fonds suivis, ETF d'ARK chaque jour, achats des dirigeants ;
     positions des fonds estimées à aujourd'hui, fil « Nouveautés » et fraîcheur de chaque source. ✅
+12. Appli Android autonome (le téléphone fait tourner le moteur, sans PC ni serveur) : moteur commun
+    (`api`, `mobile`, `imports`), secrets dans l'Android Keystore, synchro planifiée, APK construit par GitHub
+    Actions. En cours.
 
 Idées suivantes : alertes sur les achats d'élus/fonds touchant mes lignes, projection patrimoniale, crypto,
 OCR des déclarations papier, suivi des frais et de l'impôt de l'année en cours.

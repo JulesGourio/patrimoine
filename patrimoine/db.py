@@ -163,7 +163,8 @@ def now_iso() -> str:
 def connect(path: Path | str) -> sqlite3.Connection:
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(path)
+    # A sync and the screens may write at the same time (mobile app): wait for the lock instead of failing.
+    con = sqlite3.connect(path, timeout=30)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     return con
