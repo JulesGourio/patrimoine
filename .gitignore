@@ -8,3 +8,4 @@ data/
 scripts/*.ps1
 .serena/
 streamlit_*.log
+.claude/settings.local.json

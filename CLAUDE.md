@@ -22,7 +22,27 @@ et la feuille de route.
   Trade Republic sont des dépenses.
 - Secrets uniquement via `patrimoine.vault` (keyring) ; jamais dans le code, `.env` ou la base.
 - Montants en centimes entiers ; quantités de titres en REAL.
-- Lancer `uv run pytest` avant de committer.
+- Lancer `uv run pytest` avant de committer (un hook le fait aussi automatiquement et bloque le commit si un test échoue).
+
+## Façon de travailler (Claude Code)
+
+- Agents du projet (`.claude/agents/`) :
+  - `explorateur` (Haiku, lecture seule) : recherche qui demande de parcourir beaucoup de fichiers.
+  - `codeur` (Sonnet) : exécute une tâche bien délimitée du plan ; plusieurs en parallèle si les fichiers sont
+    différents. Il ne committe pas.
+  - `relecteur` (Opus, lecture seule) : relit le diff avant chaque commit d'une étape.
+- L'agent principal planifie, tranche l'architecture, découpe le travail, vérifie et committe.
+- Quand déléguer :
+  - Petite modification (un fichier, quelques lignes) : la faire soi-même, sans agent.
+  - Question sur le code dont la réponse est connue en 1 à 3 lectures : `Grep`/`Read` direct.
+  - Recherche large : `explorateur`.
+  - Chantier en plusieurs tâches indépendantes : un plan d'abord (mode plan pour les gros chantiers), puis un
+    `codeur` par tâche avec une consigne précise (fichiers, comportement attendu, tests).
+  - Fin d'étape ou changement touchant l'argent, les secrets, la synchro ou la base : `relecteur`, puis corriger
+    ce qu'il trouve avant de committer.
+- Local ou cloud : l'appli Android (SDK, téléphone branché, vraies données, MCP `patrimoine`) se fait en local ;
+  les sessions cloud servent aux tâches de code sans téléphone ni données (`.claude/hooks/session-start.sh`
+  y installe les dépendances).
 
 ## Outils
 
