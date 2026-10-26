@@ -57,7 +57,7 @@ et la feuille de route.
 
 - Serveur MCP local `patrimoine` (`.mcp.json`) : `patrimoine`, `positions`, `historique`, `depenses`, `flux`,
   `fiscalite`, `ventes_realisees`, `operations`, `categoriser`, `marche` (cours, fondamentaux, actualités Yahoo),
-  `alertes`, `regle_alerte`, `budget`, `preparer_ordre`, `ordres_proposes`, `enregistrer_rapport`, `rapports`, `faits_du_jour`, `publier_analyse`, `analyses`,
+  `alertes`, `regle_alerte`, `budget`, `preparer_ordre`, `ordres_proposes`, `statut_ordre`, `enregistrer_rapport`, `rapports`, `faits_du_jour`, `publier_analyse`, `analyses`,
   `synchroniser`, et pour les investisseurs connus (13F) `investisseurs`, `investisseur`,
   `consensus_investisseurs`, `recoupement_investisseurs`, `suivre_investisseur`, `nouveautes` (fil des déclarations
   rapides, élus, 13F et fraîcheur des sources), `positions_actuelles` (13F mis à jour), `dirigeants`, et pour les élus du Congrès

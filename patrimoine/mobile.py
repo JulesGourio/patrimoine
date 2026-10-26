@@ -168,6 +168,39 @@ def accueil(jours: int = 365) -> dict:
     return out
 
 
+@screen
+def references() -> dict:
+    """Listes des écrans : catégories de dépenses et de revenus, comptes (les livrets prennent un solde saisi)."""
+    from .categories import INCOME, SPENDING
+
+    with db.session(settings().db_path) as con:
+        db.init(con)
+        accounts = [dict(r) for r in con.execute("SELECT id, institution, name, kind FROM accounts WHERE active = 1"
+                                                 " ORDER BY institution, id")]
+    return {"categories_depenses": SPENDING, "categories_revenus": INCOME, "comptes": accounts,
+            "comptes_solde_manuel": [a["id"] for a in accounts if a["kind"] == "livret"]}
+
+
+@screen
+def analyse(id: int) -> dict:
+    """Une analyse publiée en entier (marché, thèmes, lignes, idées, conseils, sources), avec les faits utiles
+    à l'écran : nom, variation et effet en euros de chaque ligne (sans les séries de cours)."""
+    from . import briefing
+
+    with db.session(settings().db_path) as con:
+        b = briefing.load(con)
+    rows = b[b.id == int(id)]
+    if rows.empty:
+        return {"erreur": f"analyse {id} introuvable"}
+    r = rows.iloc[0]
+    facts = r.facts or {}
+    keep = ("nom", "compte", "valeur", "poids", "move", "impact_eur", "indice", "indice_move")
+    return {"id": int(r.id), "type": r.kind, "seance": r.session, "analyse": r.analysis,
+            "patrimoine": facts.get("patrimoine"),
+            "lignes": {l["isin"]: {k: l.get(k) for k in keep} for l in facts.get("lignes", []) if l.get("isin")},
+            "marche": [{k: m.get(k) for k in ("nom", "groupe", "move")} for m in facts.get("marche", [])][:12]}
+
+
 # --- Background work ------------------------------------------------------------------------------------------
 
 

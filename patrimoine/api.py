@@ -353,6 +353,18 @@ def ordres_proposes(statut: str = "proposé") -> dict:
 
 
 @tool
+def statut_ordre(id: int, statut: str) -> dict:
+    """Note ce que Jules a fait d'un ordre préparé : 'passé' (il l'a exécuté dans Trade Republic), 'abandonné', ou
+    'proposé' pour annuler. Ne passe aucun ordre."""
+    if statut not in ("proposé", "passé", "abandonné"):
+        return {"erreur": "statut : proposé, passé ou abandonné"}
+    con = _con()
+    done = con.execute("UPDATE order_ideas SET status = ? WHERE id = ?", (statut, id)).rowcount
+    con.commit()
+    return {"ok": True, "id": id, "statut": statut} if done else {"erreur": f"ordre {id} introuvable"}
+
+
+@tool
 def faits_du_jour(periode: str = "jour") -> dict:
     """Point de départ d'une analyse de marché. periode 'jour' (dernière séance) ou 'semaine' (5 séances).
     Calcule et enregistre un brouillon : lignes de Jules contre leur indice (move = variation, z = écart en

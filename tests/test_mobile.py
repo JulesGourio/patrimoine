@@ -134,3 +134,36 @@ def test_blank_secret_is_deleted(app):
     ok(mobile.set_secret("ntfy_topic", "abc"))
     assert ok(mobile.set_secret("ntfy_topic", "   ")) == {"ntfy_topic": False}
     assert store.values == {}
+
+
+def test_references_for_the_screens(app):
+    refs = ok(mobile.call("references"))
+    assert "Courses" in refs["categories_depenses"]
+    assert refs["comptes_solde_manuel"] == ["cmb_livret_a", "cmb_livret_jeune"]
+
+
+def test_order_status_is_only_a_note(app):
+    from patrimoine import api
+
+    made = api.preparer_ordre("achat", "Airbus", "test", "aucun", notifier=False)
+    assert ok(mobile.call("statut_ordre", json.dumps({"id": made["id"], "statut": "passé"})))["statut"] == "passé"
+    assert api.ordres_proposes("passé")["ordres"][0]["id"] == made["id"]
+    assert json.loads(mobile.call("statut_ordre", json.dumps({"id": 999, "statut": "passé"})))["ok"] is False
+    assert json.loads(mobile.call("statut_ordre", json.dumps({"id": made["id"], "statut": "exécute"})))["ok"] is False
+
+
+def test_analysis_detail(app):
+    from patrimoine import briefing, db
+    from patrimoine.config import Settings
+
+    with db.session(Settings().db_path) as con:
+        con.executescript(briefing.SCHEMA)
+        facts = {"lignes": [{"isin": "X", "nom": "Airbus", "move": -0.02, "impact_eur": -50, "series": [1, 2]}],
+                 "patrimoine": {"effet_marche_eur": -50}, "marche": [{"nom": "CAC 40", "groupe": "Europe", "move": 0.01}]}
+        bid = con.execute("INSERT INTO briefings (created_at, kind, session, facts, analysis) VALUES "
+                          "('2026-10-26T08:00:00+00:00', 'quotidien', '2026-10-23', ?, ?)",
+                          (json.dumps(facts), json.dumps({"titre": "Séance calme"}))).lastrowid
+    a = ok(mobile.call("analyse", json.dumps({"id": bid})))
+    assert a["analyse"]["titre"] == "Séance calme"
+    assert a["lignes"]["X"]["nom"] == "Airbus" and "series" not in a["lignes"]["X"]
+    assert json.loads(mobile.call("analyse", '{"id": 999}'))["ok"] is False
