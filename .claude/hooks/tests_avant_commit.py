@@ -12,8 +12,9 @@ import sys
 
 def main() -> int:
     try:
-        data = json.load(sys.stdin)
-    except json.JSONDecodeError:
+        # utf-8-sig : PowerShell peut préfixer l'entrée d'un BOM.
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return 0
     command = (data.get("tool_input") or {}).get("command") or ""
     if not re.search(r"\bgit\b[^;&|]*\bcommit\b", command):
