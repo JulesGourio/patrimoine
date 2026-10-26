@@ -73,6 +73,10 @@ val copyEngine by tasks.registering(Sync::class) {
     into(layout.buildDirectory.dir("python-src/patrimoine"))
 }
 tasks.named("preBuild") { dependsOn(copyEngine) }
+// Chaquopy's merge{Variant}PythonSources tasks read that copy.
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("PythonSources") }.configureEach {
+    dependsOn(copyEngine)
+}
 
 chaquopy {
     defaultConfig {
