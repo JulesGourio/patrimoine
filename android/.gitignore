@@ -6,3 +6,4 @@ local.properties
 .kotlin/
 captures/
 app/src/main/python/
+app/wheels/

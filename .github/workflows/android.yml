@@ -12,8 +12,45 @@ concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CFFI_VERSION: "2.1.1"
+
 jobs:
+  # curl_cffi (Yahoo, Trade Republic, Senate site) publishes Android wheels but needs cffi 2.x, which does not.
+  # Build it once with cibuildwheel (the standard tool for Android wheels) and keep it in the cache.
+  cffi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: wheels
+          key: cffi-${{ env.CFFI_VERSION }}-cp313-android-arm64-v1
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - if: steps.cache.outputs.cache-hit != 'true'
+        name: Build cffi for Android
+        env:
+          CIBW_PLATFORM: android
+          CIBW_BUILD: cp313-*
+          CIBW_ARCHS: arm64_v8a
+          CIBW_BUILD_VERBOSITY: 1
+        run: |
+          python -m pip install "cibuildwheel==4.3.4"
+          python -m pip download --no-binary :all: --no-deps "cffi==${CFFI_VERSION}" -d src
+          tar xzf "src/cffi-${CFFI_VERSION}.tar.gz" -C src
+          python -m cibuildwheel "src/cffi-${CFFI_VERSION}" --output-dir wheels
+          ls -l wheels
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cffi-android
+          path: wheels/*.whl
+
   apk:
+    needs: cffi
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -29,6 +66,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: cffi-android
+          path: android/app/wheels
       - uses: gradle/actions/setup-gradle@v4
       - name: Build the APK
         run: ./gradlew --no-daemon assembleDebug

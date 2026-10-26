@@ -78,6 +78,8 @@ chaquopy {
     defaultConfig {
         version = "3.13"
         pip {
+            // Wheels built by CI for packages with no Android build anywhere (cffi, see android.yml).
+            options("--find-links", file("wheels").absolutePath)
             install("-r", "requirements.txt")
         }
     }
