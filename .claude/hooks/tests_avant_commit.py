@@ -9,6 +9,10 @@ import re
 import subprocess
 import sys
 
+# `git commit` as a command (start of the line or after ; & | ( ), options such as `-C dossier` allowed;
+# not the two words inside a script or a message.
+COMMIT = re.compile(r"(?:^|[;&|(])\s*git(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+commit\b", re.MULTILINE)
+
 
 def main() -> int:
     try:
@@ -17,7 +21,7 @@ def main() -> int:
     except (json.JSONDecodeError, UnicodeDecodeError):
         return 0
     command = (data.get("tool_input") or {}).get("command") or ""
-    if not re.search(r"\bgit\b[^;&|]*\bcommit\b", command):
+    if not COMMIT.search(command):
         return 0
 
     root = os.environ.get("CLAUDE_PROJECT_DIR") or data.get("cwd") or "."

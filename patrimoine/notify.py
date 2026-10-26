@@ -3,12 +3,15 @@
 ntfy.sh no longer relays e-mail for anonymous users (error 40053), so mail goes out directly from
 Jules's Gmail account with an app password kept in the credential store (`smtp_password`).
 The ntfy topic name is the only thing protecting the push channel: it is random and kept secret.
+In the mobile app, pushes become the phone's own notifications (`set_local`, installed by `mobile.init`).
 """
 from __future__ import annotations
 
+import logging
 import secrets as pysecrets
 import smtplib
 from email.message import EmailMessage
+from typing import Callable
 
 import requests
 
@@ -16,6 +19,17 @@ from . import vault
 
 SERVER = "https://ntfy.sh"
 EMAIL = "ju.gourio@gmail.com"
+
+log = logging.getLogger(__name__)
+
+# (title, message, priority 1-5) -> shown or not. Set by the mobile app; None on the PC (ntfy).
+_local: Callable[[str, str, int], bool] | None = None
+
+
+def set_local(handler: Callable[[str, str, int], bool] | None) -> None:
+    """Send pushes to this handler (the phone's notifications) instead of ntfy."""
+    global _local
+    _local = handler
 
 
 def topic() -> str:
@@ -27,6 +41,12 @@ def topic() -> str:
 
 
 def push(title: str, message: str, priority: int = 3, tags: list[str] | None = None) -> bool:
+    if _local is not None:
+        try:
+            return bool(_local(title, message[:3900], priority))
+        except Exception:  # noqa: BLE001 - a notification must never break a sync
+            log.exception("notification locale")
+            return False
     body = {"topic": topic(), "title": title, "message": message[:3900], "priority": priority, "tags": tags or []}
     try:
         return requests.post(SERVER, json=body, timeout=20).status_code < 300
@@ -76,7 +96,7 @@ def send(title: str, message: str, priority: int = 3, tags: list[str] | None = N
     """Push, plus a mail copy when asked and configured. Returns the channels that worked, or None."""
     done = []
     if push(title, message, priority, tags):
-        done.append("ntfy")
+        done.append("ntfy" if _local is None else "téléphone")
     if email and mail(title, message, markdown_html(message) if markdown_body else None):
         done.append("mail")
     return "+".join(done) or None

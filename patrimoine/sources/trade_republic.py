@@ -12,7 +12,7 @@ import json
 import re
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import requests
 from pytr.api import TradeRepublicApi, TradeRepublicError
@@ -56,7 +56,10 @@ def api(settings: Settings) -> TradeRepublicApi:
     )
 
 
-def connect(settings: Settings, interactive: bool = False) -> TradeRepublicApi:
+def connect(settings: Settings, interactive: bool = False,
+            ask_code: Callable[[], str] | None = None) -> TradeRepublicApi:
+    """Resume the saved session, or (interactive) log in: Jules confirms in the Trade Republic app. ``ask_code``
+    gives the authenticator code when the account uses one (the terminal by default)."""
     tr = api(settings)
     if tr.resume_websession():
         return tr
@@ -69,7 +72,7 @@ def connect(settings: Settings, interactive: bool = False) -> TradeRepublicApi:
                             f"{_error_codes(e.response)}") from None
     code = None
     if tr.weblogin_needs_authenticator:
-        code = input("Code de l'application d'authentification : ")
+        code = (ask_code or (lambda: input("Code de l'application d'authentification : ")))()
     else:
         print("Confirme la connexion dans l'appli Trade Republic (2 min max)…")
     tr.complete_weblogin(code)

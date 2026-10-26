@@ -118,14 +118,12 @@ def cmd_cmb(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_balance(args: argparse.Namespace, settings: Settings) -> None:
-    from datetime import date
+    from . import imports
 
-    with db.session(settings.db_path) as con:
-        db.init(con)
-        if not con.execute("SELECT 1 FROM accounts WHERE id = ?", (args.compte,)).fetchone():
-            raise SystemExit(f"Compte inconnu : {args.compte} (voir `patrimoine comptes`)")
-        db.set_balance(con, args.compte, args.date or date.today().isoformat(),
-                       round(float(args.montant.replace(",", ".")) * 100))
+    try:
+        imports.balance(settings, args.compte, args.montant, args.date)
+    except ValueError as e:
+        raise SystemExit(f"{e} (voir `patrimoine comptes`)") from None
     print(f"Solde de {args.compte} enregistré : {args.montant} €")
 
 
@@ -205,56 +203,28 @@ def cmd_tasks(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_peg(args: argparse.Namespace, settings: Settings) -> None:
-    import shutil
-    from datetime import date
     from pathlib import Path
 
-    import pandas as pd
+    from . import imports
 
-    from . import sync
-    from .prices import history
-    from .sources import amundi
-
-    folder = settings.data_dir / "raw" / "amundi"
-    folder.mkdir(parents=True, exist_ok=True)
-    if args.dossier:  # copy new statements (AVO*.pdf) from e.g. the Downloads folder
-        for pdf in Path(args.dossier).expanduser().glob("AVO*.pdf"):
-            target = folder / pdf.name
-            if not target.exists() or target.stat().st_size != pdf.stat().st_size:
-                shutil.copyfile(pdf, target)
-    statements = amundi.load(folder)
-    if not statements:
-        raise SystemExit(f"Aucun relevé Amundi dans {folder}")
-    closes, _ = history("AIR.PA", date.fromisoformat(min(s.date for s in statements)) - pd.Timedelta(days=10))
-    rows, summary = amundi.rows(statements, lambda d: float(closes.asof(pd.Timestamp(d))) if len(closes) else None)
-    with db.session(settings.db_path) as con:
-        db.init(con)
-        new, updated = sync.import_rows(con, rows, amundi.raw_json)
-        con.execute("UPDATE positions SET quantity = ?, as_of = ?, source = 'amundi' WHERE account_id = 'peg_airbus'",
-                    (summary["total_actions"], summary["as_of"]))
-        db.set_meta(con, "peg_summary", summary)
-    print(f"{len(statements)} relevés, {new} nouvelles opérations, {updated} mises à jour : "
-          f"{summary['total_actions']:.4f} actions Airbus au {summary['as_of']}")
-    for e in summary["esop_events"]:
+    files = sorted(Path(args.dossier).expanduser().glob("AVO*.pdf")) if args.dossier else []
+    try:
+        r = imports.peg(settings, files)
+    except ValueError as e:
+        raise SystemExit(str(e)) from None
+    print(f"{r['releves']} relevés, {r['nouvelles']} nouvelles opérations, {r['mises_a_jour']} mises à jour : "
+          f"{r['actions']:.4f} actions Airbus au {r['au']}")
+    for e in r["esop"]:
         print(f"  ESOP {e['date']} : +{e['quantity']:.4f} ({e['type']})")
 
 
 def cmd_cmb_csv(args: argparse.Namespace, settings: Settings) -> None:
-    import shutil
     from pathlib import Path
 
-    from . import sync
+    from . import imports
 
-    folder = settings.data_dir / "raw" / "cmb_csv"
-    folder.mkdir(parents=True, exist_ok=True)
-    if args.dossier:  # bring the CMB exports (RELEVE_*.csv) over from e.g. the Downloads folder
-        for f in Path(args.dossier).expanduser().glob("RELEVE_*.csv"):
-            if not (folder / f.name).exists():
-                shutil.copyfile(f, folder / f.name)
-    with db.session(settings.db_path) as con:
-        db.init(con)
-        done = sync.import_cmb_csv(con, sorted(folder.glob("RELEVE_*.csv")))
-    for acc, (new, updated, first, last) in done.items():
+    files = sorted(Path(args.dossier).expanduser().glob("RELEVE_*.csv")) if args.dossier else []
+    for acc, (new, updated, first, last) in imports.cmb_csv(settings, files).items():
         print(f"{acc} : {new} nouvelles, {updated} mises à jour ({first} → {last})")
 
 

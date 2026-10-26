@@ -20,7 +20,8 @@ et la feuille de route.
 - Toujours partir des données de la base, pas d'estimation à l'aveugle ; dire quand une donnée manque.
 - Un virement entre comptes de Jules est `interne`, jamais une dépense ni un revenu. Les paiements carte
   Trade Republic sont des dépenses.
-- Secrets uniquement via `patrimoine.vault` (keyring) ; jamais dans le code, `.env` ou la base.
+- Secrets uniquement via `patrimoine.vault` (keyring sur le PC, Android Keystore dans l'appli mobile) ; jamais
+  dans le code, `.env` ou la base.
 - Montants en centimes entiers ; quantités de titres en REAL.
 - Lancer `uv run pytest` avant de committer (un hook le fait aussi automatiquement et bloque le commit si un test échoue).
 
@@ -46,6 +47,14 @@ et la feuille de route.
 
 ## Outils
 
+- Moteur commun PC / téléphone : `patrimoine/api.py` contient les outils (fonctions qui rendent du JSON) ;
+  `mcp_server.py` les expose en MCP, `mobile.py` à l'appli Android (Chaquopy), `cloud.py` les exporte. Un nouvel
+  outil se déclare une fois avec `@tool` dans `api.py`. Imports de fichiers (PEG, CSV CMB, soldes, base entière)
+  dans `imports.py`, partagés par la ligne de commande et l'appli. Le moteur ne doit importer ni Streamlit, ni
+  `mcp`, ni Plotly, ni keyring, ni matplotlib au chargement (`tests/test_portable.py`).
+- Appli Android : dossier `android/` (Kotlin, Jetpack Compose, Chaquopy), APK construit par GitHub Actions
+  (`.github/workflows/android.yml`). Voir `android/README.md`.
+
 - Serveur MCP local `patrimoine` (`.mcp.json`) : `patrimoine`, `positions`, `historique`, `depenses`, `flux`,
   `fiscalite`, `ventes_realisees`, `operations`, `categoriser`, `marche` (cours, fondamentaux, actualités Yahoo),
   `alertes`, `regle_alerte`, `budget`, `preparer_ordre`, `ordres_proposes`, `enregistrer_rapport`, `rapports`, `faits_du_jour`, `publier_analyse`, `analyses`,
@@ -66,7 +75,8 @@ et la feuille de route.
   du jour » (mar.–sam. 8 h 05) et « Patrimoine - bilan de la semaine » (dimanche 18 h 05), visibles et déclenchables
   sur claude.ai/code/routines. Elles n'ont pas accès au PC (`patrimoine/cloud.py`, `scripts/analyse_cloud.md`) :
   chaque synchro pousse `jour.json` et `semaine.json` sur la branche `donnees` (un seul commit, écrasé) ; la routine
-  pousse son analyse sur `claude/analyses` ; la tâche Windows « Patrimoine - analyses cloud » (toutes les 15 min,
+  pousse son analyse sur `claude/analyses` (accès GitHub par `git` sur le PC, par l'API GitHub avec le secret
+  `github_token` sur le téléphone ou dès qu'il est défini) ; la tâche Windows « Patrimoine - analyses cloud » (toutes les 15 min,
   `uv run patrimoine cloud`) la publie. `uv run patrimoine analyse` / `rapport` et le bouton « Nouvelle analyse »
   restent pour une analyse locale à la demande. `enregistrer_rapport` reste pour les rapports libres (Markdown).
   `uv run patrimoine taches` recrée les tâches (appel direct de `uvw`, pas de script PowerShell : l'antivirus avait
