@@ -213,3 +213,100 @@ def test_accueil_gives_per_account_and_invested_curves(app):
     assert home["courbe_titres"]["valeur"][-1] == ["2026-10-02", 1200.0]
     assert home["courbe_titres"]["cout"] == [["2026-10-01", 1000.0], ["2026-10-02", 1000.0]]
     assert home["comptes_titres"] == ["Compte-titres", "PEA"]
+
+
+def test_accueil_exposes_the_synthese(app):
+    empty = ok(mobile.call("accueil"))
+    assert "erreur" in empty["synthese"]
+
+    with db.session(mobile.settings().db_path) as con:
+        db.init(con)
+        con.execute("INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES ('cmb_courant', 'X', 'c', 'courant', 'manuel')")
+        for d in ("2026-09-01", "2026-10-02"):
+            con.execute("INSERT INTO valuations VALUES (?, 'cmb_courant', 50000, 0, 0, 0, 0)", (d,))
+    s = ok(mobile.call("accueil"))["synthese"]
+    assert s["total"] == 500.0
+    assert s["comptes"][0]["compte"] == "CMB courant" and s["comptes"][0]["groupe"] == "Liquidités"
+    assert {"apres_impots", "gains_bruts", "gains_nets", "part_investie", "depuis_1er_janvier"} <= s.keys()
+
+
+def test_cours_and_portefeuille_screen(app):
+    from patrimoine import db as _db
+    from patrimoine.config import Settings
+
+    with _db.session(Settings().db_path) as con:
+        _db.init(con)
+        con.execute("INSERT OR IGNORE INTO instruments (isin, symbol) VALUES ('FR0000000001', 'XYZ.PA')")
+        con.execute("INSERT INTO transactions (id, account_id, holding_account_id, date, amount_cents, flow, isin,"
+                    " quantity, fees_cents, raw_json) VALUES ('t1', 'tr_especes', 'tr_cto', '2026-01-05', -10100,"
+                    " 'achat_titre', 'FR0000000001', 10, 100, '{}')")
+        con.executemany("INSERT INTO prices (isin, date, close) VALUES ('FR0000000001', ?, ?)",
+                        [(f"2026-01-{d:02d}", 10.0 + d / 10) for d in range(1, 29)])
+    c = ok(mobile.call("cours", json.dumps({"isin": "XYZ.PA"})))
+    assert c["isin"] == "FR0000000001" and len(c["cours"]) == 28
+    assert c["pmp"] == pytest.approx(10.1)
+    assert c["operations"] == [{"date": "2026-01-05", "sens": "achat", "quantite": 10.0, "prix": 10.0}]
+    p = ok(mobile.call("portefeuille"))
+    assert p["positions"][0]["isin"] == "FR0000000001"
+    assert len(p["series"]["FR0000000001"]) <= 28
+    assert "patrimoine_total" in p
+    assert ok(mobile.call("cours", json.dumps({"isin": "INCONNU"})))["cours"] == []
+
+
+def _tx(con, i, acc, hold, d, cents, flow, isin, qty, fees=0):
+    con.execute("INSERT OR IGNORE INTO instruments (isin) VALUES (?)", (isin,))
+    con.execute("INSERT INTO transactions (id, account_id, holding_account_id, date, amount_cents, flow, isin, quantity,"
+                " fees_cents, raw_json) VALUES (?,?,?,?,?,?,?,?,?,'{}')", (i, acc, hold, d, cents, flow, isin, qty, fees))
+
+
+def test_cours_is_continuous_across_a_split(app):
+    from patrimoine import api
+
+    with db.session(mobile.settings().db_path) as con:
+        db.init(con)
+        _tx(con, "b1", "tr_pea", "tr_pea", "2026-06-01", -187_500, "achat_titre", "FR0000000002", 1)
+        _tx(con, "s1", "tr_pea", "tr_pea", "2026-07-10", 0, "operation_titres", "FR0000000002", 199)
+        # Yahoo back-adjusts: ~9.4 before the split as well as after.
+        con.executemany("INSERT INTO prices (isin, date, close) VALUES ('FR0000000002', ?, ?)",
+                        [("2026-06-01", 9.375), ("2026-07-08", 9.4), ("2026-07-13", 9.8)])
+    c = api.cours("FR0000000002")
+    prices = {d: p for d, p in c["cours"]}
+    assert prices["2026-07-08"] == pytest.approx(9.4) and prices["2026-07-13"] == pytest.approx(9.8)
+    assert c["operations"][0]["prix"] == pytest.approx(9.375) and c["operations"][0]["quantite"] == pytest.approx(200)
+    assert c["pmp"] == pytest.approx(1875 / 200)
+
+
+def test_synthese_gains_and_pea_five_years(app):
+    from patrimoine import api
+
+    with db.session(mobile.settings().db_path) as con:
+        db.init(con)
+        for acc, kind in (("cmb_courant", "courant"), ("tr_cto", "cto"), ("tr_pea", "pea"), ("peg_airbus", "peg"),
+                          ("tr_especes", "especes")):
+            con.execute("INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, 'X', ?, ?, 'manuel')",
+                        (acc, acc, kind))
+        for n, (isin, acc) in enumerate((("FR0000000011", "tr_cto"), ("FR0000000012", "tr_pea"),
+                                         ("FR0000000013", "peg_airbus"))):
+            _tx(con, f"t{n}", "tr_especes", acc, "2020-01-02" if acc == "tr_pea" else "2026-01-05", -10_000,
+                "achat_titre", isin, 10)
+            con.execute("INSERT INTO prices (isin, date, close) VALUES (?, '2026-10-01', 12.0)", (isin,))
+        for d in ("2026-09-01", "2026-10-02"):
+            con.execute("INSERT INTO valuations VALUES (?, 'cmb_courant', 100000, 0, 0, 0, 0)", (d,))
+    s = api.synthese()
+    assert s["gains_bruts"] == pytest.approx(60.0)
+    assert s["gains_nets"] == pytest.approx(20 * 0.7 + 40 * 0.828)
+    assert s["apres_impots"] == pytest.approx(1000 - (60 - s["gains_nets"]))
+    assert s["pea_ouverture"] == "2020-01-02" and s["pea_5_ans"] is True
+    s2 = api.synthese(avec_peg=False)
+    assert s2["gains_bruts"] == pytest.approx(40.0) and s2["gains_nets"] == pytest.approx(20 * 0.7 + 20 * 0.828)
+
+
+def test_positions_on_empty_database(app, monkeypatch):
+    import pandas as pd
+
+    from patrimoine import api, queries
+
+    monkeypatch.setattr(queries, "positions", lambda con, replayed=None: pd.DataFrame())  # init seeds a PEG line
+    assert api.positions()["positions"] == []
+    p = ok(mobile.call("portefeuille"))
+    assert p["positions"] == [] and p["series"] == {}

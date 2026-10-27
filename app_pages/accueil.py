@@ -3,7 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from patrimoine import ui
+from patrimoine import queries, ui
 from patrimoine.analytics import kind_of
 from patrimoine.categories import WINDFALLS
 
@@ -13,8 +13,7 @@ if hist.empty:
     st.stop()
 
 ORDER = ["PEA", "Compte-titres", "PEG Airbus", "Livret CMB", "Livret Jeune", "Trade Republic espèces", "CMB courant"]
-GROUP = {"PEA": "Bourse", "Compte-titres": "Bourse", "PEG Airbus": "Épargne salariale", "Livret CMB": "Livrets",
-         "Livret Jeune": "Livrets", "Trade Republic espèces": "Liquidités", "CMB courant": "Liquidités"}
+GROUP = queries.ACCOUNT_GROUPS
 
 with st.container(horizontal=True, vertical_alignment="center"):
     st.subheader("Patrimoine", icon=":material/account_balance:")

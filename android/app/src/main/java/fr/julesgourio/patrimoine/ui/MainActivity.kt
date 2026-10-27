@@ -227,6 +227,11 @@ private fun BottomBar(nav: NavHostController) {
             NavigationBarItem(
                 selected = selected,
                 onClick = {
+                    // Tapping the tab you are on closes the detail screens above it (restoreState would bring them back).
+                    if (selected) {
+                        nav.popBackStack(tab.route, inclusive = false)
+                        return@NavigationBarItem
+                    }
                     nav.navigate(tab.route) {
                         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true

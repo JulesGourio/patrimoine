@@ -177,6 +177,7 @@ def accueil(jours: int = 3650) -> dict:
         out["courbes_comptes"] = {}
         out["courbe_titres"] = {"valeur": [], "cout": []}
     out["comptes_titres"] = [queries.ACCOUNT_LABELS[a] for a in _SECURITIES_ACCOUNTS]
+    out["synthese"] = api.synthese()  # {"erreur": ...} si l'historique est vide
     last = api.analyses(1)
     out["derniere_analyse"] = (last.get("analyses") or [None])[0]
     out["ordres_proposes"] = len(api.ordres_proposes().get("ordres") or [])
@@ -342,3 +343,39 @@ def cmb_consent_finish(redirected_to: str) -> str:
 
 def test_notification() -> str:
     return _reply(lambda: {"canaux": notify.send("Test Patrimoine", "Les notifications fonctionnent.", email=False)})
+
+
+@screen
+def depenses_ecran(mois: int = 13) -> dict:
+    """Écran Dépenses en un appel : opérations des N derniers mois, totaux par mois, budgets du mois en cours,
+    revenus/dépenses/épargne par mois et liste des catégories de dépenses."""
+    from .categories import SPENDING
+
+    dep = api.depenses(mois)
+    return {"operations": api.depenses_operations(mois)["operations"], "par_mois": dep["par_mois"],
+            "mois_en_cours": dep["mois_en_cours"], "flux": api.flux(mois)["flux"], "categories": SPENDING}
+
+
+@screen
+def portefeuille() -> dict:
+    """Écran Portefeuille : lignes (comme `positions`), mini-séries de cours sur 3 mois par ISIN et patrimoine
+    total (pour dire la part d'une ligne dans le patrimoine)."""
+    import pandas as pd
+
+    from . import portfolio, queries
+
+    out = api.positions()
+    with db.session(settings().db_path) as con:
+        h = queries.history(con)
+        _, prices = portfolio.replay(con) if out["positions"] else (None, None)
+    series: dict[str, list] = {}
+    for isin in {p["isin"] for p in out["positions"]}:
+        s = prices.series.get(isin)
+        if s is None or not len(s):
+            continue
+        days = s.index[s.index >= s.index[-1] - pd.Timedelta(days=91)]
+        vals = [prices.get(isin, d) for d in days]
+        series[isin] = [round(v, 4) for v in vals if v is not None]
+    out["series"] = series
+    out["patrimoine_total"] = float(h[h.date == h.date.max()]["value"].sum()) if not h.empty else None
+    return out

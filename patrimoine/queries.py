@@ -19,6 +19,11 @@ ACCOUNT_LABELS = {
 }
 
 
+# Grouping of the accounts on the home page (PC and phone share it).
+ACCOUNT_GROUPS = {"PEA": "Bourse", "Compte-titres": "Bourse", "PEG Airbus": "Épargne salariale", "Livret CMB": "Livrets",
+                  "Livret Jeune": "Livrets", "Trade Republic espèces": "Liquidités", "CMB courant": "Liquidités"}
+
+
 def history(con: sqlite3.Connection) -> pd.DataFrame:
     """Daily value per account, in EUR (from the valuations table, see portfolio.store)."""
     df = pd.read_sql_query(
@@ -31,9 +36,10 @@ def history(con: sqlite3.Connection) -> pd.DataFrame:
     return df
 
 
-def positions(con: sqlite3.Connection) -> pd.DataFrame:
-    """Current lines with our cost basis (PMP, fees included) and the latest price."""
-    book, prices = portfolio.replay(con)
+def positions(con: sqlite3.Connection, replayed: tuple | None = None) -> pd.DataFrame:
+    """Current lines with our cost basis (PMP, fees included) and the latest price.
+    `replayed`: result of `portfolio.replay(con)` already computed by the caller."""
+    book, prices = replayed or portfolio.replay(con)
     names = dict(con.execute("SELECT isin, name FROM instruments"))
     today = pd.Timestamp.today().normalize()
     out = []
@@ -60,8 +66,8 @@ def positions(con: sqlite3.Connection) -> pd.DataFrame:
     return df
 
 
-def realised(con: sqlite3.Connection) -> pd.DataFrame:
-    book, _ = portfolio.replay(con)
+def realised(con: sqlite3.Connection, replayed: tuple | None = None) -> pd.DataFrame:
+    book, _ = replayed or portfolio.replay(con)
     df = pd.DataFrame([{
         "date": pd.Timestamp(r.date), "account": ACCOUNT_LABELS.get(r.account_id, r.account_id), "name": r.name,
         "isin": r.isin, "quantity": r.quantity, "proceeds": r.proceeds, "cost": r.cost, "gain": r.gain,

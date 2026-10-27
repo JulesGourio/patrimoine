@@ -91,8 +91,11 @@ def positions() -> dict:
     """Lignes détenues : compte, quantité, PMP (frais inclus), cours, valeur, plus-value, poids, et performance
     du cours sur 1 jour, 1 semaine, 1 mois, 3 mois, depuis le 1er janvier et 1 an."""
     con = _con()
-    pos = queries.positions(con)
-    _, prices = portfolio.replay(con)
+    replayed = portfolio.replay(con)
+    pos = queries.positions(con, replayed)
+    if pos.empty:
+        return {"positions": [], "note": "Aucune ligne détenue."}
+    prices = replayed[1]
     today = pd.Timestamp.today().normalize()
     perf = []
     for isin in pos["isin"]:
@@ -668,3 +671,123 @@ def performance_fonds() -> dict:
 
     return {"fonds": _records(investors.performance(_con()))}
 
+
+
+GROUPES = queries.ACCOUNT_GROUPS
+
+
+@tool
+def synthese(avec_peg: bool = True) -> dict:
+    """Les chiffres de l'accueil du tableau de bord : patrimoine total (30 j, 1 an, depuis le 1er janvier), après
+    impôts si tout était vendu, épargne moyenne, part investie, gains d'investissement bruts et nets d'impôt estimé
+    (PFU 30 % sur le compte-titres, les dividendes hors PEA et les intérêts ; prélèvements sociaux 17,2 % sur le PEA
+    et le PEG), et la valeur par compte avec sa variation sur 30 jours. Mêmes règles que la page Patrimoine du PC."""
+    from . import analytics
+
+    con = _con()
+    h = queries.history(con)
+    if h.empty:
+        return {"erreur": "historique vide : lancer synchroniser"}
+    if not avec_peg:
+        h = h[h.account_id != "peg_airbus"]
+    total = h.groupby("date")["value"].sum()
+    today = total.index.max()
+    at = lambda d: float(total.asof(d)) if d >= total.index.min() else None  # noqa: E731
+    now = float(total.iloc[-1])
+    jan1 = at(pd.Timestamp(today.year - 1, 12, 31))
+    year_ago = at(today - pd.DateOffset(years=1))
+    month_ago = at(today - pd.Timedelta(days=30))
+    bal = analytics.monthly_balance(con)
+    full = bal[bal.index < pd.Timestamp.today().to_period("M").to_timestamp()].tail(12)
+    last = h[h.date == today]
+    by_group = last.assign(g=last.account.map(GROUPES)).groupby("g")["value"].sum()
+    replayed = portfolio.replay(con)
+    pos = queries.positions(con, replayed)
+    real = queries.realised(con, replayed)
+    income = queries.investment_income(con)
+    ps, pfu = 0.172, 0.30
+    wrapper = (pos.groupby("account").gain.sum() if not pos.empty else pd.Series(dtype=float)).add(
+        real.groupby("account").gain.sum() if not real.empty else pd.Series(dtype=float), fill_value=0.0)
+    gain_cto, gain_pea, gain_peg = (float(wrapper.get(a, 0.0)) for a in ("Compte-titres", "PEA", "PEG Airbus"))
+    div_pea = float(income[(income.flow == "dividende") & (income.account == "PEA")].amount.sum()) if len(income) else 0.0
+    div_other = float(income[(income.flow == "dividende") & (income.account != "PEA")].amount.sum()) if len(income) else 0.0
+    interest = float(income[income.flow == "interets"].amount.sum()) if len(income) else 0.0
+    if not avec_peg:
+        gain_peg = 0.0
+    gain = gain_cto + gain_pea + gain_peg + div_pea + div_other + interest
+    net = (gain_cto + div_other + interest) * (1 - pfu) + (gain_pea + div_pea + gain_peg) * (1 - ps)
+    pea_open = queries.account_open_dates(con).get("tr_pea")
+    pea_5y = bool(pea_open and (today - pd.Timestamp(pea_open)).days >= 365.25 * 5)
+    invested = float(by_group.get("Bourse", 0) + by_group.get("Épargne salariale", 0))
+    comptes = [{"compte": r.account, "groupe": GROUPES.get(r.account), "valeur": float(r.value),
+                "var_30j": float(r.value) - float(h[(h.account == r.account)].set_index("date")["value"]
+                                                    .asof(today - pd.Timedelta(days=30)) or 0.0)}
+               for r in last.itertuples()]
+    return _clean({
+        "date": today, "total": now, "variation_30j": now - month_ago if month_ago is not None else None,
+        "depuis_1er_janvier": now - jan1 if jan1 else None, "depuis_1er_janvier_pct": now / jan1 - 1 if jan1 else None,
+        "sur_1_an": now - year_ago if year_ago else None,
+        "apres_impots": now - (gain - net), "impots_latents": gain - net,
+        "epargne_moyenne": float(full.epargne.mean()) if len(full) else None,
+        "epargne_pct_revenus": float(full.epargne.sum() / full.revenus.sum()) if full.revenus.sum() else None,
+        "part_investie": invested / now if now else None, "investi": invested,
+        "gains_bruts": gain, "gains_nets": net, "interets_et_dividendes": interest + div_pea + div_other,
+        "pea_ouverture": pea_open, "pea_5_ans": pea_5y,
+        "comptes": sorted(comptes, key=lambda c: -c["valeur"]),
+    })
+
+
+@tool
+def depenses_operations(mois: int = 13) -> dict:
+    """Toutes les dépenses des N derniers mois plus le mois en cours (même fenêtre que `depenses` et `flux`) : id,
+    date, commerçant, `contrepartie` brute (null si vide), catégorie (remplacement manuel prioritaire), indicateur
+    « modifiée » et montant en euros. Seuls les avoirs carte figurent en négatif ; les remboursements d'amis et de
+    la sécu (flux `revenu`, catégorie `Remboursements`) ne sont pas dans ces lignes."""
+    con = _con()
+    sp = queries.spending(con)
+    start = pd.Timestamp.today().to_period("M").to_timestamp() - pd.DateOffset(months=mois)
+    sp = sp[sp.month >= start].sort_values(["date", "id"], ascending=[False, True])
+    rows = [{"id": r.id, "date": r.date.date().isoformat(), "commercant": r.merchant,
+             "contrepartie": r.counterparty if isinstance(r.counterparty, str) and r.counterparty.strip() else None,
+             "categorie": r.category if isinstance(r.category, str) else "Non catégorisé",
+             "modifiee": isinstance(r.category_override, str), "montant": float(r.amount)}
+            for r in sp.itertuples()]
+    return {"operations": rows}
+
+
+@tool
+def cours(isin: str, jours: int = 400) -> dict:
+    """Série de cours d'une ligne (ISIN, ou ticker Yahoo d'un titre connu) en euros, sur l'échelle des quantités
+    détenues, le PMP de la ligne (tous comptes, frais inclus) et ses opérations (achats, ventes, saveback)."""
+    con = _con()
+    if not (len(isin) == 12 and isin[:2].isalpha() and isin[2:].isalnum()):
+        row = con.execute("SELECT isin FROM instruments WHERE symbol = ?", (isin,)).fetchone()
+        isin = row["isin"] if row else isin
+    txs = portfolio.rows(con)
+    book, prices = portfolio.replay(con)
+    s = prices.series.get(isin)
+    points: list[list] = []
+    today_factor = prices.factors[isin][-1][1] if s is not None and len(s) else 1.0
+    later_splits = sorted((d, r) for (i, d), r in prices.split_ratio.items() if i == isin)
+    if s is not None and len(s):
+        for d in s.index[s.index >= s.index[-1] - pd.Timedelta(days=jours)]:
+            # Today's scale: Yahoo back-adjusts splits, `Prices.get` would rescale to the shares held back then.
+            points.append([d.date().isoformat(), round(float(s.asof(d)) * today_factor, 4)])
+    qty = sum(ln.quantity for (_, i), ln in book.lines.items() if i == isin and ln.quantity > 1e-6)
+    cost = sum(ln.cost for (_, i), ln in book.lines.items() if i == isin and ln.quantity > 1e-6)
+    ops = []
+    for r in txs:
+        if r["isin"] != isin or not r["quantity"] or r["flow"] not in (
+                "achat_titre", "saveback", "vente_titre", "titres_offerts", "transfert_titres"):
+            continue
+        fees = (r["fees_cents"] or 0) / 100
+        value = abs(r["amount_cents"]) / 100
+        sale = r["flow"] == "vente_titre"
+        if value == 0 and r["flow"] in ("titres_offerts", "transfert_titres"):
+            continue
+        # Quantities and prices of the operations are put on today's scale (divide by later splits).
+        ratio = math.prod(x for d, x in later_splits if d > pd.Timestamp(r["date"])) or 1.0
+        ops.append({"date": r["date"], "sens": "vente" if sale else "achat", "quantite": r["quantity"] * ratio,
+                    "prix": (value + fees if sale else value - fees) / r["quantity"] / ratio})
+    return _clean({"isin": isin, "cours": points, "pmp": cost / qty if qty > 1e-6 and cost else None,
+                   "operations": ops})

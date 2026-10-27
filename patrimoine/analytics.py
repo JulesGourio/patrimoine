@@ -234,7 +234,7 @@ def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
     f.loc[(f.flow == "revenu") & (f.category == "Salaire"), "flow"] = "salaire"
     f.loc[(f.flow == "revenu") & f.category.isin(WINDFALLS), "flow"] = "heritage"
     p = f.pivot_table(index="month", columns="flow", values="amount_cents", aggfunc="sum", fill_value=0) / 100
-    col = lambda c: p[c] if c in p else 0.0  # noqa: E731
+    col = lambda c: p[c] if c in p else pd.Series(0.0, index=p.index)  # noqa: E731
     out = pd.DataFrame({"revenus": col("salaire") + col("revenu") + col("interets") + col("dividende"),
                         "depenses": -(col("depense") + col("frais")) - col("remboursement")})
     out["salaire"] = col("salaire")
