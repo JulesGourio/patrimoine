@@ -114,14 +114,31 @@ async def paginate(tr: TradeRepublicApi, kind: str) -> list[dict[str, Any]]:
             return items
 
 
-async def fetch_all(tr: TradeRepublicApi) -> dict[str, Any]:
+def _cached_details(settings: Settings) -> dict[str, Any]:
+    """Details already fetched by the last dump: a past operation's detail does not change, so only new ones
+    (and those that failed last time) are requested again."""
+    files = sorted((settings.data_dir / "raw" / "tr").glob("*.json"))
+    if not files:
+        return {}
+    try:
+        old = json.loads(files[-1].read_text(encoding="utf-8")).get("details") or {}
+    except (OSError, ValueError):
+        return {}
+    return {k: v for k, v in old.items() if v is not None}
+
+
+async def fetch_all(tr: TradeRepublicApi, cached: dict[str, Any] | None = None) -> dict[str, Any]:
     """Everything needed to rebuild accounts, flows and positions, as raw JSON."""
     account = tr.settings()
     out: dict[str, Any] = {"account": account}
     out["transactions"] = await paginate(tr, "timelineTransactions")
     out["activity"] = await paginate(tr, "timelineActivityLog")
     details = {}
+    cached = cached or {}
     for item in out["transactions"] + out["activity"]:
+        if item["id"] in cached:
+            details[item["id"]] = cached[item["id"]]
+            continue
         try:
             details[item["id"]] = await request(tr, {"type": "timelineDetailV2", "id": item["id"]})
         except (TradeRepublicError, asyncio.TimeoutError):
@@ -155,7 +172,7 @@ async def fetch_all(tr: TradeRepublicApi) -> dict[str, Any]:
 def dump(settings: Settings, interactive: bool = False) -> Path:
     """Fetch everything and write it to data/raw/tr/<date>.json (kept locally, never committed)."""
     tr = connect(settings, interactive)
-    data = asyncio.run(fetch_all(tr))
+    data = asyncio.run(fetch_all(tr, _cached_details(settings)))
     path = settings.data_dir / "raw" / "tr" / f"{date.today().isoformat()}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
