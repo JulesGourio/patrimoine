@@ -1,0 +1,345 @@
+{
+ "id": 57,
+ "periode": "jour",
+ "analyse": {
+  "titre": "Anthropic relance la tech, Kospi au plus bas de 7 mois : vendre spatial et Corée ce mardi",
+  "ton": "mitigé",
+  "points_cles": [
+   "Lundi, seul le Nasdaq x2 a un cours à jour : +1,6 % (+94 €). Cours européens du 26/10 manquants pour les 5 autres lignes ; le −176 € affiché reprend surtout vendredi.",
+   "Cause : dépôt de l'IPO d'Anthropic (Nvidia +2,4 à +3,1 %), Tesla +5,2 % (Barclays). Paris +0,83 % après Moody's. Kospi −1,46 % à 5 469, plus bas de 7 mois.",
+   "Ordre spatial n° 4 toujours « proposé », ligne intacte (~85 parts). Boeing ce mardi, puis Fed, Airbus, Microsoft, Alphabet, SK hynix mercredi 28/10."
+  ],
+  "lignes": [
+   {
+    "isin": "FR0010342592",
+    "cause": "+1,6 % à 9,64 € contre +2,2 % attendu (Nasdaq 100 +1,09 % × 2) : Paris clôture avant Wall Street. Moteur : dépôt de l'IPO d'Anthropic (Nvidia +2,4 % à +3,1 %, Microsoft +1,1 à +1,5 %), Tesla +5,2 %.",
+    "these": "Le « pas de vente dans le creux » du 21/10 tient : +1,6 % depuis le 23/10. Microsoft et Alphabet mercredi soir ; −10 % du Nasdaq ≈ −1 150 € sur la ligne.",
+    "verdict": "surveiller",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "isin": "IE00BHZRR030",
+    "cause": "Cours de vendredi (+1,2 %, rebond du Kospi de vendredi). Lundi : Kospi −1,46 % à 5 469, plus bas de 7 mois, ~700 Md₩ vendus par les étrangers, Samsung −1,2 %, SK hynix ≈ stable ; EWY +1 % à New York.",
+    "these": "SK hynix publie le 28/10 avec un premier dividende spécial attendu : soutien possible, mais l'action a perdu ~56 % depuis juin. La ligne pèse 10,7 % des titres.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Alléger 19 parts à cours limité 76 € ce mardi, avant SK hynix, conseil n° 2.",
+    "sources": [
+     6,
+     7,
+     8,
+     17
+    ]
+   },
+   {
+    "isin": "IE000YU9K6K2",
+    "cause": "Cours de vendredi (+0,3 %). Lundi, UFO +1,4 % et Viasat +7 à +8 % (rotation vers les équipements de télécoms, Lumentum +9 %) ; cours de l'ETF du 26/10 manquant.",
+    "these": "Ligne toujours à ~85 parts : l'ordre n° 4 n'apparaît pas exécuté. À ~60,4 € la limite de 58 € reste servie ; moins-value ~2 080 € sur 61 parts.",
+    "verdict": "agir",
+    "confiance": "forte",
+    "action": "Passer l'ordre n° 4 (61 parts, limite 58 €) ; annuler n° 1, 2 et 3. Conseil n° 1.",
+    "sources": [
+     11,
+     12
+    ]
+   },
+   {
+    "isin": "NL0000235190",
+    "cause": "Cours du 26/10 manquant dans les données (192,46 € = vendredi). Boursorama donne 193,40 € (+0,49 %) ou 195,40 € (+1,53 %) selon la page : sources divergentes. Paris +0,83 %, soulagé par Moody's.",
+    "these": "Comptes le 28/10 : le T4 doit livrer ~280 à 323 avions. Boeing publie ce mardi avant Wall Street : premier test pour le secteur.",
+    "verdict": "agir",
+    "confiance": "moyenne",
+    "action": "Demander le rachat de 15 actions du PEG cette semaine (≈ 2 900 €), conseil n° 3.",
+    "sources": [
+     9,
+     10,
+     14
+    ]
+   },
+   {
+    "isin": "IE000KHX9DX6",
+    "cause": "Cours de vendredi (−1,9 %). Lundi : PLS +8,4 % et Lynas +5,2 % à Sydney ; PLS rebondit sans annonce après −32 % en un mois, malgré des prix du lithium chinois faibles. REMX +0,5 %.",
+    "these": "Rebond technique, pas de catalyseur nouveau. Albemarle (4/11) et MP (5/11) restent les rendez-vous ; ligne à −8 %, deuxième candidate à une vente fiscale.",
+    "verdict": "surveiller",
+    "confiance": "faible",
+    "sources": [
+     13
+    ]
+   }
+  ],
+  "marche": {
+   "resume": "Rebond général : S&P 500 +0,70 % à 7 677, Nasdaq 100 +1,09 %, CAC +0,83 %, VIX 18,4 (−5,5 %). Tech, conso cyclique et industrie en tête ; communication −1,6 %. Brent 115,8 $, 10 ans US 4,99 %.",
+   "themes": [
+    {
+     "titre": "Anthropic dépose son IPO",
+     "detail": "S-1 publié lundi, cotation sous ANT dès le 16/11 possible, valorisation de 1 250 à 2 000 Md$ selon les sources. Nvidia +2,4 à +3,1 %, Microsoft +1,1 à +1,5 % (Anthropic s'engage à 44,9 Md$ de dépenses chez Microsoft).",
+     "sources": [
+      1,
+      2
+     ]
+    },
+    {
+     "titre": "Tesla : Barclays passe à surpondérer",
+     "detail": "Objectif relevé de 370 à 450 $ sur l'idée d'un rapprochement avec SpaceX, que Barclays juge probable ; Tesla +5,2 %, plus haut depuis juillet. Les deux groupes n'ont qu'un comité d'étude, sans garantie d'accord.",
+     "sources": [
+      3
+     ]
+    },
+    {
+     "titre": "Aéro-défense +2,4 % (ITA)",
+     "detail": "Lockheed +3 % : Morgan Stanley passe à surpondérer, objectif 835 $, après l'accord F-35 avec le Pentagone ; CACI +6 % (Jefferies à l'achat). Le reste suit la hausse de l'industrie (+1,4 %).",
+     "sources": [
+      4,
+      5
+     ]
+    },
+    {
+     "titre": "Corée : ventes étrangères avant les mémoires",
+     "detail": "Kospi −1,46 % à 5 469, plus bas de 7 mois : tensions au Moyen-Orient, prudence avant SK hynix (28/10) et Samsung, ~700 Md₩ vendus par les étrangers.",
+     "sources": [
+      6,
+      7
+     ]
+    }
+   ]
+  },
+  "idees": [],
+  "agenda": [
+   {
+    "date": "2026-10-27",
+    "evenement": "Boeing, résultats du T3 (avant l'ouverture)",
+    "enjeu": "Cadences 737 et flux de trésorerie : donne le ton pour Airbus la veille de ses comptes."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Airbus, résultats 9 mois",
+    "enjeu": "35 % des titres de Jules : livraisons du T4 et objectif 870 confirmés ou non."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "Fed : décision (pause attendue), Microsoft et Alphabet",
+    "enjeu": "Le Nasdaq x2 réagit au double ; Microsoft et Alphabet ≈ 3 100 € d'exposition via les ETF."
+   },
+   {
+    "date": "2026-10-28",
+    "evenement": "SK hynix, résultats et dividende spécial ; Samsung le 28 ou 29/10",
+    "enjeu": "Samsung ≈ 1 450 € de la ligne Corée ; les mémoires décident du Kospi."
+   },
+   {
+    "date": "2026-10-29",
+    "evenement": "BCE, puis Amazon",
+    "enjeu": "Pause attendue ; un ton dur pèserait sur Paris et l'euro."
+   },
+   {
+    "date": "2026-11-02",
+    "evenement": "Apple, résultats",
+    "enjeu": "≈ 2 000 € d'exposition via le S&P 500 et le Nasdaq x2."
+   },
+   {
+    "date": "2026-11-04",
+    "evenement": "Albemarle (4/11) puis MP Materials (5/11)",
+    "enjeu": "Seuls catalyseurs attendus pour la ligne terres rares (−8 %)."
+   }
+  ],
+  "conseils": [
+   {
+    "action": "vendre",
+    "cible": "Space Innovators (CTO), 61 parts : vente fiscale",
+    "ticker": "JEDI.L",
+    "cours_ref": 60.43,
+    "montant_eur": 3540,
+    "prix_limite": 58.0,
+    "horizon": "mardi 27/10",
+    "pourquoi": "Ordre n° 4 déjà préparé, toujours « proposé » et ligne intacte (~85 parts) : pas de nouvel ordre. Moins-value ~2 080 € (PMP 94,55 €) qui efface les 1 440 € de plus-values 2026 et celle de la Corée (~430 € d'impôt évité). Annuler n° 1, 2 et 3.",
+    "risque": "Rebond du spatial manqué sur 61 parts (+10 % ≈ 370 €) ; les ~24 parts restantes gardent l'exposition à SpaceX.",
+    "invalidation": "Aucune avant le 31/12 tant que le cours reste sous 70 €.",
+    "confiance": "forte",
+    "sources": [
+     11,
+     12
+    ]
+   },
+   {
+    "action": "alléger",
+    "cible": "FTSE Korea (CTO), 19 parts",
+    "ticker": "FLXK.DE",
+    "cours_ref": 76.47,
+    "montant_eur": 1440,
+    "prix_limite": 76.0,
+    "horizon": "mardi 27/10, avant SK hynix",
+    "pourquoi": "Maintenu : vendre avant les résultats des mémoires (SK hynix le 28/10). Kospi −1,46 % lundi : l'ETF peut ouvrir sous 76 € ; ne pas baisser la limite. Ligne à 10,7 % des titres, +57 % de gain ; plus-value ~520 € couverte par la vente du spatial.",
+    "risque": "Dividende spécial et bons chiffres le 28/10 : +10 % sur 19 parts ≈ 145 € manqués ; les ~63 parts restantes en profitent.",
+    "invalidation": "Kospi sous 5 300 en clôture mardi : la limite n'est plus réaliste, revoir après les résultats.",
+    "confiance": "moyenne",
+    "sources": [
+     6,
+     8,
+     17
+    ]
+   },
+   {
+    "action": "arbitrer",
+    "cible": "Airbus (PEG) vers S&P 500 (PEA), 15 actions",
+    "ticker": "AIR.PA",
+    "cours_ref": 192.46,
+    "montant_eur": 2900,
+    "prix_limite": 185.0,
+    "horizon": "cette semaine",
+    "pourquoi": "Maintenu depuis le 16/10, mais le calendrier change : une demande faite mardi sera sans doute valorisée après les comptes du 28/10. Le but reste de réduire la concentration (35 % → ~31 % des titres), pas un pari sur les résultats.",
+    "risque": "Bonne surprise le 28/10 : +5 % ≈ 145 € manqués sur 15 actions. Prix de rachat (valeur liquidative) connu après coup.",
+    "invalidation": "Objectif 870 livraisons abaissé et titre sous 185 € : attendre un rebond avant de demander le rachat.",
+    "confiance": "moyenne",
+    "sources": [
+     9,
+     10,
+     14
+    ]
+   },
+   {
+    "action": "renforcer",
+    "cible": "S&P 500 (PEA), produit des ventes",
+    "ticker": "ESE.PA",
+    "cours_ref": 34.68,
+    "montant_eur": 2500,
+    "prix_limite": 34.4,
+    "horizon": "d'ici le 6/11",
+    "pourquoi": "Inchangé : 2 500 € à 34,40 € dès que le spatial est vendu (virement CTO → PEA), 2 500 € à 33,70 € si la Fed durcit le ton mercredi. S&P 500 +0,70 % lundi : cours du 26/10 manquant, la limite peut demander quelques jours. PEA : 18 734 € versés sur 150 000 €.",
+    "risque": "Si les résultats tech déçoivent : −5 % sur le S&P 500 ≈ −125 € sur 2 500 €.",
+    "invalidation": "10 ans US au-dessus de 5,5 % en clôture (4,99 % lundi) : garder la seconde moitié en espèces.",
+    "confiance": "moyenne",
+    "sources": [
+     1,
+     15,
+     16
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "id": 1,
+    "titre": "Stock Market Today (Oct. 26, 2026): Nasdaq, S&P 500 jump after Anthropic IPO announcement",
+    "media": "TheStreet",
+    "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-oct-26-2026",
+    "date": "2026-10-26 22:00"
+   },
+   {
+    "id": 2,
+    "titre": "Nvidia, Intel, other major tech stocks surge after Anthropic's IPO filing",
+    "media": "Forbes",
+    "url": "https://www.forbes.com/sites/antoniopequenoiv/2026/10/26/these-top-tech-stocks-scored-big-gains-from-anthropics-ipo-filing/",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 3,
+    "titre": "Tesla stock surges after Barclays upgrade on hopes of a SpaceX merger",
+    "media": "Yahoo Finance",
+    "url": "https://finance.yahoo.com/markets/stocks/articles/tesla-stock-surges-barclays-upgrade-203734282.html",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 4,
+    "titre": "Lockheed Martin will surge nearly 40% after new Pentagon deal, says Morgan Stanley",
+    "media": "CNBC",
+    "url": "https://cnbc.com/2026/10/26/lockheed-martin-will-surge-nearly-40percent-after-new-pentagon-deal-says-morgan-stanley.html",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 5,
+    "titre": "Market Review: October 26, 2026",
+    "media": "Investrade",
+    "url": "https://investrade.com/market-review-october-26-2026/",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 6,
+    "titre": "Kospi falls 1.46% before Samsung, SK hynix earnings and Fed decision",
+    "media": "Korea JoongAng Daily",
+    "url": "https://www.koreajoongangdaily.com/business/kospi-falls-146-before-samsung-sk-hynix-earnings/12939040",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 7,
+    "titre": "South Korean stocks hit seven-month low as foreigners sell",
+    "media": "UPI",
+    "url": "https://www.upi.com/Top_News/World-News/2026/10/26/kospi-fell-foreign-investors-stock-market/8081793065255/",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 8,
+    "titre": "SK hynix to unveil first-ever special dividend on the 28th",
+    "media": "Seoul Economic Daily",
+    "url": "https://en.sedaily.com/finance/2026/10/27/sk-hynix-to-unveil-first-ever-special-dividend-on-the-28th",
+    "date": "2026-10-27"
+   },
+   {
+    "id": 9,
+    "titre": "L'Europe finit dans le vert avant le pic de la saison des résultats",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/bourse/actualites/l-europe-finit-dans-le-vert-avant-le-pic-de-la-saison-des-resultats-041fde46576cbca963e4aaf314dd59d9",
+    "date": "2026-10-26 18:56"
+   },
+   {
+    "id": 10,
+    "titre": "AIRBUS : cours de l'action",
+    "media": "Boursorama",
+    "url": "https://www.boursorama.com/cours/1rPAIR/",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 11,
+    "titre": "Viasat (NASDAQ:VSAT) stock jumps 7.7% - here's what happened",
+    "media": "MarketBeat",
+    "url": "https://www.marketbeat.com/instant-alerts/price-viasat-nasdaq-vsat-stock-jumps-77-heres-what-happened-2026-10-26/",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 12,
+    "titre": "Viasat jumps 6.8% amid sector-wide rally",
+    "media": "AlphaStreet",
+    "url": "https://news.alphastreet.com/viasat-jumps-6-8-amid-sector-wide-rally/",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 13,
+    "titre": "PLS Group shares jump 7% as battered lithium producer rebounds from 2026 lows",
+    "media": "IBTimes Australia",
+    "url": "https://www.ibtimes.com.au/pls-group-shares-rebound-falling-lithium-prices-1877381",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 14,
+    "titre": "Boeing earnings preview: cash flow expected to turn positive",
+    "media": "TradingKey",
+    "url": "https://tradingkey.com/analysis/stocks/us-stocks/262238436-stock-boeing-ba-price-max737-200-tradingkey",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 15,
+    "titre": "FOMC Meeting Schedule — October 2026",
+    "media": "FedRateCalc",
+    "url": "https://fedratecalc.com/fomc-meeting-schedule/october-2026/",
+    "date": "2026-10-26"
+   },
+   {
+    "id": 16,
+    "titre": "Federal Reserve: more hikes ahead after October pause - UOB",
+    "media": "FXStreet",
+    "url": "https://www.fxstreet.com/news/federal-reserve-more-hikes-ahead-after-october-pause-uob-202610081303",
+    "date": "2026-10-08"
+   },
+   {
+    "id": 17,
+    "titre": "SK hynix halves from June peak as earnings, payouts draw focus",
+    "media": "Seoul Economic Daily",
+    "url": "https://en.sedaily.com/finance/2026/10/26/sk-hynix-halves-from-june-peak-as-earnings-payouts-draw",
+    "date": "2026-10-26"
+   }
+  ]
+ },
+ "ordres": []
+}
