@@ -148,6 +148,7 @@ fun InteractiveLineChart(
     height: Dp = 200.dp,
     showPeriods: Boolean = true,
     stacked: Boolean = false,
+    showChange: Boolean = true,
     valueFormat: (Double) -> String = { euros(it) },
 ) {
     if (series.isEmpty() || series.all { it.points.size < 2 }) {
