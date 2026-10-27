@@ -103,38 +103,42 @@ async def request(tr: TradeRepublicApi, payload: dict[str, Any], timeout: float 
             pass
 
 
-async def paginate(tr: TradeRepublicApi, kind: str) -> list[dict[str, Any]]:
+async def paginate(tr: TradeRepublicApi, kind: str, known: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """All pages, newest first. With ``known`` (details already fetched), stop after the first page that holds
+    nothing new; the older items are then taken from the last dump (see ``dump``)."""
     items: list[dict[str, Any]] = []
     after = None
     while True:
         page = await request(tr, {"type": kind, "after": after})
-        items.extend(page.get("items", []))
+        got = page.get("items", [])
+        items.extend(got)
         after = (page.get("cursors") or {}).get("after")
-        if not after:
+        if not after or (known and got and all(i["id"] in known for i in got)):
             return items
 
 
-def _cached_details(settings: Settings) -> dict[str, Any]:
-    """Details already fetched by the last dump: a past operation's detail does not change, so only new ones
-    (and those that failed last time) are requested again."""
+def _last_dump(settings: Settings) -> dict[str, Any]:
+    """The last dump on disk (a past operation and its detail do not change, so only what is new is fetched)."""
     files = sorted((settings.data_dir / "raw" / "tr").glob("*.json"))
     if not files:
         return {}
     try:
-        old = json.loads(files[-1].read_text(encoding="utf-8")).get("details") or {}
+        return json.loads(files[-1].read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    return {k: v for k, v in old.items() if v is not None}
 
 
-async def fetch_all(tr: TradeRepublicApi, cached: dict[str, Any] | None = None) -> dict[str, Any]:
+async def fetch_all(tr: TradeRepublicApi, previous: dict[str, Any] | None = None) -> dict[str, Any]:
     """Everything needed to rebuild accounts, flows and positions, as raw JSON."""
     account = tr.settings()
     out: dict[str, Any] = {"account": account}
-    out["transactions"] = await paginate(tr, "timelineTransactions")
-    out["activity"] = await paginate(tr, "timelineActivityLog")
+    previous = previous or {}
+    cached = {k: v for k, v in (previous.get("details") or {}).items() if v is not None}
+    for key, kind in (("transactions", "timelineTransactions"), ("activity", "timelineActivityLog")):
+        items = await paginate(tr, kind, cached)
+        seen = {i["id"] for i in items}
+        out[key] = items + [i for i in previous.get(key) or [] if i["id"] not in seen]
     details = {}
-    cached = cached or {}
     for item in out["transactions"] + out["activity"]:
         if item["id"] in cached:
             details[item["id"]] = cached[item["id"]]
@@ -172,7 +176,7 @@ async def fetch_all(tr: TradeRepublicApi, cached: dict[str, Any] | None = None) 
 def dump(settings: Settings, interactive: bool = False) -> Path:
     """Fetch everything and write it to data/raw/tr/<date>.json (kept locally, never committed)."""
     tr = connect(settings, interactive)
-    data = asyncio.run(fetch_all(tr, _cached_details(settings)))
+    data = asyncio.run(fetch_all(tr, _last_dump(settings)))
     path = settings.data_dir / "raw" / "tr" / f"{date.today().isoformat()}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")

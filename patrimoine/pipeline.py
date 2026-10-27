@@ -210,18 +210,25 @@ def _radar(con, lines: list[str]) -> list[str]:
     return out
 
 
+_durations: dict[str, float] = {}  # step -> seconds, of the sync in progress
+
+
 @contextmanager
 def _timed(name: str) -> Generator[None]:
     start = time.monotonic()
     try:
         yield
     finally:
-        log.info("%s : %.1f s", name, time.monotonic() - start)
+        took = time.monotonic() - start
+        _durations[name] = round(took, 1)
+        log.info("%s : %.1f s", name, took)
 
 
 def run(settings: Settings | None = None, interactive: bool = False, send_alerts: bool = True) -> list[str]:
     settings = settings or Settings()
     lines: list[str] = []
+    _durations.clear()
+    started = time.monotonic()
     with db.session(settings.db_path) as con:
         db.init(con)
         for name, step in (("Trade Republic", lambda: _trade_republic(settings, con, lines, interactive)),
@@ -264,7 +271,8 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
                         markdown_body=True)
         fired = alerts.run(con, send=send_alerts)
         lines.append(f"Alertes : {len(fired)} nouvelle(s)" + "".join(f"\n  - {f.title}" for f in fired))
-        db.set_meta(con, "last_sync", {"at": db.now_iso(), "summary": lines})
+        db.set_meta(con, "last_sync", {"at": db.now_iso(), "summary": lines, "durations": dict(_durations),
+                                       "total_s": round(time.monotonic() - started, 1)})
     try:  # after the session is closed: the export opens its own connections
         from . import cloud
 

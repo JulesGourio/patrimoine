@@ -132,7 +132,14 @@ def etat() -> dict:
         n = con.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
         last = db.get_meta(con, "last_sync") or {}
         cmb_until = db.get_meta(con, "cmb_consent_until")
+        ages = {k: db.get_meta(con, m) for k, m in (("trade_republic", "last_sync_tr"), ("cmb", "last_sync_cmb"),
+                                                    ("13f", "last_13f_check"), ("elus", "last_congress_check"),
+                                                    ("declarations_rapides", "last_ownership_check"),
+                                                    ("radar", "radar_at"))}
     return {
+        "sources_maj": ages,
+        "durees_synchro": last.get("durations") or {},
+        "duree_totale_s": last.get("total_s"),
         "base": str(s.db_path),
         "operations": n,
         "derniere_synchro": last.get("at"),

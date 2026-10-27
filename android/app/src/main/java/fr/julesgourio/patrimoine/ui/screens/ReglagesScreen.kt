@@ -38,6 +38,8 @@ import fr.julesgourio.patrimoine.ui.components.Muted
 import fr.julesgourio.patrimoine.ui.components.ScreenScaffold
 import fr.julesgourio.patrimoine.ui.components.SectionCard
 import fr.julesgourio.patrimoine.ui.components.bool
+import fr.julesgourio.patrimoine.ui.components.numbers
+import fr.julesgourio.patrimoine.ui.components.num
 import fr.julesgourio.patrimoine.ui.components.day
 import fr.julesgourio.patrimoine.ui.components.moment
 import fr.julesgourio.patrimoine.ui.components.objOrNull
@@ -137,6 +139,18 @@ fun ReglagesScreen(nav: NavController, onBack: () -> Unit) {
                     Muted("Chaque matin vers 7 h 30, et les analyses Claude toutes les heures.")
                     Button(onClick = sync.start, enabled = !sync.running) {
                         Text(if (sync.running) "Synchronisation en cours…" else "Synchroniser maintenant")
+                    }
+                }
+            }
+            item {
+                SectionCard("Sources et durées") {
+                    val noms = mapOf("trade_republic" to "Trade Republic", "cmb" to "CMB", "13f" to "13F",
+                        "elus" to "Élus américains", "declarations_rapides" to "Déclarations rapides", "radar" to "Radar")
+                    val maj = s.objOrNull("sources_maj")
+                    noms.forEach { (cle, nom) -> InfoRow(nom, moment(maj?.str(cle))) }
+                    s.num("duree_totale_s")?.let { InfoRow("Dernière synchro, total", "%.0f s".format(it)) }
+                    s.objOrNull("durees_synchro")?.numbers()?.forEach { (nom, sec) ->
+                        InfoRow(nom, "%.1f s".format(sec))
                     }
                 }
             }
