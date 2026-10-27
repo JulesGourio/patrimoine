@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import traceback
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import date, datetime, timezone
 
 import pandas as pd
@@ -207,6 +210,15 @@ def _radar(con, lines: list[str]) -> list[str]:
     return out
 
 
+@contextmanager
+def _timed(name: str) -> Generator[None]:
+    start = time.monotonic()
+    try:
+        yield
+    finally:
+        log.info("%s : %.1f s", name, time.monotonic() - start)
+
+
 def run(settings: Settings | None = None, interactive: bool = False, send_alerts: bool = True) -> list[str]:
     settings = settings or Settings()
     lines: list[str] = []
@@ -215,11 +227,13 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
         for name, step in (("Trade Republic", lambda: _trade_republic(settings, con, lines, interactive)),
                            ("CMB", lambda: _cmb(settings, con, lines))):
             try:
-                step()
+                with _timed(name):
+                    step()
             except Exception as e:  # noqa: BLE001 - keep going, report it
                 log.error("%s: %s", name, traceback.format_exc())
                 lines.append(f"{name} : ÉCHEC — {e}")
                 notify.send(f"Synchronisation {name} en échec", str(e)[:300], priority=3, email=False)
+            con.commit()  # release the write lock: the app's screens read the database during the sync
         try:
             got = prices.update(con)
             missing = [i for i, v in got.items() if "aucune" in v]
@@ -228,6 +242,7 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
             df, _ = portfolio.valuations(con)
             portfolio.store(con, df)
             last = df[df.date == df.date.max()]
+            con.commit()
             lines.append(f"Patrimoine au {df.date.max()} : {(last.cash + last.securities).sum():,.0f} €"
                          .replace(",", " "))
         except Exception as e:  # noqa: BLE001
@@ -238,10 +253,12 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
         for name, step in (("13F", _investors), ("Élus américains", _congress), ("Déclarations rapides", _fresh),
                            ("Radar", _radar)):
             try:
-                digest += step(con, lines)
+                with _timed(name):
+                    digest += step(con, lines)
             except Exception as e:  # noqa: BLE001
                 log.error("%s: %s", name, traceback.format_exc())
                 lines.append(f"{name} : ÉCHEC — {e}")
+            con.commit()
         if digest and send_alerts:
             notify.send("Suivi des investisseurs", "\n\n".join(digest), priority=3, tags=["busts_in_silhouette"],
                         markdown_body=True)

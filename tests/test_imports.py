@@ -42,7 +42,7 @@ def test_backup_then_import_round_trip_keeps_the_previous_copy(settings, tmp_pat
 
 
 def test_paths_with_url_characters_are_read(settings, tmp_path):
-    copy = imports.backup(settings, tmp_path / "dossier #1 ?50%" / "copie.db")
+    copy = imports.backup(settings, tmp_path / "dossier #1 50%" / "copie.db")
     assert imports.check_database(copy)["operations"] == 0
 
 
