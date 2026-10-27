@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from patrimoine import mobile, notify, vault
+from patrimoine import db, mobile, notify, vault
 
 
 class Store:
@@ -73,6 +73,7 @@ def test_call_runs_tools_and_screens_with_json_arguments(app):
     assert ok(mobile.call("operations", json.dumps({"jours": 30}))) == {"operations": [], "tronque": False}
     home = ok(mobile.call("accueil"))
     assert home["courbe"] == [] and home["ordres_proposes"] == 0
+    assert home["courbes_comptes"] == {} and home["courbe_titres"] == {"valeur": [], "cout": []}
     names = {t["nom"] for t in ok(mobile.tools())}
     assert {"patrimoine", "positions", "accueil", "etat"} <= names
 
@@ -169,6 +170,21 @@ def test_analysis_detail(app):
     assert json.loads(mobile.call("analyse", '{"id": 999}'))["ok"] is False
 
 
+def test_operations_filter_by_month_and_category(app):
+    from patrimoine import api, db
+    from patrimoine.config import Settings
+
+    with db.session(Settings().db_path) as con:
+        con.executemany(
+            "INSERT INTO transactions (id, account_id, date, amount_cents, flow, category, counterparty) VALUES "
+            "(?, 'cmb_courant', ?, -1000, 'depense', ?, 'SHOP')",
+            [("o1", "2020-03-05", "Courses"), ("o2", "2020-03-20", "Loisirs"), ("o3", "2020-04-02", "Courses")])
+    ids = lambda **kw: sorted(o["id"] for o in api.operations(**kw)["operations"])  # noqa: E731
+    assert ids(mois="2020-03") == ["o1", "o2"]
+    assert ids(mois="2020-03", categorie="Courses") == ["o1"]
+    assert ids(mois="2020-04", categorie="Loisirs") == []
+
+
 def test_income_lines_take_income_categories(app):
     from patrimoine import db
     from patrimoine.config import Settings
@@ -180,3 +196,20 @@ def test_income_lines_take_income_categories(app):
     with db.session(Settings().db_path) as con:
         assert con.execute("SELECT category_override FROM transactions WHERE id = 'r1'").fetchone()[0] == "Remboursements"
     assert json.loads(mobile.call("categoriser", json.dumps({"transaction_id": "r1", "categorie": "x"})))["ok"] is False
+
+
+def test_accueil_gives_per_account_and_invested_curves(app):
+    with db.session(mobile.settings().db_path) as con:
+        db.init(con)
+        for acc, kind in (("tr_cto", "cto"), ("cmb_courant", "courant")):
+            con.execute("INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, 'X', ?, ?, 'manuel')",
+                        (acc, acc, kind))
+        for d, sec, cost, cash in (("2026-10-01", 1100_00, 1000_00, 0), ("2026-10-02", 1200_00, 1000_00, 0)):
+            con.execute("INSERT INTO valuations VALUES (?, 'tr_cto', ?, ?, ?, 0, 0)", (d, cash, sec, cost))
+            con.execute("INSERT INTO valuations VALUES (?, 'cmb_courant', 50000, 0, 0, 0, 0)", (d,))
+    home = ok(mobile.call("accueil"))
+    assert home["courbes_comptes"]["Compte-titres"] == [["2026-10-01", 1100.0], ["2026-10-02", 1200.0]]
+    assert home["courbes_comptes"]["CMB courant"][0] == ["2026-10-01", 500.0]
+    assert home["courbe_titres"]["valeur"][-1] == ["2026-10-02", 1200.0]
+    assert home["courbe_titres"]["cout"] == [["2026-10-01", 1000.0], ["2026-10-02", 1000.0]]
+    assert home["comptes_titres"] == ["Compte-titres", "PEA"]

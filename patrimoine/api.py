@@ -139,7 +139,7 @@ def depenses(mois: int = 12) -> dict:
     return _clean({
         "par_mois": sp.groupby("month")["amount"].sum().to_dict(),
         "par_categorie": sp.groupby("category")["amount"].sum().sort_values(ascending=False).to_dict(),
-        "par_mois_et_categorie": _records(sp.groupby(["month", "category"], as_index=False)["amount"].sum()),
+        "par_mois_et_categorie": _records(sp.fillna({"category": "Non catégorisé"}).groupby(["month", "category"], as_index=False)["amount"].sum()),
         "mois_en_cours": {c: {"depense": float(cur.get(c, 0)), "budget": budgets.get(c)} for c in
                           set(cur.index) | set(budgets)},
         "top_commercants": _records(sp.groupby("merchant")["amount"].agg(["sum", "count"])
@@ -179,13 +179,23 @@ def ventes_realisees() -> dict:
 
 
 @tool
-def operations(recherche: str = "", jours: int = 90, compte: str = "", flux_type: str = "") -> dict:
+def operations(recherche: str = "", jours: int = 90, compte: str = "", flux_type: str = "",
+               categorie: str = "", mois: str = "") -> dict:
     """Recherche dans les opérations (libellé ou commerçant), sur N jours, filtrables par compte
-    (tr_especes, tr_cto, tr_pea, cmb_courant…) et par flux (depense, revenu, interne, achat_titre…)."""
+    (tr_especes, tr_cto, tr_pea, cmb_courant…), par flux (depense, revenu, interne, achat_titre…), par catégorie
+    et par mois (« 2026-10 », remplace alors la période en jours)."""
     con = _con()
     q = ("SELECT id, date, account_id, flow, COALESCE(category_override, category) AS categorie, counterparty, label,"
          " amount_cents / 100.0 AS montant, isin, quantity FROM transactions WHERE date >= ?")
     args: list[Any] = [(date.today() - timedelta(days=jours)).isoformat()]
+    if mois:
+        q = q.replace("date >= ?", "substr(date, 1, 7) = ?")
+        args = [mois[:7]]
+    if categorie == "Non catégorisé":
+        q += " AND COALESCE(category_override, category) IS NULL"
+    elif categorie:
+        q += " AND COALESCE(category_override, category) = ?"
+        args.append(categorie)
     if recherche:
         q += " AND (UPPER(label) LIKE ? OR UPPER(counterparty) LIKE ?)"
         args += [f"%{recherche.upper()}%"] * 2

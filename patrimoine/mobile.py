@@ -145,8 +145,16 @@ def etat() -> dict:
     }
 
 
+_SECURITIES_ACCOUNTS = ("tr_cto", "tr_pea")  # same accounts as api.patrimoine's cost basis
+
+
+def _points(s) -> list:
+    """Daily series as [[ISO date, value rounded to the cent]]."""
+    return [[d.date().isoformat(), round(float(v), 2)] for d, v in s.items()]
+
+
 @screen
-def accueil(jours: int = 365) -> dict:
+def accueil(jours: int = 3650) -> dict:
     """Écran d'accueil : patrimoine total et par compte, courbe du total, dernière analyse, ordres et alertes."""
     import pandas as pd
 
@@ -158,9 +166,17 @@ def accueil(jours: int = 365) -> dict:
     if not h.empty:
         total = h.groupby("date")["value"].sum()
         total = total[total.index >= total.index.max() - pd.Timedelta(days=jours)]
-        out["courbe"] = [[d.date().isoformat(), round(float(v), 2)] for d, v in total.items()]
+        since = total.index.min()
+        out["courbe"] = _points(total)
+        w = h[h.date >= since]
+        out["courbes_comptes"] = {name: _points(g.set_index("date")["value"]) for name, g in w.groupby("account")}
+        inv = w[w.account_id.isin(_SECURITIES_ACCOUNTS)].groupby("date")[["securities", "cost"]].sum()
+        out["courbe_titres"] = {"valeur": _points(inv["securities"]), "cout": _points(inv["cost"])}
     else:
         out["courbe"] = []
+        out["courbes_comptes"] = {}
+        out["courbe_titres"] = {"valeur": [], "cout": []}
+    out["comptes_titres"] = [queries.ACCOUNT_LABELS[a] for a in _SECURITIES_ACCOUNTS]
     last = api.analyses(1)
     out["derniere_analyse"] = (last.get("analyses") or [None])[0]
     out["ordres_proposes"] = len(api.ordres_proposes().get("ordres") or [])

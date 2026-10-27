@@ -1,19 +1,15 @@
 package fr.julesgourio.patrimoine.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -48,7 +44,15 @@ import fr.julesgourio.patrimoine.engine.Engine
 import fr.julesgourio.patrimoine.engine.Reply
 import fr.julesgourio.patrimoine.ui.Routes
 import fr.julesgourio.patrimoine.ui.components.BudgetBar
+import fr.julesgourio.patrimoine.ui.components.BarGroup
 import fr.julesgourio.patrimoine.ui.components.CallScreen
+import fr.julesgourio.patrimoine.ui.components.ChartSeries
+import fr.julesgourio.patrimoine.ui.components.DonutChart
+import fr.julesgourio.patrimoine.ui.components.HorizontalBars
+import fr.julesgourio.patrimoine.ui.components.InteractiveLineChart
+import fr.julesgourio.patrimoine.ui.components.Loaded
+import fr.julesgourio.patrimoine.ui.components.Slice
+import fr.julesgourio.patrimoine.ui.components.StackedBarChart
 import fr.julesgourio.patrimoine.ui.components.InfoRow
 import fr.julesgourio.patrimoine.ui.components.Load
 import fr.julesgourio.patrimoine.ui.components.Muted
@@ -59,7 +63,6 @@ import fr.julesgourio.patrimoine.ui.components.day
 import fr.julesgourio.patrimoine.ui.components.euros
 import fr.julesgourio.patrimoine.ui.components.list
 import fr.julesgourio.patrimoine.ui.components.num
-import fr.julesgourio.patrimoine.ui.components.numbers
 import fr.julesgourio.patrimoine.ui.components.objOrNull
 import fr.julesgourio.patrimoine.ui.components.pct
 import fr.julesgourio.patrimoine.ui.components.rememberCall
@@ -102,6 +105,77 @@ private fun categories(cur: JSONObject?): List<Categorie> {
     }.sortedByDescending { it.depense }.toList()
 }
 
+/** One (month, category) cell of `par_mois_et_categorie`; [mois] is « 2026-10 ». */
+private class Cellule(val mois: String, val categorie: String, val montant: Double)
+
+private fun cellules(d: JSONObject): List<Cellule> = d.list("par_mois_et_categorie").mapNotNull {
+    val m = it.str("month")?.take(7) ?: return@mapNotNull null
+    Cellule(m, it.str("category") ?: "Autres", it.num("amount") ?: 0.0)
+}
+
+private val MOIS_COURT = DateTimeFormatter.ofPattern("MMM yy", Locale.FRANCE)
+
+private fun moisCourt(m: String): String = try {
+    LocalDate.parse("$m-01").format(MOIS_COURT)
+} catch (e: Exception) {
+    m
+}
+
+/** Monthly bars stacked by category: the 6 biggest over the period, the rest as « Autres » (all if 7 or fewer). */
+private fun groupes(cells: List<Cellule>): List<BarGroup> {
+    val totaux = cells.groupBy { it.categorie }.mapValues { e -> e.value.sumOf { it.montant } }
+    val noms = totaux.entries.sortedByDescending { it.value }.map { it.key }
+    val gardees = if (noms.size <= 7) noms else noms.take(6)
+    return cells.map { it.mois }.distinct().sorted().takeLast(12).map { m ->
+        val duMois = cells.filter { it.mois == m }
+        val parts = gardees.mapNotNull { c ->
+            val v = duMois.filter { it.categorie == c }.sumOf { it.montant }
+            if (v > 0) c to v else null
+        }.toMutableList()
+        val autres = duMois.filter { it.categorie !in gardees }.sumOf { it.montant }
+        if (autres > 0) parts.add("Autres" to autres)
+        BarGroup(moisCourt(m), parts, key = m)
+    }
+}
+
+/** What the lists below the charts are narrowed to; [source] is the card that shows the list. */
+private data class Filtre(
+    val source: String,
+    val titre: String,
+    val categorie: String = "",
+    val mois: String = "",
+    val recherche: String = "",
+)
+
+/** The spending lines matching [f], most recent first. */
+@Composable
+private fun OperationsFiltrees(f: Filtre, onClose: () -> Unit) {
+    val state = rememberCall(
+        "operations",
+        Engine.args(
+            "recherche" to f.recherche, "jours" to 365, "flux_type" to "depense",
+            "categorie" to f.categorie, "mois" to f.mois,
+        ),
+        f,
+    )
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(f.titre, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+        TextButton(onClick = onClose) { Text("Fermer") }
+    }
+    Loaded(state) { d ->
+        val ops = d.list("operations")
+        if (ops.isEmpty()) Muted("Aucune opération.")
+        ops.take(40).forEach { o ->
+            InfoRow(
+                label = o.str("counterparty") ?: o.str("label") ?: "—",
+                value = euros(o.num("montant"), sign = true),
+                sub = day(o.str("date")) + (o.str("categorie")?.let { " · $it" } ?: ""),
+            )
+        }
+        if (ops.size > 40 || d.bool("tronque")) Muted("Liste limitée : voir la recherche pour tout afficher.")
+    }
+}
+
 private fun montantTexte(x: Double): String = if (x % 1.0 == 0.0) x.toInt().toString() else x.toString()
 
 // --- Dépenses --------------------------------------------------------------------------------------------------
@@ -113,6 +187,8 @@ fun DepensesScreen(nav: NavController) {
     val fluxRows = (flux.load as? Load.Done)?.data?.list("flux").orEmpty()
     var edit by remember { mutableStateOf<Categorie?>(null) }
     var erreur by remember { mutableStateOf<String?>(null) }
+    var moisSel by remember { mutableStateOf<String?>(null) }
+    var filtre by remember { mutableStateOf<Filtre?>(null) }
     val scope = rememberCoroutineScope()
 
     ScreenScaffold(
@@ -126,10 +202,11 @@ fun DepensesScreen(nav: NavController) {
         CallScreen(dep, padding) { d ->
             val cats = categories(d.objOrNull("mois_en_cours"))
             val total = cats.sumOf { it.depense }
-            val parMois = d.objOrNull("par_mois")?.numbers().orEmpty().sortedBy { it.first }.takeLast(12)
-            val maxMois = parMois.maxOfOrNull { it.second } ?: 0.0
+            val cells = cellules(d)
+            val barres = groupes(cells)
             val top = d.list("top_commercants").take(10)
             val aujourdhui = LocalDate.now()
+            val moisCourant = aujourdhui.toString().take(7)
 
             if (erreur != null) item { Text(erreur.orEmpty(), color = MaterialTheme.colorScheme.error) }
 
@@ -137,38 +214,90 @@ fun DepensesScreen(nav: NavController) {
                 SectionCard("Ce mois-ci (${mois(aujourdhui.toString())})") {
                     InfoRow("Total dépensé", euros(total))
                     if (cats.isEmpty()) Muted("Aucune dépense ce mois-ci.")
+                    val parts = cats.filter { it.depense > 0 }.map { Slice(it.nom, it.depense, key = it.nom) }
+                    if (parts.isNotEmpty()) {
+                        DonutChart(
+                            parts, centerTitle = "Dépensé", centerValue = euros(total, cents = false),
+                            modifier = Modifier.fillMaxWidth(),
+                            onSliceClick = { sl ->
+                                filtre = Filtre("ce_mois", "${sl.label} · ${mois(aujourdhui.toString())}",
+                                    categorie = sl.key ?: sl.label, mois = moisCourant)
+                            },
+                        )
+                    }
                     cats.forEach { c ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.weight(1f)) { BudgetBar(c.nom, c.depense, c.budget) }
                             TextButton(onClick = { edit = c }) { Text("Budget") }
                         }
                     }
-                    Muted("Le bouton Budget fixe un plafond mensuel par catégorie.")
+                    Muted("Le bouton Budget fixe un plafond mensuel par catégorie ; toucher une part du graphe liste les opérations.")
+                    filtre?.takeIf { it.source == "ce_mois" }?.let { OperationsFiltrees(it) { filtre = null } }
                 }
             }
 
             item {
                 SectionCard("12 derniers mois") {
-                    if (parMois.isEmpty()) Muted("Pas encore de dépenses.")
-                    parMois.forEach { (m, x) ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(mois(m), Modifier.width(84.dp), style = MaterialTheme.typography.bodySmall)
-                            Box(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                                val fraction = if (maxMois > 0) (x / maxMois).toFloat().coerceIn(0f, 1f) else 0f
-                                Box(
-                                    Modifier.fillMaxWidth(fraction).height(14.dp)
-                                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)),
-                                )
-                            }
-                            Text(euros(x, cents = false), style = MaterialTheme.typography.bodySmall)
-                        }
+                    if (barres.isEmpty()) Muted("Pas encore de dépenses.")
+                    else {
+                        StackedBarChart(
+                            barres, modifier = Modifier.fillMaxWidth(), selectedKey = moisSel,
+                            onGroupClick = { g ->
+                                moisSel = g.key
+                                if (filtre?.source == "mois") filtre = null
+                            },
+                        )
+                        Muted("Dépenses par mois et par catégorie. Touchez une barre pour voir le détail du mois.")
+                    }
+                    val m = moisSel
+                    if (m != null) {
+                        val duMois = cells.filter { it.mois == m && it.montant > 0 }
+                            .groupBy { it.categorie }.map { (c, l) -> Slice(c, l.sumOf { it.montant }, key = c) }
+                            .sortedByDescending { it.value }
+                        InfoRow("Détail de ${mois("$m-01")}", euros(duMois.sumOf { it.value }))
+                        if (duMois.isEmpty()) Muted("Aucune dépense ce mois-là.")
+                        else HorizontalBars(
+                            duMois, modifier = Modifier.fillMaxWidth(),
+                            onClick = { sl ->
+                                filtre = Filtre("mois", "${sl.label} · ${mois("$m-01")}",
+                                    categorie = sl.key ?: sl.label, mois = m)
+                            },
+                        )
+                        filtre?.takeIf { it.source == "mois" }?.let { OperationsFiltrees(it) { filtre = null } }
                     }
                 }
             }
 
             item {
-                SectionCard("Taux d'épargne") {
+                SectionCard("Revenus et dépenses") {
                     if (fluxRows.isEmpty()) Muted("Données de flux indisponibles.")
+                    else {
+                        fun serie(nom: String, cle: String) = ChartSeries(
+                            nom,
+                            fluxRows.mapNotNull { r ->
+                                val m = r.str("month")?.take(10)
+                                val v = r.num(cle)
+                                if (m != null && v != null) m to v else null
+                            },
+                        )
+                        InteractiveLineChart(
+                            listOf(
+                                serie("Revenus (hors héritages et donations)", "revenus"),
+                                serie("Dépenses nettes des remboursements", "depenses"),
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            showPeriods = false,
+                            showChange = false,
+                        )
+                        Text("Taux d'épargne", style = MaterialTheme.typography.titleSmall)
+                        InteractiveLineChart(
+                            listOf(serie("Taux d'épargne", "taux_epargne")),
+                            modifier = Modifier.fillMaxWidth(),
+                            showPeriods = false,
+                            showChange = false,
+                            valueFormat = { pct(it, sign = false) },
+                        )
+                    }
                     fluxRows.takeLast(6).reversed().forEach { r ->
                         val m = r.str("month").orEmpty()
                         val enCours = m.take(7) == aujourdhui.toString().take(7)
@@ -180,21 +309,22 @@ fun DepensesScreen(nav: NavController) {
                                 " · taux ${pct(r.num("taux_epargne"), sign = false)}",
                         )
                     }
-                    Muted("Dépenses nettes des remboursements ; épargne = revenus - dépenses.")
+                    Muted("Dépenses nettes des remboursements ; revenus hors héritages et donations ; épargne = revenus - dépenses.")
                 }
             }
 
             item {
                 SectionCard("Top 10 des commerçants (12 mois)") {
                     if (top.isEmpty()) Muted("Aucun commerçant.")
-                    top.forEach { t ->
-                        val n = t.num("count")?.toInt()
-                        InfoRow(
-                            label = t.str("merchant") ?: "—",
-                            value = euros(t.num("sum")),
-                            sub = n?.let { "$it opération" + if (it > 1) "s" else "" },
-                        )
-                    }
+                    else HorizontalBars(
+                        top.map { t -> Slice(t.str("merchant") ?: "—", t.num("sum") ?: 0.0, key = t.str("merchant")) },
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { sl ->
+                            val nom = sl.key ?: sl.label
+                            filtre = Filtre("commercant", nom, recherche = nom)
+                        },
+                    )
+                    filtre?.takeIf { it.source == "commercant" }?.let { OperationsFiltrees(it) { filtre = null } }
                 }
             }
         }
