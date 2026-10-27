@@ -176,8 +176,7 @@ private fun orderText(o: JSONObject): String {
         o.num("limit_price")?.let { "Limite : ${euros(it, cents = true)}" } ?: "Sans limite de prix",
         "Justification : ${o.str("rationale") ?: "—"}",
         "Risques : ${o.str("risks") ?: "—"}",
-    ).joinToString("
-")
+    ).joinToString("\n")
 }
 
 private fun copyToClipboard(context: Context, text: String) {
