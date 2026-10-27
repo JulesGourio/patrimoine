@@ -7,11 +7,15 @@ ADB=${ADB:-$HOME/android-tools/platform-tools/adb.exe}
 SHA=$(git rev-parse HEAD)
 git status --porcelain | grep -q . && { echo "Modifications non committées : committe d'abord."; exit 1; }
 git push -q 2>/dev/null || true
-for _ in $(seq 30); do
+for _ in $(seq 6); do
   RUN=$(gh run list --workflow "$WF" --commit "$SHA" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
   [ -n "$RUN" ] && break; sleep 5
 done
-[ -n "${RUN:-}" ] || { echo "Aucun build trouvé pour $SHA"; exit 1; }
+if [ -z "${RUN:-}" ]; then  # commit hors des chemins du workflow : dernier build de la branche
+  RUN=$(gh run list --workflow "$WF" --branch "$(git branch --show-current)" --limit 1 --json databaseId -q '.[0].databaseId')
+  [ -n "$RUN" ] || { echo "Aucun build pour $WF"; exit 1; }
+  echo "Pas de build pour $SHA : dernier build de la branche ($RUN)"
+fi
 gh run watch "$RUN" --exit-status >/dev/null || { echo "Build en échec : gh run view $RUN --log-failed"; exit 1; }
 D=$(mktemp -d); gh run download "$RUN" -n "$ART" -D "$D"
 "$ADB" start-server >/dev/null 2>&1
