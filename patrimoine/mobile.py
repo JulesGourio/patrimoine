@@ -19,7 +19,7 @@ import logging
 import os
 import threading
 import traceback
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -254,6 +254,41 @@ def sync(send_alerts: bool = True) -> str:
 def synchroniser() -> dict:
     """Relance la synchronisation complète (comme le bouton) ; une seule à la fois sur le téléphone."""
     return _sync()
+
+
+def _market_hours(now: datetime | None = None) -> bool:
+    """Weekdays 8:00–22:00 in Paris: the only time prices move for the lines held (Europe, then the US close)."""
+    from zoneinfo import ZoneInfo
+
+    now = now or datetime.now(ZoneInfo("Europe/Paris"))
+    return now.weekday() < 5 and 8 <= now.hour < 22
+
+
+def veille(force: bool = False) -> str:
+    """Light, frequent pass for the price alerts: prices, valuation, alert rules. No bank, no investors."""
+    def run() -> dict:
+        if not force and not _market_hours():
+            return {"ignoree": "hors des heures de marché", "alertes": 0}
+        if not _sync_lock.acquire(blocking=False):
+            return {"ignoree": "synchronisation en cours", "alertes": 0}
+        try:
+            from . import alerts, portfolio, prices
+
+            with db.session(settings().db_path) as con:
+                db.init(con)
+                book, _ = portfolio.replay(con)
+                held = sorted({isin for (_, isin), line in book.lines.items() if line.quantity > 1e-6})
+                if held:  # only the lines held: the full history of every instrument is the daily sync's job
+                    prices.update(con, held)
+                df, _ = portfolio.valuations(con)
+                portfolio.store(con, df)
+                con.commit()
+                fired = alerts.run(con, send=True)
+            return {"alertes": len(fired), "titres": [f.title for f in fired]}
+        finally:
+            _sync_lock.release()
+
+    return _reply(run)
 
 
 def pull_analyses() -> str:

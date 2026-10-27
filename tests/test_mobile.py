@@ -310,3 +310,15 @@ def test_positions_on_empty_database(app, monkeypatch):
     assert api.positions()["positions"] == []
     p = ok(mobile.call("portefeuille"))
     assert p["positions"] == [] and p["series"] == {}
+
+
+def test_market_hours():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from patrimoine import mobile
+
+    paris = ZoneInfo("Europe/Paris")
+    assert mobile._market_hours(datetime(2026, 10, 28, 10, 0, tzinfo=paris))  # Wednesday morning
+    assert not mobile._market_hours(datetime(2026, 10, 28, 23, 0, tzinfo=paris))
+    assert not mobile._market_hours(datetime(2026, 10, 31, 11, 0, tzinfo=paris))  # Saturday

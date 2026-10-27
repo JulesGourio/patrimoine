@@ -91,7 +91,7 @@ def markdown_html(md: str) -> str:
             + body + "</div>")
 
 
-def send(title: str, message: str, priority: int = 3, tags: list[str] | None = None, email: bool = True,
+def send(title: str, message: str, priority: int = 3, tags: list[str] | None = None, email: bool = False,
          markdown_body: bool = False) -> str | None:
     """Push, plus a mail copy when asked and configured. Returns the channels that worked, or None."""
     done = []

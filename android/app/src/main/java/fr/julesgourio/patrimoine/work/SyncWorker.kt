@@ -25,6 +25,8 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         }
         return when (val reply = Engine.sync()) {
             is Reply.Ok -> {
+                if ((reply.data as? JSONObject)?.optBoolean("deja_en_cours") == true) return Result.retry()
+                WidgetRefresh.run(applicationContext)
                 val lines = (reply.data as? JSONObject)?.optJSONArray("lignes")
                 val text = (0 until (lines?.length() ?: 0)).joinToString("\n") { lines!!.optString(it) }
                 Result.success(workDataOf(KEY_LINES to text.take(8000)))

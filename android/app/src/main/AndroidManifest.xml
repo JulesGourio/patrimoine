@@ -32,6 +32,17 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".widget.PatrimoineWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_patrimoine_info" />
+        </receiver>
+
         <!-- The sync runs as a foreground job (data sync) so Android lets it finish. -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
