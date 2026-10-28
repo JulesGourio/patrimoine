@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import threading
+import time
 import traceback
 from datetime import date, datetime
 from pathlib import Path
@@ -106,8 +107,45 @@ def tools() -> str:
     return _reply(lambda: [describe(f) for f in [*api.TOOLS, *SCREENS.values()]])
 
 
+# Read-only functions computed from the database alone (no network): their answer only changes when the database
+# does, so a tab opened twice is instant (pandas on a phone takes seconds per screen).
+_CACHEABLE = {"accueil", "portefeuille", "depenses_ecran", "nouveautes", "radar", "elus", "investisseurs",
+              "performance_fonds", "ventes_realisees", "analyses", "analyse", "positions", "synthese", "patrimoine",
+              "historique", "depenses", "flux", "fiscalite", "alertes", "ordres_proposes", "references"}
+_cache: dict[tuple, str] = {}
+
+
+def _db_stamp() -> tuple:
+    """Changes whenever the database file or its write-ahead log is written."""
+    path = settings().db_path
+    stamp = []
+    for p in (path, path.with_name(path.name + "-wal")):
+        try:
+            st = p.stat()
+            stamp.append((st.st_mtime_ns, st.st_size))
+        except OSError:
+            stamp.append(None)
+    return tuple(stamp)
+
+
 def call(name: str, args_json: str = "{}") -> str:
     """Run one tool or screen by name with JSON keyword arguments."""
+    key = (name, args_json, _db_stamp()) if name in _CACHEABLE else None
+    if key and key in _cache:
+        return _cache[key]
+    started = time.monotonic()
+    reply = _call(name, args_json)
+    took = time.monotonic() - started
+    if took > 0.5:
+        log.info("écran %s : %.1f s (%d ko)", name, took, len(reply) // 1024)
+    if key and reply.startswith('{"ok": true'):
+        if len(_cache) >= 24:
+            _cache.pop(next(iter(_cache)))
+        _cache[key] = reply
+    return reply
+
+
+def _call(name: str, args_json: str) -> str:
     def run() -> Any:
         fn = SCREENS.get(name) or next((f for f in api.TOOLS if f.__name__ == name), None)
         if fn is None:
@@ -132,6 +170,7 @@ def etat() -> dict:
         n = con.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
         last = db.get_meta(con, "last_sync") or {}
         cmb_until = db.get_meta(con, "cmb_consent_until")
+        heavy = db.get_meta(con, "last_heavy_sync") or {}
         ages = {k: db.get_meta(con, m) for k, m in (("trade_republic", "last_sync_tr"), ("cmb", "last_sync_cmb"),
                                                     ("13f", "last_13f_check"), ("elus", "last_congress_check"),
                                                     ("declarations_rapides", "last_ownership_check"),
@@ -140,6 +179,7 @@ def etat() -> dict:
         "sources_maj": ages,
         "durees_synchro": last.get("durations") or {},
         "duree_totale_s": last.get("total_s"),
+        "durees_lourd": heavy.get("durations") or {},
         "base": str(s.db_path),
         "operations": n,
         "derniere_synchro": last.get("at"),
@@ -157,7 +197,9 @@ _SECURITIES_ACCOUNTS = ("tr_cto", "tr_pea")  # same accounts as api.patrimoine's
 
 def _points(s) -> list:
     """Daily series as [[ISO date, value rounded to the cent]]."""
-    return [[d.date().isoformat(), round(float(v), 2)] for d, v in s.items()]
+    step = max(1, len(s) // 400)  # a chart cannot show more than a few hundred points: 10 years of days weigh 700 KB
+    keep = list(range(len(s) - 1, -1, -step))[::-1]  # always ends on the last day
+    return [[s.index[i].date().isoformat(), round(float(s.iloc[i]), 2)] for i in keep]
 
 
 @screen
@@ -232,15 +274,11 @@ def _sync(send_alerts: bool = True) -> dict:
     if not _sync_lock.acquire(blocking=False):
         return {"deja_en_cours": True, "lignes": []}
     try:
-        from . import cloud, pipeline
+        from . import pipeline
 
-        lines = pipeline.run(settings(), send_alerts=send_alerts)
-        try:
-            lines += cloud.pull(settings())
-        except Exception as e:  # noqa: BLE001 - the sync itself went through
-            log.error("cloud pull: %s", traceback.format_exc())
-            lines.append(f"Analyses cloud : ÉCHEC — {e}")
-        return {"deja_en_cours": False, "lignes": lines}
+        # Fast part only: the phone's interpreter is shared with the screens, so a long sync makes every tab crawl.
+        # The investors and the radar run apart (``sync_lourd``), at night.
+        return {"deja_en_cours": False, "lignes": pipeline.run(settings(), send_alerts=send_alerts, part="rapide")}
     finally:
         _sync_lock.release()
 
@@ -285,6 +323,21 @@ def veille(force: bool = False) -> str:
                 con.commit()
                 fired = alerts.run(con, send=True)
             return {"alertes": len(fired), "titres": [f.title for f in fired]}
+        finally:
+            _sync_lock.release()
+
+    return _reply(run)
+
+
+def sync_lourd() -> str:
+    """Other investors (13F, Congress, fast filings) and the radar: slow, network-heavy, once a day, at night."""
+    def run() -> dict:
+        if not _sync_lock.acquire(blocking=False):
+            return {"deja_en_cours": True, "lignes": []}
+        try:
+            from . import pipeline
+
+            return {"deja_en_cours": False, "lignes": pipeline.run(settings(), part="lourd")}
         finally:
             _sync_lock.release()
 

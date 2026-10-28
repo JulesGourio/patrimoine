@@ -93,9 +93,9 @@ def test_export_then_import_database(app, tmp_path):
 def test_only_one_sync_at_a_time(app, monkeypatch):
     from patrimoine import cloud, pipeline
 
-    monkeypatch.setattr(pipeline, "run", lambda settings, send_alerts=True: ["étape"])
-    monkeypatch.setattr(cloud, "pull", lambda settings: ["analyse 1 publiée"])
-    assert ok(mobile.sync()) == {"deja_en_cours": False, "lignes": ["étape", "analyse 1 publiée"]}
+    monkeypatch.setattr(pipeline, "run", lambda settings, send_alerts=True, part="tout": ["étape"])
+    monkeypatch.setattr(cloud, "pull", lambda settings: pytest.fail("the sync no longer pulls cloud analyses"))
+    assert ok(mobile.sync()) == {"deja_en_cours": False, "lignes": ["étape"]}
     mobile._sync_lock.acquire()
     try:
         assert ok(mobile.sync())["deja_en_cours"] is True
@@ -111,7 +111,7 @@ def test_balance_entry(app):
 def test_synchroniser_through_call_uses_the_lock(app, monkeypatch):
     from patrimoine import cloud, pipeline
 
-    monkeypatch.setattr(pipeline, "run", lambda settings, send_alerts=True: ["étape"])
+    monkeypatch.setattr(pipeline, "run", lambda settings, send_alerts=True, part="tout": ["étape"])
     monkeypatch.setattr(cloud, "pull", lambda settings: [])
     mobile._sync_lock.acquire()
     try:
@@ -322,3 +322,61 @@ def test_market_hours():
     assert mobile._market_hours(datetime(2026, 10, 28, 10, 0, tzinfo=paris))  # Wednesday morning
     assert not mobile._market_hours(datetime(2026, 10, 28, 23, 0, tzinfo=paris))
     assert not mobile._market_hours(datetime(2026, 10, 31, 11, 0, tzinfo=paris))  # Saturday
+
+
+def test_phone_sync_is_fast_part_only_and_heavy_runs_apart(app, monkeypatch):
+    from patrimoine import pipeline
+
+    seen = []
+    monkeypatch.setattr(pipeline, "run", lambda settings, send_alerts=True, part="tout": seen.append(part) or [part])
+    assert ok(mobile.sync())["lignes"] == ["rapide"]
+    assert ok(mobile.sync_lourd())["lignes"] == ["lourd"]
+    assert seen == ["rapide", "lourd"]
+
+
+def test_pipeline_parts_run_only_their_steps(tmp_path, monkeypatch):
+    from patrimoine import alerts, pipeline, prices
+    from patrimoine.config import Settings
+
+    ran = []
+    for name in ("_trade_republic", "_cmb"):
+        monkeypatch.setattr(pipeline, name, lambda *a, _n=name, **k: ran.append(_n))
+    for name in ("_investors", "_congress", "_fresh", "_radar"):
+        monkeypatch.setattr(pipeline, name, lambda *a, _n=name, **k: ran.append(_n) or [])
+    monkeypatch.setattr(prices, "update", lambda con: ran.append("prix") or {})
+    monkeypatch.setattr(alerts, "run", lambda con, send=True: ran.append("alertes") or [])
+    monkeypatch.setattr(pipeline.portfolio, "valuations", lambda con: (__import__("pandas").DataFrame(
+        {"date": [], "cash": [], "securities": []}), None))
+    monkeypatch.setattr(pipeline.portfolio, "store", lambda con, df: None)
+    monkeypatch.setattr(pipeline, "_durations", {})
+    s = Settings(data_dir=tmp_path)
+
+    try:
+        pipeline.run(s, part="rapide")
+    except Exception:  # noqa: BLE001 - the empty valuation may fail on its own; only the steps run matter
+        pass
+    assert "_trade_republic" in ran and "_cmb" in ran and "_investors" not in ran and "_radar" not in ran
+
+    ran.clear()
+    pipeline.run(s, part="lourd")
+    assert ran == ["_investors", "_congress", "_fresh", "_radar"]
+
+
+def test_read_only_screens_are_cached_until_the_database_changes(app, monkeypatch):
+    calls = []
+    monkeypatch.setitem(mobile.SCREENS, "references", lambda: calls.append(1) or {"x": 1})
+    mobile._cache.clear()
+    assert ok(mobile.call("references")) == {"x": 1} and ok(mobile.call("references")) == {"x": 1}
+    assert len(calls) == 1
+    with db.session(mobile.settings().db_path) as con:
+        db.set_meta(con, "test", {"a": 1})
+    ok(mobile.call("references"))
+    assert len(calls) == 2
+
+
+def test_chart_points_are_thinned_and_end_on_the_last_day():
+    import pandas as pd
+
+    s = pd.Series(range(3650), index=pd.date_range("2016-01-01", periods=3650))
+    pts = mobile._points(s)
+    assert len(pts) <= 420 and pts[-1][1] == 3649 and pts[-1][0] == s.index[-1].date().isoformat()

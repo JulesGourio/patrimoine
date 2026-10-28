@@ -19,6 +19,7 @@ object Scheduler {
     const val DAILY = "synchro-quotidienne"
     const val NOW = "synchro-maintenant"
     private const val ANALYSES = "analyses-cloud"
+    private const val HEAVY = "synchro-lourde"
     private const val VEILLE = "veille-prix"
     private val SYNC_TIME: LocalTime = LocalTime.of(7, 30)
 
@@ -33,6 +34,12 @@ object Scheduler {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
             .build()
         wm.enqueueUniquePeriodicWork(DAILY, ExistingPeriodicWorkPolicy.KEEP, daily)
+        val night = Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED).setRequiresBatteryNotLow(true).build()
+        val heavy = PeriodicWorkRequestBuilder<HeavySyncWorker>(24, TimeUnit.HOURS)
+            .setInitialDelay(untilNext(LocalTime.of(3, 30)))
+            .setConstraints(night)
+            .build()
+        wm.enqueueUniquePeriodicWork(HEAVY, ExistingPeriodicWorkPolicy.KEEP, heavy)
         wm.cancelUniqueWork(ANALYSES)  // analyses are on demand now: no more cloud routines to collect
         val veille = PeriodicWorkRequestBuilder<VeilleWorker>(30, TimeUnit.MINUTES).setConstraints(network).build()
         wm.enqueueUniquePeriodicWork(VEILLE, ExistingPeriodicWorkPolicy.KEEP, veille)

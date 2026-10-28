@@ -210,6 +210,10 @@ def _radar(con, lines: list[str]) -> list[str]:
     return out
 
 
+class _Skip(Exception):
+    """Step not part of this run."""
+
+
 _durations: dict[str, float] = {}  # step -> seconds, of the sync in progress
 
 
@@ -224,15 +228,19 @@ def _timed(name: str) -> Generator[None]:
         log.info("%s : %.1f s", name, took)
 
 
-def run(settings: Settings | None = None, interactive: bool = False, send_alerts: bool = True) -> list[str]:
+def run(settings: Settings | None = None, interactive: bool = False, send_alerts: bool = True,
+        part: str = "tout") -> list[str]:
+    """``part``: ``rapide`` (banks, prices, valuation, alerts: seconds), ``lourd`` (other investors and radar: minutes,
+    network-heavy) or ``tout`` (the PC's daily task)."""
     settings = settings or Settings()
+    fast, heavy = part in ("rapide", "tout"), part in ("lourd", "tout")
     lines: list[str] = []
     _durations.clear()
     started = time.monotonic()
     with db.session(settings.db_path) as con:
         db.init(con)
-        for name, step in (("Trade Republic", lambda: _trade_republic(settings, con, lines, interactive)),
-                           ("CMB", lambda: _cmb(settings, con, lines))):
+        for name, step in ((("Trade Republic", lambda: _trade_republic(settings, con, lines, interactive)),
+                            ("CMB", lambda: _cmb(settings, con, lines))) if fast else ()):
             try:
                 with _timed(name):
                     step()
@@ -242,6 +250,8 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
                 notify.send(f"Synchronisation {name} en échec", str(e)[:300], priority=3, email=False)
             con.commit()  # release the write lock: the app's screens read the database during the sync
         try:
+            if not fast:
+                raise _Skip
             got = prices.update(con)
             missing = [i for i, v in got.items() if "aucune" in v]
             lines.append(f"Cours : {len(got) - len(missing)} titres à jour" + (f", {len(missing)} sans cotation"
@@ -252,13 +262,15 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
             con.commit()
             lines.append(f"Patrimoine au {df.date.max()} : {(last.cash + last.securities).sum():,.0f} €"
                          .replace(",", " "))
+        except _Skip:
+            pass
         except Exception as e:  # noqa: BLE001
             log.error("valuation: %s", traceback.format_exc())
             lines.append(f"Valorisation : ÉCHEC — {e}")
         # One digest for everything about other investors (funds and members of Congress), not one mail each.
         digest: list[str] = []
         for name, step in (("13F", _investors), ("Élus américains", _congress), ("Déclarations rapides", _fresh),
-                           ("Radar", _radar)):
+                           ("Radar", _radar)) if heavy else ():
             try:
                 with _timed(name):
                     digest += step(con, lines)
@@ -269,17 +281,15 @@ def run(settings: Settings | None = None, interactive: bool = False, send_alerts
         if digest and send_alerts:
             notify.send("Suivi des investisseurs", "\n\n".join(digest), priority=3, tags=["busts_in_silhouette"],
                         markdown_body=True)
-        fired = alerts.run(con, send=send_alerts)
-        lines.append(f"Alertes : {len(fired)} nouvelle(s)" + "".join(f"\n  - {f.title}" for f in fired))
-        db.set_meta(con, "last_sync", {"at": db.now_iso(), "summary": lines, "durations": dict(_durations),
-                                       "total_s": round(time.monotonic() - started, 1)})
-    try:  # after the session is closed: the export opens its own connections
-        from . import cloud
-
-        lines.append(cloud.export(settings))
-    except Exception as e:  # noqa: BLE001
-        log.error("cloud: %s", traceback.format_exc())
-        lines.append(f"Cloud : ÉCHEC de l'export — {e}")
+        done = {"at": db.now_iso(), "summary": lines, "durations": dict(_durations),
+                "total_s": round(time.monotonic() - started, 1)}
+        if fast:
+            fired = alerts.run(con, send=send_alerts)
+            lines.append(f"Alertes : {len(fired)} nouvelle(s)" + "".join(f"\n  - {f.title}" for f in fired))
+            done["total_s"] = round(time.monotonic() - started, 1)
+        db.set_meta(con, "last_sync" if fast else "last_heavy_sync", done)
+    # The export to the cloud routines (branch ``donnees``) is gone: the analyses are on demand now, and a push to
+    # GitHub in every sync cost seconds (and minutes when the network was bad).
     return lines
 
 
