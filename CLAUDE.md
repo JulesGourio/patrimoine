@@ -1,27 +1,24 @@
 # Patrimoine — contexte pour Claude
 
-Appli locale de Jules : dépenses (CMB + carte Trade Republic), portefeuille (Trade Republic CTO et PEA),
-PEG Airbus (109,4 actions, disponibles), patrimoine total, alertes, rapports. Voir README pour les comptes
-et la feuille de route.
+Outil local de suivi des dépenses, du portefeuille et du patrimoine, partagé en open source. Voir README pour les
+sources prises en charge et `docs/GENERALISATION.md` pour ce qui reste à rendre configurable.
 
-## Profil investisseur
-
-- Recherche la performance, tolère le risque, horizon long. Ne pas proposer de profil prudent par défaut.
-- Rester honnête : signaler la concentration (Airbus via le PEG + éventuellement en direct), les pertes
-  latentes, les frais et la fiscalité ; donner le raisonnement et le risque avec chaque idée.
-- Tout type d'actif possible (actions, ETF, et plus tard crypto ou autres).
-- Rapports : hebdomadaire + à la demande. Alertes : baisses de X % et seuils configurables, sur téléphone
-  (ntfy) et mail.
+**Profil de l'utilisateur** : il est dans `CLAUDE.local.md` (ignoré par git, modèle : `docs/profil-exemple.md`).
+Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le demander avant de conseiller.
 
 ## Règles
 
-- **Jamais d'ordre de bourse passé par Claude.** L'API Trade Republic n'est pas officielle : Claude
-  prépare l'ordre (titre, quantité, limite, justification), Jules l'exécute.
+- Rester honnête : signaler la concentration, les pertes latentes, les frais et la fiscalité ; donner le
+  raisonnement et le risque avec chaque idée.
+- **Jamais d'ordre de bourse passé par Claude.** Claude prépare l'ordre (titre, quantité, limite, justification),
+  l'utilisateur l'exécute chez son courtier.
 - Toujours partir des données de la base, pas d'estimation à l'aveugle ; dire quand une donnée manque.
-- Un virement entre comptes de Jules est `interne`, jamais une dépense ni un revenu. Les paiements carte
-  Trade Republic sont des dépenses.
+- Un virement entre comptes de l'utilisateur est `interne`, jamais une dépense ni un revenu. Les paiements par
+  carte de courtier sont des dépenses.
 - Secrets uniquement via `patrimoine.vault` (keyring sur le PC, Android Keystore dans l'appli mobile) ; jamais
   dans le code, `.env` ou la base.
+- Aucune donnée personnelle dans le dépôt (relevés, IBAN, noms, adresses, ISIN d'un portefeuille réel) : tests avec
+  des données inventées.
 - Montants en centimes entiers ; quantités de titres en REAL.
 - Lancer `uv run pytest` avant de committer (un hook le fait aussi automatiquement et bloque le commit si un test échoue).
 
@@ -68,7 +65,7 @@ et la feuille de route.
 - Tableau de bord : `pat` (raccourci `~/.local/bin/pat.cmd`) ou `uv run patrimoine app` : le lance s'il ne tourne pas et ouvre
   le navigateur (http://localhost:8501).
 - Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
-  session Trade Republic a expiré, une notification demande à Jules de confirmer dans l'appli.
+  session Trade Republic a expiré, une notification demande à l'utilisateur de confirmer dans l'appli.
 - Analyses de marché (`patrimoine/briefing.py`, méthode dans `scripts/analyse.md`) : Python calcule les faits
   (lignes contre leur indice, écart en écarts-types, marchés, secteurs, moteurs des ETF, analystes, résultats à
   venir), Claude Code (`-p`) cherche les causes sur le web (24–72 h, sources citées) et publie un JSON au format
@@ -85,12 +82,12 @@ et la feuille de route.
   mis le .ps1 en quarantaine). Si la
   commande bloque, enregistrer les tâches avec `Register-ScheduledTask` depuis l'outil PowerShell de Claude.
 - Notifications (`patrimoine.notify`) : push ntfy (sujet secret dans le keyring) et mail via Gmail SMTP avec un
-  mot de passe d'application (`smtp_password`, saisi par Jules dans la page Réglages). ntfy.sh refuse le mail anonyme.
+  mot de passe d'application (`smtp_password`, saisi par l'utilisateur dans la page Réglages). ntfy.sh refuse le mail anonyme.
 - CMB via Enable Banking : seul le compte courant est exposé (DSP2). Accès valable 180 jours (meta
-  `cmb_consent_until`) ; pour le renouveler, `eb.start_consent` puis ouvrir le lien dans le navigateur de Jules
+  `cmb_consent_until`) ; pour le renouveler, `eb.start_consent` puis ouvrir le lien dans le navigateur de l'utilisateur
   (il se connecte à la CMB), récupérer l'URL `https://localhost/patrimoine?code=…` et `eb.finish_consent`.
   Les livrets ne sont pas exposés : soldes saisis avec `patrimoine solde <compte> <montant>`.
-- Fais le maximum toi-même (commandes, navigateur) ; Jules n'intervient que pour ses identifiants et les
+- Fais le maximum toi-même (commandes, navigateur) ; l'utilisateur n'intervient que pour ses identifiants et les
   confirmations bancaires.
 - Historique CMB complet : exports CSV du site CMB (« Recherche et export d'opérations », fichiers
   `RELEVE_*.csv` dans Téléchargements) importés avec `uv run patrimoine cmb-csv ~/Downloads` : compte courant
@@ -102,7 +99,7 @@ et la feuille de route.
 - Élus américains : déclarations officielles (Chambre : index `{année}FD.zip` + PDF ; Sénat : efdsearch via
   curl_cffi, qui imite Chrome pour passer le filtre anti-robot), `patrimoine/sources/congress.py`, analyses dans
   `patrimoine/politicians.py`. Sélection automatique chaque jour (`politicians.auto_follow`) : Pelosi + élus actifs
-  battant le S&P 500 de 5 points ; les choix manuels de Jules (meta `congress_follow_manual`) priment.
+  battant le S&P 500 de 5 points ; les choix manuels de l'utilisateur (meta `congress_follow_manual`) priment.
 - Déclarations rapides (`patrimoine/sources/ownership.py`, analyses dans `patrimoine/fresh.py`), chaque jour :
   Form 4 et 13D/13G des fonds suivis (XML EDGAR), ETF d'ARK (CSV quotidiens, historique stocké à partir du
   29/09/2026), opérations des dirigeants des titres surveillés (`fresh.watchlist`, page EDGAR `own-disp`, une

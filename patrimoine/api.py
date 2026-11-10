@@ -17,11 +17,11 @@ from .categories import CATEGORIES, SPENDING
 from .config import Settings
 
 INSTRUCTIONS = (
-    "Patrimoine de Jules : dépenses (CMB + carte Trade Republic), portefeuille Trade Republic (compte-titres, "
-    "PEA), PEG Airbus, livrets. Montants en euros. Profil : recherche la performance, tolère le risque, horizon "
-    "long ; rester honnête sur les risques, la concentration (Airbus : PEG + salaire passé) et la fiscalité. "
+    "Patrimoine de l'utilisateur : dépenses, portefeuille, comptes d'épargne, patrimoine total. Montants en "
+    "euros. Le profil d'investisseur (tolérance au risque, horizon) est dans CLAUDE.local.md s'il existe ; "
+    "sinon le demander avant de conseiller. Rester honnête sur les risques, la concentration et la fiscalité. "
     "Toujours partir de ces données ; utiliser `marche` pour les cours et fondamentaux, la recherche web pour "
-    "l'actualité. Jamais d'ordre passé : proposer avec `preparer_ordre`, Jules exécute. Analyse de marché "
+    "l'actualité. Jamais d'ordre passé : proposer avec `preparer_ordre`, l'utilisateur exécute. Analyse de marché "
     "(quotidienne ou hebdo) : `faits_du_jour` puis `publier_analyse` (format fixe, mail court avec graphique, "
     "page Analyses). Rapport libre à la demande : `enregistrer_rapport`."
 )

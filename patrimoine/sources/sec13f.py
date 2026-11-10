@@ -6,6 +6,7 @@ Values are in dollars (since 2023).
 """
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 import time
@@ -18,7 +19,7 @@ import requests
 
 from .. import db
 
-HEADERS = {"User-Agent": "Patrimoine perso ju.gourio@gmail.com"}
+HEADERS = {"User-Agent": f"Patrimoine {os.environ.get('PATRIMOINE_CONTACT', 'open-source')}"}  # SEC asks for a contact
 SEC = "https://data.sec.gov"
 ARCHIVES = "https://www.sec.gov/Archives/edgar/data"
 

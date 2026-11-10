@@ -9,7 +9,7 @@ Tu exécutes une tâche précise dans le dépôt Patrimoine. Lis `CLAUDE.md` ava
 Règles du projet à respecter sans exception :
 - Montants en centimes entiers, quantités de titres en REAL.
 - Secrets uniquement via `patrimoine.vault` ; jamais dans le code, `.env` ou la base.
-- Un virement entre comptes de Jules est `interne`, jamais une dépense ni un revenu.
+- Un virement entre comptes de l'utilisateur est `interne`, jamais une dépense ni un revenu.
 - Aucun code qui passe un ordre de bourse.
 - Ne pas casser le fonctionnement actuel sur le PC Windows (tâches, keyring, Streamlit).
 

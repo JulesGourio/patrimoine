@@ -6,18 +6,22 @@ st.subheader("Réglages", icon=":material/settings:")
 
 with st.container(border=True):
     st.markdown("**E-mails d'alerte et de rapport**")
-    st.caption(f"Les mails partent de {notify.EMAIL} vers {notify.EMAIL}, avec un mot de passe d'application Google "
+    st.caption("Les mails partent de ton adresse Gmail vers elle-même, avec un mot de passe d'application Google "
                "(16 lettres, créé sur myaccount.google.com/apppasswords). Il est rangé dans le gestionnaire "
                "d'identifiants Windows, jamais dans un fichier.")
     st.badge("Configuré" if notify.mail_ready() else "Pas encore configuré",
              color="green" if notify.mail_ready() else "orange",
              icon=":material/check:" if notify.mail_ready() else ":material/schedule:")
     with st.form("smtp", border=False):
+        email = st.text_input("Adresse Gmail", value=notify.address(), placeholder="toi@gmail.com")
         password = st.text_input("Mot de passe d'application", type="password", placeholder="xxxx xxxx xxxx xxxx")
         if st.form_submit_button("Enregistrer et envoyer un mail de test", icon=":material/send:", type="primary"):
-            if len(password.replace(" ", "")) != 16:
+            if "@" not in email:
+                st.error("Indique ton adresse Gmail.", icon=":material/error:")
+            elif len(password.replace(" ", "")) != 16:
                 st.error("Un mot de passe d'application Google fait 16 lettres.", icon=":material/error:")
             else:
+                vault.set("smtp_email", email.strip())
                 vault.set("smtp_password", password.replace(" ", ""))
                 if notify.mail("Test", "Les mails du tableau de bord Patrimoine fonctionnent."):
                     st.success("Mail envoyé : vérifie ta boîte de réception.", icon=":material/check_circle:")

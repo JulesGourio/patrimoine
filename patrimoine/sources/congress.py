@@ -13,6 +13,7 @@ from __future__ import annotations
 import html
 import io
 import logging
+import os
 import re
 import sqlite3
 import time
@@ -27,7 +28,7 @@ log = logging.getLogger(__name__)
 
 HOUSE = "https://disclosures-clerk.house.gov/public_disc"
 SENATE = "https://efdsearch.senate.gov"
-HEADERS = {"User-Agent": "Mozilla/5.0 (Patrimoine perso; ju.gourio@gmail.com)"}
+HEADERS = {"User-Agent": f"Mozilla/5.0 (Patrimoine; {os.environ.get('PATRIMOINE_CONTACT', 'open-source')})"}
 FIRST_YEAR = 2025  # history fetched on the first run
 
 # Always in the selection: the most copied member (the "Pelosi tracker"). The rest of the selection is made

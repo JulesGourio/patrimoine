@@ -24,24 +24,29 @@ android {
         }
     }
 
+    // Signing key: never stored in the repository. Set ANDROID_KEYSTORE_FILE, ANDROID_KEYSTORE_PASSWORD,
+    // ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (GitHub secrets in CI) to sign every build with your own key, so a new
+    // APK updates the app instead of requiring an uninstall that would erase its data. Without them, Android's
+    // standard debug key is used. See android/README.md.
+    val keystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
     signingConfigs {
-        // One fixed key for every build (CI and PC), so a new APK updates the app instead of
-        // requiring an uninstall that would erase its data. Sideloaded app, not published.
-        create("patrimoine") {
-            storeFile = file("patrimoine.keystore")
-            storePassword = "patrimoine"
-            keyAlias = "patrimoine"
-            keyPassword = "patrimoine"
+        if (keystorePath != null) {
+            create("patrimoine") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "patrimoine"
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("patrimoine")
+            signingConfigs.findByName("patrimoine")?.let { signingConfig = it }
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("patrimoine")
+            signingConfig = signingConfigs.findByName("patrimoine") ?: signingConfigs.getByName("debug")
         }
     }
 

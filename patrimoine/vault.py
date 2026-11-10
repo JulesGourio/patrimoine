@@ -15,6 +15,7 @@ KNOWN = {
     "tr_pin": "Code PIN Trade Republic",
     "cmb_session": "Session Enable Banking (accès aux comptes CMB)",
     "ntfy_topic": "Sujet ntfy pour les notifications téléphone",
+    "smtp_email": "Adresse Gmail qui envoie et reçoit les mails",
     "smtp_password": "Mot de passe d'application du mail d'alertes",
     "github_token": "Jeton GitHub (dépôt patrimoine) pour les analyses cloud sans git",
 }

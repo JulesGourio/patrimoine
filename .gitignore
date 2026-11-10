@@ -9,3 +9,10 @@ scripts/*.ps1
 .serena/
 streamlit_*.log
 .claude/settings.local.json
+
+# Clés de signature et secrets locaux
+*.keystore
+*.jks
+.env
+CLAUDE.local.md
+docs/perso/
