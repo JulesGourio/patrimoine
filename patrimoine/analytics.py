@@ -22,6 +22,11 @@ from . import portfolio
 INVESTED = ("tr_cto", "tr_pea")
 MIN_BASE = 1000.0
 BENCHMARKS = {"MSCI World": "IWDA.AS", "S&P 500": "CSPX.AS", "CAC 40": "^FCHI", "Nasdaq 100": "EQQQ.DE"}
+# Tables de risque (outil `risques`). Levier : le Nasdaq 100 x2 bouge deux fois plus que l'indice chaque jour.
+# Devise : celle des actifs sous-jacents, pas celle de la cotation.
+LEVERAGE = {"FR0010342592": 2.0}
+CURRENCY = {"NL0000235190": "EUR", "IE00BHZRR030": "KRW", "FR0011550185": "USD", "FR0010342592": "USD",
+            "IE000YU9K6K2": "USD", "IE000KHX9DX6": "USD"}
 
 
 # ---------- returns ----------
@@ -204,17 +209,69 @@ def region_of(name: str) -> str:
 
 # ---------- spending ----------
 
-def recurring(spending: pd.DataFrame, min_months: int = 3) -> pd.DataFrame:
-    """Merchants paid in at least ``min_months`` distinct months with a steady amount: subscriptions, rent…"""
+def _dominant_by_month(d: pd.DataFrame) -> pd.DataFrame:
+    """One payment per month: the amount paid most often that month (±5 %), the highest on a tie. A one-off bill to the
+    same payee (a water bill next to the rent) therefore does not stand in for the monthly charge."""
+    rows = []
+    for month, m in d.groupby("month"):
+        amounts = m["amount"].tolist()
+        count = [sum(abs(b - a) <= 0.05 * a for b in amounts) for a in amounts]
+        best = max(range(len(m)), key=lambda i: (count[i], amounts[i]))
+        rows.append({"month": month, "amount": float(amounts[best]), "date": m["date"].iloc[best]})
+    return pd.DataFrame(rows)
+
+
+def recurring(spending: pd.DataFrame, min_months: int = 3, include_ended: bool = False) -> pd.DataFrame:
+    """Merchants still paid about once a month, at a steady *current* amount: subscriptions, rent…
+
+    "Today" is the date of the latest spending line (the data may be a few days old). Stability is judged on the
+    dominant amount of each month, on the latest months, not on the whole history or on raw payments: a service whose
+    price rose (a phone plan, a streaming subscription) is still a subscription, and a one-off bill to the same payee
+    does not hide the monthly charge. ``amount`` is the latest dominant amount; ``previous_amount`` and ``changed_on``
+    show a price change; ``since`` is the first month the current amount was paid. With ``include_ended``,
+    subscriptions last paid more than 45 days before the data date (cancelled, within the last 24 months) are kept
+    too, with ``status`` = "résilié" instead of "actif".
+    """
     if spending.empty:
         return pd.DataFrame()
-    sp = spending[spending.amount > 0]
-    g = sp.groupby("merchant").agg(months=("month", "nunique"), median=("amount", "median"), std=("amount", "std"),
-                                   last=("date", "max"), category=("category", "first"), n=("amount", "size"))
-    g = g[(g.months >= min_months) & (g.n <= g.months * 1.5) & ((g["std"].fillna(0) / g["median"]) < 0.25)]
-    g = g[g["last"] >= pd.Timestamp.today() - pd.Timedelta(days=45)]  # still running
-    g["annual"] = g["median"] * 12
-    return g.sort_values("annual", ascending=False).reset_index()
+    today = spending["date"].max().normalize()
+    if "not_subscription" in spending:
+        spending = spending[~spending["not_subscription"].astype(bool)]
+    sp = spending[(spending.amount > 0) & (spending.date >= today - pd.DateOffset(months=24))].sort_values("date")
+    rows = []
+    for merchant, d in sp.groupby("merchant"):
+        months = d["month"].nunique()
+        ended = d["date"].max() < today - pd.Timedelta(days=45)
+        # A cancelled one must have run long enough (6 months) not to be a habit that merely stopped.
+        if months < max(min_months, 6 if ended else 0) or len(d) > months * 1.5 or (ended and not include_ended):
+            continue
+        gaps = d["month"].drop_duplicates().sort_values().diff().dropna().dt.days
+        if len(gaps) and gaps.tail(3).max() > 62:  # not monthly any more
+            continue
+        dom = _dominant_by_month(d)
+        last3 = dom["amount"].tail(3)
+        current = float(last3.iloc[-1])
+        if (last3 - last3.median()).abs().max() > 0.25 * last3.median():
+            continue
+        # Price change: the last two stretches of at least two months at a different price (one-off lines ignored).
+        runs: list[list] = []
+        for a, ts in zip(dom["amount"], dom["date"]):
+            if runs and abs(a - runs[-1][0]) <= 0.05 * runs[-1][0]:
+                runs[-1][1] += 1
+            else:
+                runs.append([float(a), 1, ts])
+        runs = [r for r in runs if r[1] >= 2]
+        previous, changed = (runs[-2][0], runs[-1][2]) if len(runs) >= 2 and abs(runs[-2][0] - runs[-1][0]) > 0.05 * runs[-1][0]             else (None, None)
+        since = dom.loc[(dom["amount"] - current).abs() <= 0.05 * current, "date"].min()
+        rows.append({"merchant": merchant, "months": months, "median": float(last3.median()), "amount": current,
+                     "previous_amount": previous, "changed_on": changed, "since": since,
+                     "last": d["date"].max(), "category": d["category"].iloc[-1], "n": len(d),
+                     "status": "résilié" if ended else "actif"})
+    g = pd.DataFrame(rows)
+    if g.empty:
+        return g
+    g["annual"] = g["amount"] * 12
+    return g.sort_values(["status", "annual"], ascending=[True, False]).reset_index(drop=True)
 
 
 def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
@@ -223,21 +280,31 @@ def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
     Refunds (friends paying back their share, health insurance) are netted off spending rather than counted
     as income: otherwise a shared dinner paid by Jules would inflate both sides and the savings rate.
     Windfalls (inheritance, gifts) are kept apart in ``heritage``: neither income nor savings.
+    Bonuses and profit-sharing (``primes``: category « Primes et intéressement » on the bank account, plus the
+    intéressement / participation paid into the PEG) are income, hence savings; the PEG ones remain securities
+    purchases for the portfolio (``investi_net`` is untouched).
     """
-    from .categories import REFUNDS, WINDFALLS
+    from .categories import PRIMES, REFUNDS, WINDFALLS
+    from .queries import peg_primes
 
     f = pd.read_sql_query("SELECT date, flow, amount_cents, COALESCE(category_override, category) AS category"
                           " FROM transactions WHERE flow IN ('revenu','depense','frais','interets','dividende')",
                           con, parse_dates=["date"])
-    f["month"] = f.date.dt.to_period("M").dt.to_timestamp()
     f.loc[(f.flow == "revenu") & f.category.isin(REFUNDS), "flow"] = "remboursement"
     f.loc[(f.flow == "revenu") & (f.category == "Salaire"), "flow"] = "salaire"
     f.loc[(f.flow == "revenu") & f.category.isin(WINDFALLS), "flow"] = "heritage"
+    f.loc[(f.flow == "revenu") & (f.category == PRIMES), "flow"] = "prime"
+    peg = peg_primes(con)
+    if not peg.empty:
+        f = pd.concat([f, pd.DataFrame({"date": peg["date"], "flow": "prime", "amount_cents": (peg["amount"] * 100).round(),
+                                        "category": PRIMES})], ignore_index=True)
+    f["month"] = f.date.dt.to_period("M").dt.to_timestamp()
     p = f.pivot_table(index="month", columns="flow", values="amount_cents", aggfunc="sum", fill_value=0) / 100
     col = lambda c: p[c] if c in p else pd.Series(0.0, index=p.index)  # noqa: E731
-    out = pd.DataFrame({"revenus": col("salaire") + col("revenu") + col("interets") + col("dividende"),
+    out = pd.DataFrame({"revenus": col("salaire") + col("revenu") + col("prime") + col("interets") + col("dividende"),
                         "depenses": -(col("depense") + col("frais")) - col("remboursement")})
     out["salaire"] = col("salaire")
+    out["primes"] = col("prime")
     out["remboursements"] = col("remboursement")
     out["heritage"] = col("heritage")
     out["epargne"] = out.revenus - out.depenses

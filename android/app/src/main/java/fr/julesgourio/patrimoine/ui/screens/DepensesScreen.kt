@@ -563,6 +563,7 @@ fun OperationsScreen(onBack: () -> Unit) {
     var flux by remember { mutableStateOf("") }
     var jours by remember { mutableStateOf(90) }
     var cible by remember { mutableStateOf<JSONObject?>(null) }
+    var vendeur by remember { mutableStateOf<String?>(null) }
     var erreur by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -615,7 +616,7 @@ fun OperationsScreen(onBack: () -> Unit) {
                         val montant = o.num("montant")
                         Column {
                             InfoRow(
-                                label = o.str("counterparty") ?: o.str("label") ?: "—",
+                                label = o.str("commercant") ?: o.str("counterparty") ?: o.str("label") ?: "—",
                                 value = euros(montant, sign = true),
                                 tone = if (type == "interne") null else montant,
                                 sub = day(o.str("date")) + (o.str("categorie")?.let { " · $it" } ?: "") +
@@ -639,6 +640,7 @@ fun OperationsScreen(onBack: () -> Unit) {
         val liste = (refs.load as? Load.Done)?.data
             ?.strings(if (type == "revenu") "categories_revenus" else "categories_depenses").orEmpty()
         val commercant = op.str("counterparty")
+        val nomVendeur = op.str("commercant") ?: commercant
         var choix by remember(op.str("id")) { mutableStateOf(op.str("categorie")) }
         var tout by remember(op.str("id")) { mutableStateOf(false) }
         AlertDialog(
@@ -658,6 +660,9 @@ fun OperationsScreen(onBack: () -> Unit) {
                                 Text(c)
                             }
                         }
+                    }
+                    if (nomVendeur != null) {
+                        TextButton(onClick = { vendeur = nomVendeur; cible = null }) { Text("Renommer ce vendeur") }
                     }
                     if (commercant != null) {
                         Row(
@@ -694,6 +699,16 @@ fun OperationsScreen(onBack: () -> Unit) {
                 ) { Text("Appliquer") }
             },
             dismissButton = { TextButton(onClick = { cible = null }) { Text("Annuler") } },
+        )
+    }
+
+    vendeur?.let { nom ->
+        RenameVendorDialog(
+            raw = nom,
+            nomActuel = nom,
+            pasAbonnement = false,
+            onDismiss = { vendeur = null },
+            onDone = { vendeur = null; erreur = null; state.reload() },
         )
     }
 }

@@ -24,8 +24,8 @@ Priorité, dans l'ordre :
 3. Le marché : le thème dominant de la séance (banques centrales, statistiques, résultats, géopolitique,
    flux). Vérifie le calendrier des 7 prochains jours (Fed, BCE, inflation US, emploi US, résultats des sociétés
    dans `resultats_a_venir` et des grosses positions de ses ETF).
-4. Les idées : `radar`, `argent_suivi` et `analystes`. Ne retiens une idée que si tu trouves une raison
-   concrète et récente (résultats, contrat, relèvement d'objectif, achat d'un dirigeant) ; sinon n'en mets pas.
+4. Les idées : `analystes` et les secteurs en mouvement. Ne retiens une idée que si tu trouves une raison
+   concrète et récente (résultats, contrat, relèvement d'objectif) ; sinon n'en mets pas.
 
 Sources, par ordre de préférence : communiqués et dépôts officiels (SEC, AMF, sites des sociétés, Fed, BCE),
 Reuters, Bloomberg, Financial Times, WSJ, CNBC, Les Échos, Zonebourse, Boursorama, Investing.com, Yahoo Finance.
@@ -79,7 +79,7 @@ Les conseils (le cœur de l'analyse, 2 à 4 à chaque fois) :
     une partie des gains après un emballement, attendre un catalyseur (résultats, Fed) avant d'agir ;
   - allocation : réduire la concentration Airbus (PEG disponible, ~33 % du patrimoine investi) par étapes, le
     poids du levier (Nasdaq x2), l'exposition au dollar, la part des thèmes spéculatifs (spatial, terres rares) ;
-  - nouvelles positions : une idée du radar, de l'argent suivi ou d'un secteur en mouvement, seulement avec une
+  - nouvelles positions : une idée issue des analystes ou d'un secteur en mouvement, seulement avec une
     raison récente vérifiée ; préciser le compte (PEA si éligible : actions européennes ou ETF éligibles) ;
   - fiscalité et frais : PEA d'abord, moins-values latentes du compte-titres à réaliser avant le 31/12 pour
     compenser des plus-values, TER élevés.
@@ -96,6 +96,5 @@ Règles :
   Le verdict est direct ; « agir » renvoie à un conseil de la liste `conseils`.
 - `points_cles` : l'impact en euros pour Jules d'abord, puis la cause, puis ce qui vient. Pas de phrase qui
   pourrait s'écrire sans avoir regardé le marché du jour.
-- Chiffres au format français (1 234 €, +1,2 %). Donne l'âge des informations tardives (13F : 1,5 à
-  4,5 mois ; élus : jusqu'à 45 jours).
+- Chiffres au format français (1 234 €, +1,2 %). Donne l'âge des informations tardives.
 - N'invente rien : une donnée manquante se signale.

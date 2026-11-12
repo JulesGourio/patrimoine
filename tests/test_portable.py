@@ -3,11 +3,10 @@ import subprocess
 import sys
 import textwrap
 
-PC_ONLY = ["streamlit", "mcp", "plotly", "keyring", "matplotlib"]
-ENGINE = ["api", "mobile", "pipeline", "sync", "cloud", "imports", "briefing", "brief_mail", "alerts", "radar",
-          "fresh", "politicians", "investors", "portfolio", "queries", "analytics", "notify", "vault",
-          "sources.trade_republic", "sources.enable_banking", "sources.amundi", "sources.cmb_csv",
-          "sources.congress", "sources.ownership", "sources.sec13f"]
+PC_ONLY = ["mcp", "keyring", "matplotlib"]
+ENGINE = ["api", "mobile", "pipeline", "sync", "cloud", "imports", "briefing", "brief_mail", "alerts",
+          "portfolio", "queries", "analytics", "notify", "vault",
+          "sources.trade_republic", "sources.enable_banking", "sources.amundi", "sources.cmb_csv"]
 
 
 def test_engine_imports_without_pc_only_libraries():

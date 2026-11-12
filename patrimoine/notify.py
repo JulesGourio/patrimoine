@@ -8,6 +8,7 @@ In the mobile app, pushes become the phone's own notifications (`set_local`, ins
 from __future__ import annotations
 
 import logging
+import os
 import secrets as pysecrets
 import smtplib
 from email.message import EmailMessage
@@ -18,7 +19,6 @@ import requests
 from . import vault
 
 SERVER = "https://ntfy.sh"
-EMAIL = "ju.gourio@gmail.com"
 
 log = logging.getLogger(__name__)
 
@@ -54,17 +54,22 @@ def push(title: str, message: str, priority: int = 3, tags: list[str] | None = N
         return False
 
 
+def address() -> str:
+    """The Gmail address used to send and receive the mails (secret ``smtp_email`` or ``PATRIMOINE_EMAIL``)."""
+    return (vault.get("smtp_email") or os.environ.get("PATRIMOINE_EMAIL") or "").strip()
+
+
 def mail_ready() -> bool:
-    return bool(vault.get("smtp_password"))
+    return bool(vault.get("smtp_password")) and bool(address())
 
 
 def mail(subject: str, text: str, html: str | None = None, images: dict[str, bytes] | None = None) -> bool:
     """``images``: PNGs the HTML shows as ``<img src="cid:{name}">`` (inline, no remote loading)."""
-    password = vault.get("smtp_password")
-    if not password:
+    password, email = vault.get("smtp_password"), address()
+    if not password or not email:
         return False
     msg = EmailMessage()
-    msg["Subject"], msg["From"], msg["To"] = f"[Patrimoine] {subject}", EMAIL, EMAIL
+    msg["Subject"], msg["From"], msg["To"] = f"[Patrimoine] {subject}", email, email
     msg.set_content(text)
     if html:
         msg.add_alternative(html, subtype="html")
@@ -73,7 +78,7 @@ def mail(subject: str, text: str, html: str | None = None, images: dict[str, byt
     try:
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as s:
             s.starttls()
-            s.login(EMAIL, password.replace(" ", ""))
+            s.login(email, password.replace(" ", ""))
             s.send_message(msg)
         return True
     except (smtplib.SMTPException, OSError):

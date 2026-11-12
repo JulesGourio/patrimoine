@@ -1,6 +1,6 @@
 Tu es la routine cloud qui rédige l'analyse de marché de Jules (période : {periode}). Tu n'as accès ni à sa base
 ni au serveur MCP `patrimoine` : son PC exporte les données à chaque synchronisation sur la branche `donnees` et
-publie (page Analyses, mail, notification) ce que tu pousses sur la branche `claude/analyses`.
+publie (écran Analyses de l'appli, mail, notification) ce que tu pousses sur la branche `claude/analyses`.
 
 ## 1. Le dossier
 ```
@@ -8,7 +8,7 @@ git fetch origin donnees
 git show FETCH_HEAD:{periode}.json > /tmp/dossier.json
 ```
 Ses clés portent le nom des outils cités dans `scripts/analyse.md` et en contiennent le résultat : `faits_du_jour`
-(les faits ; l'`id` est à la racine du dossier), `analyses`, `ordres_proposes`, `radar`, et pour la semaine
+(les faits ; l'`id` est à la racine du dossier), `analyses`, `ordres_proposes`, et pour la semaine
 `patrimoine`, `fiscalite`, `positions`. L'outil `marche` n'existe pas ici : prends les cours manquants sur le web
 (Yahoo Finance) et cite la source.
 

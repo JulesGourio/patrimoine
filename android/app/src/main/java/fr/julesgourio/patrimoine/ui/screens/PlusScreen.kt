@@ -6,10 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,10 +29,11 @@ fun PlusScreen(nav: NavController) {
     ScreenScaffold("Plus") { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            Entry(Icons.Filled.Groups, "Investisseurs", "Nouveautés, radar, fonds 13F, élus") { nav.navigate(Routes.INVESTISSEURS) }
             Entry(Icons.Filled.SwapHoriz, "Ordres préparés", "À passer toi-même dans Trade Republic") { nav.navigate(Routes.ORDRES) }
+            Entry(Icons.AutoMirrored.Filled.TrendingUp, "Projection", "Simulation de l'évolution du patrimoine") { nav.navigate(Routes.PROJECTION) }
             Entry(Icons.Filled.NotificationsActive, "Alertes", "Règles et alertes déclenchées") { nav.navigate(Routes.ALERTES) }
             Entry(Icons.AutoMirrored.Filled.ReceiptLong, "Opérations", "Recherche, recatégorisation") { nav.navigate(Routes.OPERATIONS) }
+            Entry(Icons.Filled.Storefront, "Vendeurs", "Renommer, fusionner, exclure des abonnements") { nav.navigate(Routes.VENDEURS) }
             HorizontalDivider()
             Entry(Icons.Filled.Settings, "Réglages", "Comptes, imports, sauvegarde, notifications") { nav.navigate(Routes.REGLAGES) }
         }

@@ -19,29 +19,34 @@ android {
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionName = "0.1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
         ndk {
-            // The Pixel 8a and every recent phone; curl_cffi only ships arm64 wheels for Android.
+            // The Pixel 8a and every recent phone; curl_cffi (via yfinance) only ships arm64 wheels for Android.
             abiFilters += listOf("arm64-v8a")
         }
     }
 
+    // Signing key: never stored in the repository. Set ANDROID_KEYSTORE_FILE, ANDROID_KEYSTORE_PASSWORD,
+    // ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (GitHub secrets in CI) to sign every build with your own key, so a new
+    // APK updates the app instead of requiring an uninstall that would erase its data. Without them, Android's
+    // standard debug key is used. See android/README.md.
+    val keystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
     signingConfigs {
-        // One fixed key for every build (CI and PC), so a new APK updates the app instead of
-        // requiring an uninstall that would erase its data. Sideloaded app, not published.
-        create("patrimoine") {
-            storeFile = file("patrimoine.keystore")
-            storePassword = "patrimoine"
-            keyAlias = "patrimoine"
-            keyPassword = "patrimoine"
+        if (keystorePath != null) {
+            create("patrimoine") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "patrimoine"
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("patrimoine")
+            signingConfigs.findByName("patrimoine")?.let { signingConfig = it }
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("patrimoine")
+            signingConfig = signingConfigs.findByName("patrimoine") ?: signingConfigs.getByName("debug")
         }
     }
 
@@ -65,10 +70,10 @@ kotlin {
 }
 
 // The Python engine is the repository's own `patrimoine` package, copied at build time (never duplicated in git).
-// PC-only modules stay out: the Streamlit helpers, the MCP server and the Windows scheduled tasks.
+// PC-only modules stay out: the MCP server and the Windows scheduled tasks.
 val copyEngine by tasks.registering(Sync::class) {
     from(rootProject.file("../patrimoine")) {
-        exclude("**/__pycache__/**", "ui.py", "mcp_server.py", "tasks.py")
+        exclude("**/__pycache__/**", "mcp_server.py", "tasks.py")
     }
     into(layout.buildDirectory.dir("python-src/patrimoine"))
 }

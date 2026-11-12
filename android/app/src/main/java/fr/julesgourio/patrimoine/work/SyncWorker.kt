@@ -14,7 +14,7 @@ import fr.julesgourio.patrimoine.engine.Notifier
 import fr.julesgourio.patrimoine.engine.Reply
 import org.json.JSONObject
 
-/** The daily sync (Trade Republic, CMB, prices, investors, alerts) plus the cloud analyses, as on the PC. */
+/** The daily sync (Trade Republic, CMB, prices, alerts) plus the cloud analyses, as on the PC. */
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -40,7 +40,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val n = NotificationCompat.Builder(applicationContext, Notifier.SYNC)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Synchronisation")
-            .setContentText("Trade Republic, CMB, cours et investisseurs…")
+            .setContentText("Trade Republic, CMB, cours et alertes…")
             .setOngoing(true)
             .setSilent(true)
             .build()

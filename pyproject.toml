@@ -12,13 +12,10 @@ dependencies = [
     "yfinance>=1.7.0",
     "pyjwt[crypto]>=2.15.0",
     "requests>=2.34.2",
-    "streamlit>=1.57",
-    "plotly>=7.1.0",
     "mcp>=2.2",
     "markdown>=3.11",
     "pypdf>=6.19.0",
     "defusedxml>=0.7.1",
-    "curl-cffi>=0.16.3",
     "matplotlib>=3.11.2",
 ]
 

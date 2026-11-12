@@ -1,12 +1,13 @@
 """Read models for the dashboard (and later the MCP server): plain DataFrames out of the database."""
 from __future__ import annotations
 
+import re
 import sqlite3
 
 import pandas as pd
 
 from . import db, portfolio
-from .categories import CATEGORIES
+from .categories import CATEGORIES, PEG_PRIMES, PRIMES
 
 ACCOUNT_LABELS = {
     "tr_especes": "Trade Republic espèces",
@@ -24,6 +25,26 @@ ACCOUNT_GROUPS = {"PEA": "Bourse", "Compte-titres": "Bourse", "PEG Airbus": "Ép
                   "Livret Jeune": "Livrets", "Trade Republic espèces": "Liquidités", "CMB courant": "Liquidités"}
 
 
+def account_labels(con: sqlite3.Connection) -> dict[str, str]:
+    """Labels of the fixed accounts plus those of the accounts Jules created himself (prepaid cards: their name)."""
+    labels = dict(ACCOUNT_LABELS)
+    try:
+        for r in con.execute("SELECT id, name FROM accounts WHERE kind = 'prepaye'"):
+            labels[r[0]] = r[1]
+    except sqlite3.OperationalError:  # database without the table
+        pass
+    return labels
+
+
+def account_groups(con: sqlite3.Connection) -> dict[str, str]:
+    """Home page grouping by label; prepaid cards count as liquidities."""
+    groups = dict(ACCOUNT_GROUPS)
+    for acc, label in account_labels(con).items():
+        if acc not in ACCOUNT_LABELS:
+            groups[label] = "Liquidités"
+    return groups
+
+
 def history(con: sqlite3.Connection) -> pd.DataFrame:
     """Daily value per account, in EUR (from the valuations table, see portfolio.store)."""
     df = pd.read_sql_query(
@@ -32,7 +53,7 @@ def history(con: sqlite3.Connection) -> pd.DataFrame:
     for c in ("cash", "securities", "cost", "realised", "deposits"):
         df[c] = df.pop(f"{c}_cents") / 100
     df["value"] = df["cash"] + df["securities"]
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS).fillna(df["account_id"])
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     return df
 
 
@@ -80,6 +101,32 @@ def taxes(con: sqlite3.Connection) -> pd.DataFrame:
     return pd.DataFrame(portfolio.tax_summary(con, book)).T
 
 
+def merchant_raw(counterparty: str | None, label: str | None) -> str:
+    """Merchant of a line, as the screens show it before any renaming (counterparty, else label, transfer prefix cut)."""
+    name = counterparty if isinstance(counterparty, str) and counterparty.strip() else label
+    return re.sub(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", name or "").strip()
+
+
+def merchant_names(con: sqlite3.Connection) -> dict[str, tuple[str, bool]]:
+    """Renamed merchants: raw name -> (display name, not a subscription). The table is created if the database
+    predates it."""
+    try:
+        con.execute("CREATE TABLE IF NOT EXISTS merchant_names (raw TEXT PRIMARY KEY, display TEXT NOT NULL,"
+                    " not_subscription INTEGER NOT NULL DEFAULT 0)")
+        return {r[0]: (r[1], bool(r[2])) for r in con.execute("SELECT raw, display, not_subscription FROM merchant_names")}
+    except sqlite3.OperationalError:  # read-only database without the table
+        return {}
+
+
+def _name_merchants(con: sqlite3.Connection, df: pd.DataFrame) -> None:
+    """Add ``merchant_raw`` (as derived from the data), ``merchant`` (display name) and ``not_subscription``."""
+    names = merchant_names(con)
+    raw = df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True).str.strip()
+    df["merchant_raw"] = raw
+    df["merchant"] = [names[r][0] if r in names else r for r in raw]
+    df["not_subscription"] = [bool(names[r][1]) if r in names else False for r in raw]
+
+
 def spending(con: sqlite3.Connection) -> pd.DataFrame:
     """Every spending line (refunds included, positive), with the category that applies."""
     df = pd.read_sql_query(
@@ -87,24 +134,43 @@ def spending(con: sqlite3.Connection) -> pd.DataFrame:
         " FROM transactions WHERE flow = 'depense' ORDER BY date DESC", con, parse_dates=["date"])
     df["amount"] = -df.pop("amount_cents") / 100
     df["category"] = df["category_override"].fillna(df["category"])
-    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True)
-                      .str.strip())
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS)
+    _name_merchants(con, df)
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
+    return df
+
+
+def peg_primes(con: sqlite3.Connection) -> pd.DataFrame:
+    """Profit-sharing and bonuses paid into the PEG (intéressement, participation): date, amount (EUR, positive =
+    value invested) and the kind. They stay purchases of securities for the portfolio; for the budget they are income."""
+    marks = ",".join("?" * len(PEG_PRIMES))
+    df = pd.read_sql_query(
+        "SELECT id, date, account_id, label, amount_cents, event_type FROM transactions"
+        f" WHERE account_id = 'peg_airbus' AND flow = 'achat_titre' AND event_type IN ({marks})",
+        con, params=list(PEG_PRIMES), parse_dates=["date"])
+    df["amount"] = -df.pop("amount_cents") / 100
     return df
 
 
 def income(con: sqlite3.Connection) -> pd.DataFrame:
     """Every income line (positive), with the category that applies. Internal transfers are a separate
-    flow ('interne') and never show up here."""
+    flow ('interne') and never show up here. Bonuses paid into the PEG are included (category « Primes et
+    intéressement », account PEG Airbus)."""
     df = pd.read_sql_query(
         "SELECT id, date, account_id, counterparty, label, amount_cents, category, category_override"
         " FROM transactions WHERE flow = 'revenu' ORDER BY date DESC", con, parse_dates=["date"])
     df["amount"] = df.pop("amount_cents") / 100
     df["category"] = df["category_override"].fillna(df["category"])
-    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True)
-                      .str.strip())
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS)
+    _name_merchants(con, df)
+    peg = peg_primes(con)
+    if not peg.empty:
+        kind = peg["event_type"].str.replace("PEG_", "", regex=False).str.replace("_", " ").str.capitalize()
+        extra = pd.DataFrame({"id": peg["id"], "date": peg["date"], "account_id": peg["account_id"],
+                              "counterparty": kind, "label": peg["label"], "category": PRIMES,
+                              "category_override": None, "amount": peg["amount"]})
+        _name_merchants(con, extra)
+        df = pd.concat([df, extra], ignore_index=True).sort_values("date", ascending=False, kind="stable")
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
     return df
 
@@ -138,7 +204,7 @@ def investment_income(con: sqlite3.Connection) -> pd.DataFrame:
         "SELECT flow, COALESCE(holding_account_id, account_id) AS account_id, SUM(amount_cents) AS cents"
         " FROM transactions WHERE flow IN ('interets', 'dividende') GROUP BY flow, account_id", con)
     df["amount"] = df.pop("cents") / 100
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS).fillna(df["account_id"])
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     return df
 
 
@@ -163,20 +229,37 @@ TER = {
 }
 
 
+def data_date(con: sqlite3.Connection) -> pd.Timestamp:
+    """Reference date of the data: latest transaction of the current account (``cmb_courant``), else of any account,
+    else today. A database a few days old must not be read as if it were up to date."""
+    for sql in ("SELECT MAX(date) FROM transactions WHERE account_id = 'cmb_courant'",
+                "SELECT MAX(date) FROM transactions"):
+        d = con.execute(sql).fetchone()[0]
+        if d:
+            return pd.Timestamp(d).normalize()
+    return pd.Timestamp.today().normalize()
+
+
+def complete_months(balance: pd.DataFrame, ref: pd.Timestamp) -> pd.DataFrame:
+    """Months of a ``monthly_balance`` frame that are over at the reference date (the month of ``ref`` only if ``ref``
+    is its last day)."""
+    return balance[(balance.index + pd.offsets.MonthEnd(0)) <= ref]
+
+
 def fees_by_year(con: sqlite3.Connection) -> pd.DataFrame:
     """Per year, EUR: brokerage fees on trades, bank fees, and the funds' ongoing charges estimated on each line's
-    average value that year (TER table above; lines without a known TER are left out)."""
+    average value that year (TER table above; lines without a known TER are left out, see ``lines_without_ter``).
+    ``ordres_payants``: orders with fees; ``executions_plans``: free executions (savings plans, PEG payments)."""
     trades = pd.read_sql_query(
-        "SELECT substr(date, 1, 4) AS year, SUM(COALESCE(fees_cents, 0)) / 100.0 AS courtage, COUNT(*) AS ordres"
+        "SELECT substr(date, 1, 4) AS year, SUM(COALESCE(fees_cents, 0)) / 100.0 AS courtage,"
+        " SUM(COALESCE(fees_cents, 0) > 0) AS ordres_payants, SUM(COALESCE(fees_cents, 0) <= 0) AS executions_plans"
         " FROM transactions WHERE flow IN ('achat_titre', 'vente_titre') GROUP BY year", con).set_index("year")
     bank = pd.read_sql_query(
         "SELECT substr(date, 1, 4) AS year, -SUM(amount_cents) / 100.0 AS banque FROM transactions"
         " WHERE flow = 'frais' GROUP BY year", con).set_index("year")
     out = trades.join(bank, how="outer")
     book, prices = portfolio.replay(con)
-    held = pd.read_sql_query("SELECT date, isin, COALESCE(holding_account_id, account_id) AS acc, flow, quantity"
-                             " FROM transactions WHERE isin IS NOT NULL AND quantity IS NOT NULL ORDER BY date", con,
-                             parse_dates=["date"])
+    held = _held_quantities(con)
     ter = {}
     for isin, rate in TER.items():
         h = held[held["isin"] == isin]
@@ -186,10 +269,33 @@ def fees_by_year(con: sqlite3.Connection) -> pd.DataFrame:
         qty = (h.quantity * sign).groupby(h.date).sum().cumsum()
         days = pd.date_range(qty.index.min(), pd.Timestamp.today().normalize())
         qty = qty.reindex(days).ffill().clip(lower=0)
-        px = pd.Series({d: prices.get(isin, d) for d in days[::7]}, dtype=float).reindex(days).ffill().bfill()
+        # Daily price: a weekly sample carried forward would pair post-split quantities with the pre-split price.
+        px = pd.Series([prices.get(isin, d) for d in days], index=days, dtype=float).ffill().bfill()
         daily = (qty * px * rate / 365).groupby(days.year).sum()
         for y, v in daily.items():
             ter[str(y)] = ter.get(str(y), 0.0) + float(v)
     out = out.join(pd.Series(ter, name="frais_fonds"), how="outer").fillna(0.0)
     out["total"] = out.courtage + out.banque + out.frais_fonds
     return out.sort_index()
+
+
+def _held_quantities(con: sqlite3.Connection) -> pd.DataFrame:
+    return pd.read_sql_query("SELECT date, isin, COALESCE(holding_account_id, account_id) AS acc, flow, quantity"
+                             " FROM transactions WHERE isin IS NOT NULL AND quantity IS NOT NULL ORDER BY date", con,
+                             parse_dates=["date"])
+
+
+def lines_without_ter(con: sqlite3.Connection) -> list[dict]:
+    """Lines held at some point (quantity above zero after some operation) whose TER is not in ``TER``: their ongoing
+    charges are missing from ``fees_by_year``. Plain shares have no TER; ``type`` helps tell them from funds."""
+    from .analytics import kind_of
+
+    names = dict(con.execute("SELECT isin, name FROM instruments"))
+    held = _held_quantities(con)
+    out = []
+    for isin, h in held[~held["isin"].isin(TER)].groupby("isin"):
+        sign = h.flow.map(lambda f: -1 if f == "vente_titre" else 1)
+        if (h.quantity * sign).cumsum().max() > 1e-6:
+            name = names.get(isin) or isin
+            out.append({"isin": isin, "nom": name, "type": kind_of(name)})
+    return sorted(out, key=lambda x: x["nom"])

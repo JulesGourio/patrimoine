@@ -45,10 +45,16 @@ SPENDING = [
     "Virements à des particuliers",
     "Divers",
 ]
-INCOME = ["Salaire", "Aides et allocations", "Famille", "Remboursements", "Héritage et donations", "Autres revenus"]
+INCOME = ["Salaire", "Titres-restaurant", "Primes et intéressement", "Aides et allocations", "Famille", "Remboursements", "Héritage et donations", "Autres revenus"]
 # Income that only gives back money already spent (friends paying their share, health insurance): the
 # savings rate nets it off spending instead of counting it as income.
 REFUNDS = ("Remboursements",)
+# Bonuses, profit-sharing (intéressement, participation) and every premium: income, hence savings. Those paid into the
+# PEG show up as ``achat_titre`` lines of the PEG account (``PEG_PRIMES``); the bank ones as ``revenu`` of this category.
+PRIMES = "Primes et intéressement"
+# Meal vouchers credited on a prepaid card (Edenred, Swile…): income, as Jules decided (see cartes.py).
+TITRES_RESTAURANT = "Titres-restaurant"
+PEG_PRIMES = ("PEG_INTERESSEMENT", "PEG_PARTICIPATION", "PEG_SUPPLEMENT_D'INTERESSEMENT")
 # Capital received once (inheritance, life insurance paid on a death, gifts): it adds to the wealth but is
 # neither income nor savings, otherwise one cheque would inflate the savings rate and the projection.
 WINDFALLS = ("Héritage et donations",)
@@ -193,7 +199,10 @@ DEFAULT_RULES: dict[str, str] = {
     "CSE AIRBUS": "Cantine", "COOP CE AIRBUS": "Cantine", "MONEWEB": "Cantine", "GALAXIE": "Cantine",
     "MA VILLE MON SHOPPING": "Sport et loisirs", "CHEQUES VACANCE": "Voyages",
     # Revenus
-    "AIRBUS": "Salaire", "SALAIRE": "Salaire", "CPAM": "Remboursements",
+    "AIRBUS": "Salaire", "SALAIRE": "Salaire", "TITRES-RESTAURANT": TITRES_RESTAURANT,
+    "INTERESSEMENT": PRIMES, "PARTICIPATION": PRIMES, "GRATIFICATION": PRIMES, "13EME MOIS": PRIMES,
+    "TREIZIEME MOIS": PRIMES, "BONUS": PRIMES, "PRIME": PRIMES, "PRIME EXC": PRIMES, "PRIME DE": PRIMES,
+    "PRIME ANN": PRIMES, "PRIME VAC": PRIMES, "PRIME PAR": PRIMES, "PRIMES": PRIMES, "CPAM": "Remboursements",
     "AMELI": "Remboursements", "CAF": "Aides et allocations", "LYDIA": "Remboursements",
     "REGLT DECES": "Héritage et donations", "SUCCESSION": "Héritage et donations",
 }

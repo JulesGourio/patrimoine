@@ -174,27 +174,6 @@ def cmd_cloud(args: argparse.Namespace, settings: Settings) -> None:
         print(line)
 
 
-def cmd_app(args: argparse.Namespace, settings: Settings) -> None:
-    """Open the dashboard; start it first unless it is already running."""
-    import socket
-    import subprocess
-    import sys
-    import webbrowser
-
-    from .config import ROOT
-
-    url = "http://localhost:8501"
-    with socket.socket() as s:
-        running = s.connect_ex(("127.0.0.1", 8501)) == 0
-    if running:
-        webbrowser.open(url)
-        print(f"Tableau de bord déjà lancé : {url}")
-        return
-    print(f"Tableau de bord sur {url} (Ctrl+C pour l'arrêter)")
-    subprocess.run([sys.executable, "-m", "streamlit", "run", str(ROOT / "streamlit_app.py"),
-                    "--server.port", "8501", "--server.headless", "false"], cwd=ROOT)
-
-
 def cmd_tasks(args: argparse.Namespace, settings: Settings) -> None:
     from . import tasks
 
@@ -279,7 +258,6 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("cloud", help="Routines Claude : publier leurs analyses (import) ou leur envoyer les données")
     p.add_argument("action", nargs="?", choices=["import", "export"], default="import")
     p.set_defaults(func=cmd_cloud)
-    sub.add_parser("app", help="Ouvrir le tableau de bord (le lance s'il ne tourne pas)").set_defaults(func=cmd_app)
     p = sub.add_parser("taches", help="Installer les tâches planifiées Windows")
     p.add_argument("--retirer", action="store_true", help="Les retirer (le téléphone fait la synchro)")
     p.set_defaults(func=cmd_tasks)

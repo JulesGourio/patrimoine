@@ -17,7 +17,7 @@ env:
   LIBFFI_VERSION: "3.4.6"
 
 jobs:
-  # curl_cffi (Yahoo, Trade Republic, Senate site) publishes Android wheels but needs cffi 2.x, which does not.
+  # curl_cffi (required by yfinance) publishes Android wheels but needs cffi 2.x, which does not.
   # Build it once with cibuildwheel (the standard tool for Android wheels) and keep it in the cache.
   cffi:
     runs-on: ubuntu-latest
@@ -90,7 +90,19 @@ jobs:
           name: cffi-android
           path: android/app/wheels
       - uses: gradle/actions/setup-gradle@v4
+      # Optional: your own signing key, kept as GitHub secrets (see android/README.md). Without it, the debug key is used.
+      - name: Prepare the signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          fi
       - name: Build the APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: ./gradlew --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:

@@ -130,7 +130,7 @@ def dossier(period: str) -> dict:
 
     f = tools.faits_du_jour(period)
     doc = {"exporte_le": db.now_iso(), "periode": period, "id": f["id"], "faits_du_jour": f["faits"],
-           "analyses": tools.analyses(3), "ordres_proposes": tools.ordres_proposes(), "radar": tools.radar(15)}
+           "analyses": tools.analyses(3), "ordres_proposes": tools.ordres_proposes()}
     if period == "semaine":
         doc |= {"patrimoine": tools.patrimoine(), "fiscalite": tools.fiscalite(), "positions": tools.positions()}
     return doc
