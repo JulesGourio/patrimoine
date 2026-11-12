@@ -121,7 +121,7 @@ def build(db_path: Path | str, seed: int = 7, today: date | None = None) -> dict
                 con.execute("INSERT OR REPLACE INTO positions VALUES (?,?,?,?,?,'demo')",
                             (acc, isin, round(line.quantity, 4), round(line.unit_cost, 4) if line.unit_cost else None, today.isoformat()))
 
-        # carte prépayée (titres-restaurant)
+        # compte titres-restaurant
         card = cartes.create(con, "Titres-restaurant", 0, start.isoformat())["id"]
         d = start
         while d <= today:

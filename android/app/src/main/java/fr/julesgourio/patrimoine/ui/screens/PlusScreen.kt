@@ -35,7 +35,7 @@ fun PlusScreen(nav: NavController) {
             Entry(Icons.Filled.NotificationsActive, "Alertes", "Règles et alertes déclenchées") { nav.navigate(Routes.ALERTES) }
             Entry(Icons.AutoMirrored.Filled.ReceiptLong, "Opérations", "Recherche, recatégorisation") { nav.navigate(Routes.OPERATIONS) }
             Entry(Icons.Filled.Storefront, "Vendeurs", "Renommer, fusionner, exclure des abonnements") { nav.navigate(Routes.VENDEURS) }
-            Entry(Icons.Filled.CreditCard, "Cartes prépayées", "Titres-restaurant : solde, opérations, import") { nav.navigate(Routes.CARTES) }
+            Entry(Icons.Filled.CreditCard, "Titres-restaurant", "Solde, reçu et dépensé, mouvements") { nav.navigate(Routes.CARTES) }
             HorizontalDivider()
             Entry(Icons.Filled.Settings, "Réglages", "Comptes, imports, sauvegarde, notifications") { nav.navigate(Routes.REGLAGES) }
         }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -21,18 +22,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fr.julesgourio.patrimoine.engine.Engine
 import fr.julesgourio.patrimoine.engine.Reply
-import fr.julesgourio.patrimoine.ui.components.BigFigure
 import fr.julesgourio.patrimoine.ui.components.CallScreen
-import fr.julesgourio.patrimoine.ui.components.InfoRow
 import fr.julesgourio.patrimoine.ui.components.Muted
 import fr.julesgourio.patrimoine.ui.components.ScreenScaffold
 import fr.julesgourio.patrimoine.ui.components.SectionCard
 import fr.julesgourio.patrimoine.ui.components.day
+import fr.julesgourio.patrimoine.ui.components.gainColor
+import fr.julesgourio.patrimoine.ui.theme.LocalMoney
 import fr.julesgourio.patrimoine.ui.components.euros
 import fr.julesgourio.patrimoine.ui.components.int
 import fr.julesgourio.patrimoine.ui.components.list
@@ -44,39 +47,66 @@ import org.json.JSONObject
 
 private enum class Action { OPERATION, SOLDE, IMPORT, NOUVELLE }
 
-/** Cartes prépayées (titres-restaurant…) : soldes, saisie d'une opération, recalage du solde, import copier-coller. */
+/** Titres-restaurant (et autres comptes tenus à la main) : solde, reçu et dépensé du mois, mouvements. */
 @Composable
 fun CartesScreen(onBack: () -> Unit) {
     val state = rememberCall("cartes")
     var action by remember { mutableStateOf<Pair<Action, JSONObject?>?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
 
-    ScreenScaffold("Cartes prépayées", onBack = onBack) { padding ->
+    ScreenScaffold("Titres-restaurant", onBack = onBack) { padding ->
         CallScreen(state, padding) { d ->
             val cartes = d.list("cartes")
-            item {
-                BigFigure("Total sur les cartes", euros(d.num("total")), "compté dans le patrimoine (liquidités)")
-            }
             message?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
-            if (cartes.isEmpty()) item { Muted("Aucune carte. Crée-en une pour suivre un solde tenu à la main.") }
+            if (cartes.isEmpty()) item { Muted("Aucun compte. Crée-en un pour suivre un solde tenu à la main.") }
             cartes.forEach { c ->
                 item(key = c.str("id")) {
-                    SectionCard(c.str("nom") ?: "Carte") {
-                        Text(euros(c.num("solde")), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                        InfoRow("Dernier mouvement", day(c.str("dernier_mouvement")))
-                        c.num("credit_mensuel_moyen")?.let { InfoRow("Crédit mensuel moyen", euros(it)) }
-                        InfoRow("Opérations saisies", (c.int("operations") ?: 0).toString())
+                    SectionCard(c.str("nom") ?: "Compte") {
+                        Text("Solde", style = MaterialTheme.typography.labelLarge)
+                        Text(euros(c.num("solde")), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                            Column {
+                                Muted("Reçu ce mois")
+                                Text(euros(c.num("recu_mois"), sign = true), color = LocalMoney.current.gain,
+                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            }
+                            Column {
+                                Muted("Dépensé ce mois")
+                                Text(euros(-(c.num("depense_mois") ?: 0.0), sign = true), color = LocalMoney.current.loss,
+                                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                         val age = c.int("jours_depuis_maj")
                         if (age != null && age > 14) Muted("Pas de saisie depuis $age jours : le solde peut être faux.")
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { action = Action.OPERATION to c }) { Text("Opération") }
+                            Button(onClick = { action = Action.OPERATION to c }) { Text("Ajouter") }
                             OutlinedButton(onClick = { action = Action.SOLDE to c }) { Text("Recaler") }
                             OutlinedButton(onClick = { action = Action.IMPORT to c }) { Text("Importer") }
                         }
                     }
                 }
+                item(key = c.str("id") + "-mouvements") {
+                    SectionCard("Mouvements") {
+                        val moves = c.list("mouvements")
+                        if (moves.isEmpty()) Muted("Aucun mouvement.")
+                        moves.forEachIndexed { i, m ->
+                            if (i > 0) HorizontalDivider()
+                            val montant = m.num("montant") ?: 0.0
+                            val ajust = m.str("type") == "ajustement"
+                            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(m.str("libelle").orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Muted(day(m.str("date")) + if (ajust) " · ajustement du solde" else "")
+                                }
+                                Text(euros(montant, sign = true),
+                                    color = if (ajust) MaterialTheme.colorScheme.onSurfaceVariant else gainColor(montant),
+                                    fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
             }
-            item { OutlinedButton(onClick = { action = Action.NOUVELLE to null }, modifier = Modifier.fillMaxWidth()) { Text("Nouvelle carte") } }
+            item { OutlinedButton(onClick = { action = Action.NOUVELLE to null }, modifier = Modifier.fillMaxWidth()) { Text("Nouveau compte") } }
         }
     }
 
@@ -121,10 +151,10 @@ private fun CarteDialog(action: Action, carte: JSONObject?, onDismiss: () -> Uni
     }
 
     val titre = when (action) {
-        Action.OPERATION -> "Opération sur ${carte?.str("nom")}"
+        Action.OPERATION -> "Ajouter sur ${carte?.str("nom")}"
         Action.SOLDE -> "Recaler le solde"
         Action.IMPORT -> "Importer l'historique"
-        Action.NOUVELLE -> "Nouvelle carte"
+        Action.NOUVELLE -> "Nouveau compte"
     }
     AlertDialog(
         onDismissRequest = onDismiss,

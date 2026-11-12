@@ -218,7 +218,18 @@ def summary(con: sqlite3.Connection, today: date | None = None) -> list[dict]:
             ref = datetime.fromisoformat(touched[1]).date()
         elif touched[0]:
             ref = date.fromisoformat(touched[0])
+        month = today.isoformat()[:7]
+        flows = {r[0]: r[1] for r in con.execute(
+            "SELECT event_type, SUM(amount_cents) FROM transactions WHERE account_id = ? AND substr(date, 1, 7) = ?"
+            " GROUP BY event_type", (acc, month))}
+        moves = [{"date": r["date"], "libelle": r["label"] or r["counterparty"] or "", "montant": r["amount_cents"] / 100,
+                  "type": {"CARTE_CREDIT": "credit", "CARTE_PAIEMENT": "paiement"}.get(r["event_type"], "ajustement")}
+                 for r in con.execute(
+                     "SELECT date, label, counterparty, amount_cents, event_type FROM transactions WHERE account_id = ?"
+                     " ORDER BY date DESC, id DESC LIMIT 40", (acc,))]
         out.append({
+            "recu_mois": (flows.get("CARTE_CREDIT") or 0) / 100, "depense_mois": -(flows.get("CARTE_PAIEMENT") or 0) / 100,
+            "mouvements": moves,
             "id": acc, "nom": c["name"], "solde": balance_at(con, acc) / 100, "dernier_mouvement": last,
             "credit_mensuel_moyen": round(sum(months) / len(months) / 100, 2) if months else None,
             "jours_depuis_maj": (today - ref).days if ref else None,

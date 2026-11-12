@@ -1,4 +1,4 @@
-"""Cartes prépayées / comptes manuels : création, opérations, import de copier-coller, patrimoine, catégories."""
+"""Comptes tenus à la main (titres-restaurant) : création, opérations, import de copier-coller, patrimoine, catégories."""
 import json
 from datetime import date, timedelta
 
@@ -156,3 +156,14 @@ def test_jeu_fictif_alimente_tous_les_ecrans(tmp_path):
     for name in ("accueil", "portefeuille", "depenses_ecran", "cartes", "alertes", "ordres_proposes"):
         assert json.loads(mobile.call(name, "{}"))["ok"], name
     assert json.loads(mobile.call("cartes", "{}"))["data"]["cartes"]
+
+
+def test_resume_donne_recu_depense_du_mois_et_mouvements(base):
+    api.creer_carte("Edenred")
+    today = date.today().isoformat()
+    api.carte_operation("edenred", today, 120, "Versement employeur", "credit")
+    api.carte_operation("edenred", today, 11.4, "Boulangerie Dupont")
+    c = api.cartes()["cartes"][0]
+    assert c["recu_mois"] == 120 and c["depense_mois"] == 11.4
+    assert {m["type"] for m in c["mouvements"]} == {"credit", "paiement"}
+    assert all(m["montant"] > 0 for m in c["mouvements"] if m["type"] == "credit")
