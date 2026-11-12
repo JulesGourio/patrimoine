@@ -58,11 +58,7 @@ Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le d
 - Serveur MCP local `patrimoine` (`.mcp.json`) : `patrimoine`, `positions`, `historique`, `depenses`, `flux`,
   `fiscalite`, `ventes_realisees`, `operations`, `categoriser`, `marche` (cours, fondamentaux, actualités Yahoo),
   `alertes`, `regle_alerte`, `budget`, `preparer_ordre`, `ordres_proposes`, `statut_ordre`, `enregistrer_rapport`, `rapports`, `faits_du_jour`, `publier_analyse`, `analyses`,
-  `synchroniser`, et pour les investisseurs connus (13F) `investisseurs`, `investisseur`,
-  `consensus_investisseurs`, `recoupement_investisseurs`, `suivre_investisseur`, `nouveautes` (fil des déclarations
-  rapides, élus, 13F et fraîcheur des sources), `positions_actuelles` (13F mis à jour), `dirigeants`, et pour les élus du Congrès
-  américain (STOCK Act) `elus`, `elu`, `achats_elus`, `suivre_elu` ; `radar` (idées « quoi regarder » : élus,
-  fonds, tendance, analystes, exposition via mes ETF) et `performance_fonds` (rendement de la copie des 13F). Outils repris de l'ancien tableau de bord : `projection`
+  `synchroniser`. Outils repris de l'ancien tableau de bord : `projection`
   (Monte-Carlo, `patrimoine/projection.py` ; écran Projection de l'appli), `performance` (TWR, TRI, volatilité,
   comparaison à un indice), `risques` (levier, dollar, simulation de baisse), `frais`, `pistes_fiscales`,
   `abonnements`. Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
@@ -96,26 +92,11 @@ Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le d
   depuis 2020 (avant le début du flux DSP2) et livrets depuis 2016.
 - PEG : relevés Amundi `AVO*.pdf` importés avec `uv run patrimoine peg ~/Downloads`. L'ESOP n'a que des valeurs :
   converti en équivalent actions Airbus avec le prix implicite du support « Airbus en actions ».
-- 13F : EDGAR (SEC), vérifié une fois par jour pendant la synchronisation. Liste par défaut dans
-  `patrimoine/sources/sec13f.py` (`INVESTORS`).
-- Élus américains : déclarations officielles (Chambre : index `{année}FD.zip` + PDF ; Sénat : efdsearch via
-  curl_cffi, qui imite Chrome pour passer le filtre anti-robot), `patrimoine/sources/congress.py`, analyses dans
-  `patrimoine/politicians.py`. Sélection automatique chaque jour (`politicians.auto_follow`) : Pelosi + élus actifs
-  battant le S&P 500 de 5 points ; les choix manuels de l'utilisateur (meta `congress_follow_manual`) priment.
-- Déclarations rapides (`patrimoine/sources/ownership.py`, analyses dans `patrimoine/fresh.py`), chaque jour :
-  Form 4 et 13D/13G des fonds suivis (XML EDGAR), ETF d'ARK (CSV quotidiens, historique stocké à partir du
-  29/09/2026), opérations des dirigeants des titres surveillés (`fresh.watchlist`, page EDGAR `own-disp`, une
-  requête par société ; achats P et ventes S seulement, plans salariés écartés). `fresh.current_positions` : 13F
-  mis à jour par ces déclarations. Un 13F-NT renvoie vers un autre déclarant (table `investor_aliases`, ex.
-  Pershing Square Inc. depuis mi-2026). Scion (Burry) ne dépose plus : désactivé.
-- Dates d'élus impossibles (opération après la déclaration) : `congress.fix_date` (année corrigée ou date vide).
-- Radar (`patrimoine/radar.py`) recalculé chaque jour ; fonds 13F sous-performants désactivés (`investors.active`).
 - Écrans de l'appli (`android/app/src/main/java/fr/julesgourio/patrimoine/ui/screens/`) : Accueil, Analyses (liste
-  et détail), Dépenses (et opérations), Portefeuille (et fiche titre), Investisseurs (et alertes), Ordres, consentement
+  et détail), Dépenses (et opérations), Portefeuille (et fiche titre), Alertes, Ordres, consentement
   CMB, Réglages, Plus.
-- Parseur PDF de la Chambre corrigé pour les sauts de page ; après une correction du parseur,
-  `congress.reparse_house(con)` réanalyse les rapports suspects (`all_reports=True` pour tout).
-- Notifications : un seul récapitulatif « Suivi des investisseurs » par jour (13F + opérations des élus suivis et
-  grosses opérations des autres). Aucune notification ni mail pour les dépenses (budgets notés dans Suivi).
+- Notifications : aucune notification ni mail pour les dépenses (budgets notés dans Suivi).
+- Suivi des investisseurs (13F, élus du Congrès, déclarations rapides, radar) : supprimé ; le code est dans l'historique
+  git (avant le commit de suppression).
 - Remboursements (virements instantanés d'amis, sécu) : catégorie `Remboursements`, déduits des dépenses dans le
   taux d'épargne (`analytics.monthly_balance`), pas comptés comme revenus.

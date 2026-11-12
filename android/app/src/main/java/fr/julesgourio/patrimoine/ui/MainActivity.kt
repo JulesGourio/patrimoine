@@ -69,7 +69,6 @@ import fr.julesgourio.patrimoine.ui.screens.AnalyseScreen
 import fr.julesgourio.patrimoine.ui.screens.AnalysesScreen
 import fr.julesgourio.patrimoine.ui.screens.CmbConsentScreen
 import fr.julesgourio.patrimoine.ui.screens.DepensesScreen
-import fr.julesgourio.patrimoine.ui.screens.InvestisseursScreen
 import fr.julesgourio.patrimoine.ui.screens.OperationsScreen
 import fr.julesgourio.patrimoine.ui.screens.OrdresScreen
 import fr.julesgourio.patrimoine.ui.screens.ProjectionScreen
@@ -263,7 +262,6 @@ private fun Graph(nav: NavHostController, modifier: Modifier) {
         }
         composable(Routes.OPERATIONS) { OperationsScreen(back) }
         composable(Routes.PROJECTION) { ProjectionScreen(back) }
-        composable(Routes.INVESTISSEURS) { InvestisseursScreen(nav, back) }
         composable(Routes.ORDRES) { OrdresScreen(back) }
         composable(Routes.ALERTES) { AlertesScreen(back) }
         composable(Routes.REGLAGES) { ReglagesScreen(nav, back) }

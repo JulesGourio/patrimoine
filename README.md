@@ -22,8 +22,6 @@ client des mêmes établissements. C'est précisément là que ton aide est la b
 - **Patrimoine total** : tous les comptes, avant et après impôts latents, projection (Monte-Carlo).
 - **Alertes et rapports** : baisses de X % et seuils configurables, notifications téléphone (ntfy) et mail,
   analyse de marché quotidienne et bilan hebdomadaire.
-- **Investisseurs suivis** : déclarations 13F des fonds américains, opérations des élus du Congrès (STOCK Act),
-  déclarations rapides (Form 4, 13D/13G), ETF d'ARK.
 - **Serveur MCP** : tes données exposées à Claude (ou un autre client MCP) pour analyser et préparer des ordres.
   **Aucun ordre n'est jamais passé** : l'outil prépare, tu exécutes chez ton courtier.
 - **Appli Android** : l'interface de l'outil ; le moteur Python tourne sur le téléphone ([`android/README.md`](android/README.md)).
@@ -36,7 +34,6 @@ client des mêmes établissements. C'est précisément là que ton aide est la b
 | Trade Republic | Compte-titres, PEA, espèces, carte | [`pytr`](https://github.com/pytr-org/pytr) (API non officielle) |
 | Amundi | PEG d'entreprise | Relevés PDF `AVO*.pdf` |
 | Yahoo Finance | Cours, fondamentaux | `yfinance` |
-| SEC EDGAR, Chambre et Sénat US | 13F, Form 4, élus | Données publiques |
 
 D'autres banques et courtiers sont prévus : voir [`docs/GENERALISATION.md`](docs/GENERALISATION.md) et
 [`CONTRIBUTING.md`](CONTRIBUTING.md) pour savoir comment en ajouter une.
@@ -124,7 +121,7 @@ Licence : [MIT](LICENSE).
 ## Feuille de route
 
 Fait : socle, Trade Republic, historique, CMB, patrimoine total, serveur MCP, alertes, synchro
-planifiée, suivi des investisseurs et des élus, déclarations rapides, appli Android.
+planifiée, appli Android.
 En cours : appli Android autonome (moteur complet sur le téléphone).
 **Prochain chantier : ouverture à d'autres utilisateurs** — comptes et règles configurables au lieu d'être en dur,
 interface de connecteurs (banques, courtiers), import CSV générique, traduction. Détail dans

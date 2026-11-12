@@ -333,7 +333,7 @@ private fun Welcome(onSettings: () -> Unit, onSync: () -> Unit) {
     SectionCard("Bienvenue") {
         Text("La base du téléphone est encore vide.")
         Text("Le plus simple : copie le fichier data/patrimoine.db du PC sur le téléphone, puis Réglages → " +
-            "« Importer une base ». Tout l'historique (CMB depuis 2016, PEG, 13F, élus) arrive d'un coup.")
+            "« Importer une base ». Tout l'historique (CMB depuis 2016, PEG, analyses) arrive d'un coup.")
         Text("Sinon : renseigne Trade Republic et la CMB dans les Réglages, puis synchronise.")
         Button(onClick = onSettings) { Text("Ouvrir les réglages") }
         Button(onClick = onSync) { Text("Synchroniser") }

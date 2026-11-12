@@ -10,4 +10,3 @@ requests
 markdown
 pypdf
 defusedxml
-curl-cffi

@@ -17,7 +17,7 @@ env:
   LIBFFI_VERSION: "3.4.6"
 
 jobs:
-  # curl_cffi (Yahoo, Trade Republic, Senate site) publishes Android wheels but needs cffi 2.x, which does not.
+  # curl_cffi (required by yfinance) publishes Android wheels but needs cffi 2.x, which does not.
   # Build it once with cibuildwheel (the standard tool for Android wheels) and keep it in the cache.
   cffi:
     runs-on: ubuntu-latest

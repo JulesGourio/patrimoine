@@ -109,9 +109,8 @@ def tools() -> str:
 
 # Read-only functions computed from the database alone (no network): their answer only changes when the database
 # does, so a tab opened twice is instant (pandas on a phone takes seconds per screen).
-_CACHEABLE = {"accueil", "portefeuille", "depenses_ecran", "nouveautes", "radar", "elus", "investisseurs",
-              "performance_fonds", "ventes_realisees", "analyses", "analyse", "positions", "synthese", "patrimoine",
-              "historique", "depenses", "flux", "fiscalite", "alertes", "ordres_proposes", "references"}
+_CACHEABLE = {"accueil", "portefeuille", "depenses_ecran", "ventes_realisees", "analyses", "analyse", "positions",
+              "synthese", "patrimoine", "historique", "depenses", "flux", "fiscalite", "alertes", "ordres_proposes", "references"}
 _cache: dict[tuple, str] = {}
 
 
@@ -170,16 +169,11 @@ def etat() -> dict:
         n = con.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
         last = db.get_meta(con, "last_sync") or {}
         cmb_until = db.get_meta(con, "cmb_consent_until")
-        heavy = db.get_meta(con, "last_heavy_sync") or {}
-        ages = {k: db.get_meta(con, m) for k, m in (("trade_republic", "last_sync_tr"), ("cmb", "last_sync_cmb"),
-                                                    ("13f", "last_13f_check"), ("elus", "last_congress_check"),
-                                                    ("declarations_rapides", "last_ownership_check"),
-                                                    ("radar", "radar_at"))}
+        ages = {k: db.get_meta(con, m) for k, m in (("trade_republic", "last_sync_tr"), ("cmb", "last_sync_cmb"))}
     return {
         "sources_maj": ages,
         "durees_synchro": last.get("durations") or {},
         "duree_totale_s": last.get("total_s"),
-        "durees_lourd": heavy.get("durations") or {},
         "base": str(s.db_path),
         "operations": n,
         "derniere_synchro": last.get("at"),
@@ -276,9 +270,7 @@ def _sync(send_alerts: bool = True) -> dict:
     try:
         from . import pipeline
 
-        # Fast part only: the phone's interpreter is shared with the screens, so a long sync makes every tab crawl.
-        # The investors and the radar run apart (``sync_lourd``), at night.
-        return {"deja_en_cours": False, "lignes": pipeline.run(settings(), send_alerts=send_alerts, part="rapide")}
+        return {"deja_en_cours": False, "lignes": pipeline.run(settings(), send_alerts=send_alerts)}
     finally:
         _sync_lock.release()
 
@@ -303,7 +295,7 @@ def _market_hours(now: datetime | None = None) -> bool:
 
 
 def veille(force: bool = False) -> str:
-    """Light, frequent pass for the price alerts: prices, valuation, alert rules. No bank, no investors."""
+    """Light, frequent pass for the price alerts: prices, valuation, alert rules. No bank."""
     def run() -> dict:
         if not force and not _market_hours():
             return {"ignoree": "hors des heures de marché", "alertes": 0}
@@ -323,21 +315,6 @@ def veille(force: bool = False) -> str:
                 con.commit()
                 fired = alerts.run(con, send=True)
             return {"alertes": len(fired), "titres": [f.title for f in fired]}
-        finally:
-            _sync_lock.release()
-
-    return _reply(run)
-
-
-def sync_lourd() -> str:
-    """Other investors (13F, Congress, fast filings) and the radar: slow, network-heavy, once a day, at night."""
-    def run() -> dict:
-        if not _sync_lock.acquire(blocking=False):
-            return {"deja_en_cours": True, "lignes": []}
-        try:
-            from . import pipeline
-
-            return {"deja_en_cours": False, "lignes": pipeline.run(settings(), part="lourd")}
         finally:
             _sync_lock.release()
 

@@ -2,8 +2,8 @@
 
 1. ``facts`` gathers what happened, from the database and Yahoo, with no judgement: Jules's lines against their
    index, the market (indices, rates, currencies, commodities, US sectors and themes), the stocks behind his ETFs
-   that moved them most, analysts' rating changes, earnings coming up, the followed money's fresh filings and the
-   radar. Each unusual move (large against the line's own daily volatility) is listed in ``to_explain``.
+   that moved them most, analysts' rating changes, earnings coming up. Each unusual move (large against the line's own daily volatility) is listed in
+   ``to_explain``.
 2. Claude (``scripts/analyse.md``, MCP tools ``faits_du_jour`` then ``publier_analyse``) researches those moves
    on the web, 24 to 72 hours back, and fills a fixed structure (``validate``): every claim cites a source.
 3. ``publish`` stores it, sends a short mail with a chart (``brief_mail``) and a one-line push; the Analyses page
@@ -179,8 +179,6 @@ def _earnings(tickers: list[str], until: date) -> list[dict]:
 def facts(con: sqlite3.Connection, period: str = "jour") -> dict:
     """Everything the analysis starts from, as JSON-ready data. ``period``: 'jour' (last session) or 'semaine'
     (last five)."""
-    from . import fresh, radar
-
     days = PERIODS[period]
     start = date.today() - timedelta(days=150)
     lines = _lines(con)
@@ -244,10 +242,6 @@ def facts(con: sqlite3.Connection, period: str = "jour") -> dict:
 
     hist = queries.history(con)
     total = hist.groupby("date")["value"].sum() if not hist.empty else pd.Series(dtype=float)
-    feed = fresh.feed(con, days=3 if days == 1 else 8)
-    if not feed.empty:
-        feed = feed.sort_values("value_usd", ascending=False, na_position="last").head(12)
-    rad = radar.load(con)
 
     to_explain = []
     for r in out_lines:
@@ -279,12 +273,6 @@ def facts(con: sqlite3.Connection, period: str = "jour") -> dict:
         },
         "comptes": accounts, "lignes": out_lines, "marche": market, "secteurs": sectors, "moteurs_etf": movers[:10],
         "analystes": analysts, "resultats_a_venir": earnings,
-        "argent_suivi": [] if feed.empty else feed[["date", "kind", "who", "ticker", "name", "what", "value_usd",
-                                                     "since", "mine", "link"]].to_dict("records"),
-        "radar": [] if rad.empty else [
-            {"ticker": r.ticker, "nom": r.name, "score": r.score, "pourquoi": radar._why(r),
-             "depuis_signal": getattr(r, "since_signal", None), "r1m": r.r1m}
-            for r in rad.head(5).itertuples()],
         "a_expliquer": to_explain,
         "series": series,
     })

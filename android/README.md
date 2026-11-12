@@ -14,7 +14,7 @@ Il n'y a ni serveur ni PC à garder allumé. Le PC continue de fonctionner comme
 ## Premier lancement
 
 1. **Base** : copie `data/patrimoine.db` du PC sur le téléphone (Drive, câble…), puis va dans Réglages →
-   « Importer une base ». Tout l'historique arrive d'un coup : CMB depuis 2016, PEG, 13F, élus, analyses.
+   « Importer une base ». Tout l'historique arrive d'un coup : CMB depuis 2016, PEG, analyses.
 2. **Secrets** : dans Réglages, saisis le téléphone et le PIN Trade Republic, puis le jeton GitHub. Saisis
    aussi le mot de passe d'application Gmail si tu veux les mails.
    - Le jeton GitHub sert aux analyses des routines Claude. Prends un jeton « fine-grained » limité au dépôt
@@ -24,14 +24,13 @@ Il n'y a ni serveur ni PC à garder allumé. Le PC continue de fonctionner comme
 4. **CMB** : appuie sur « Installer la clé » (le fichier `.pem` de `data/enablebanking/` sur le PC), puis sur
    « Renouveler l'accès ». Tu te connectes à la CMB dans l'appli, qui récupère toute seule le code de retour.
 
-La synchro tourne ensuite chaque matin vers 7 h 30 : Trade Republic, CMB, cours, investisseurs et alertes.
+La synchro tourne ensuite chaque matin vers 7 h 30 : Trade Republic, CMB, cours et alertes.
 L'appli récupère aussi les analyses Claude toutes les heures. Les alertes arrivent en notifications du
 téléphone. L'appli se verrouille par empreinte ou par code après 5 minutes en arrière-plan.
 
 ## PC et téléphone
 
-**Un seul appareil doit faire la synchro**, sinon les alertes, les analyses et le récapitulatif des investisseurs
-partent deux fois. Une fois le téléphone en service (base importée, synchro réussie), retire les tâches du PC :
+**Un seul appareil doit faire la synchro**, sinon les alertes, les analyses partent deux fois. Une fois le téléphone en service (base importée, synchro réussie), retire les tâches du PC :
 `uv run patrimoine taches --retirer`. Pour revenir au PC : `uv run patrimoine taches`. Sur le téléphone, les mails
 ne partent que si le mot de passe Gmail y est saisi.
 

@@ -19,7 +19,7 @@ android {
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionName = "0.1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
         ndk {
-            // The Pixel 8a and every recent phone; curl_cffi only ships arm64 wheels for Android.
+            // The Pixel 8a and every recent phone; curl_cffi (via yfinance) only ships arm64 wheels for Android.
             abiFilters += listOf("arm64-v8a")
         }
     }

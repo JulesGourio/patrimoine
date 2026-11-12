@@ -8,7 +8,7 @@ git fetch origin donnees
 git show FETCH_HEAD:{periode}.json > /tmp/dossier.json
 ```
 Ses clés portent le nom des outils cités dans `scripts/analyse.md` et en contiennent le résultat : `faits_du_jour`
-(les faits ; l'`id` est à la racine du dossier), `analyses`, `ordres_proposes`, `radar`, et pour la semaine
+(les faits ; l'`id` est à la racine du dossier), `analyses`, `ordres_proposes`, et pour la semaine
 `patrimoine`, `fiscalite`, `positions`. L'outil `marche` n'existe pas ici : prends les cours manquants sur le web
 (Yahoo Finance) et cite la source.
 

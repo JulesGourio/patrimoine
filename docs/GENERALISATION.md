@@ -32,7 +32,7 @@ internes à partir des comptes configurés, plutôt que par libellés écrits à
 
 ## 4. Lignes de portefeuille et indices de référence
 
-`briefing.py` (`BENCH`), `radar.py` et `queries.py` (`TER`) contiennent les ISIN du premier utilisateur avec leur
+`briefing.py` (`BENCH`) et `queries.py` (`TER`) contiennent les ISIN du premier utilisateur avec leur
 indice de référence, levier et frais. À faire : déduire l'indice de référence et le TER des fonds détenus (ou les
 saisir dans un fichier utilisateur), et ne plus citer de titre précis.
 

@@ -12,7 +12,6 @@ object Routes {
 
     const val TITRE = "titre/{symbole}"
     const val ANALYSE = "analyse/{id}"
-    const val INVESTISSEURS = "investisseurs"
     const val ORDRES = "ordres"
     const val ALERTES = "alertes"
     const val REGLAGES = "reglages"

@@ -144,8 +144,7 @@ fun ReglagesScreen(nav: NavController, onBack: () -> Unit) {
             }
             item {
                 SectionCard("Sources et durées") {
-                    val noms = mapOf("trade_republic" to "Trade Republic", "cmb" to "CMB", "13f" to "13F",
-                        "elus" to "Élus américains", "declarations_rapides" to "Déclarations rapides", "radar" to "Radar")
+                    val noms = mapOf("trade_republic" to "Trade Republic", "cmb" to "CMB")
                     val maj = s.objOrNull("sources_maj")
                     noms.forEach { (cle, nom) -> InfoRow(nom, moment(maj?.str(cle))) }
                     s.num("duree_totale_s")?.let { InfoRow("Dernière synchro, total", "%.0f s".format(it)) }

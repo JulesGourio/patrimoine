@@ -57,7 +57,6 @@ object Engine {
         JSONObject().apply { pairs.forEach { (k, v) -> put(k, v ?: JSONObject.NULL) } }
 
     suspend fun sync(): Reply = invoke("sync")
-    suspend fun syncLourd(): Reply = invoke("sync_lourd")
     suspend fun veille(): Reply = invoke("veille")
     suspend fun pullAnalyses(): Reply = invoke("pull_analyses")
     suspend fun importFile(kind: String, path: String): Reply = invoke("import_file", kind, path)
