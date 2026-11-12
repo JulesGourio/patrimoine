@@ -55,6 +55,27 @@ Dans GitHub → Settings → Secrets and variables → Actions, ajoute `ANDROID_
 `ANDROID_KEYSTORE_PASSWORD` et `ANDROID_KEY_ALIAS`. Sans ces variables, la clé de débogage d'Android est
 utilisée : l'APK s'installe, mais une autre clé oblige à désinstaller l'ancienne version.
 
+## Voir l'appli avec ses propres données (captures d'écran)
+
+Sans téléphone ni SDK d'émulateur, on photographie les vrais écrans (code Compose réel, taille d'un Pixel 8a)
+avec des réponses du moteur lues dans des fichiers JSON.
+
+```bash
+# 1. Les JSON de chaque écran : jeu fictif par défaut, ou votre base (copiée, jamais modifiée ni publiée)
+uv run python scripts/ecrans_json.py android/build/ecrans
+uv run python scripts/ecrans_json.py android/build/ecrans --donnees chemin/vers/data   # vos données
+
+# 2. Les PNG dans android/build/captures/ (SDK Android + Java 17 + Python 3.13 sur le PATH)
+cd android
+ANDROID_HOME=~/Android/sdk PATRIMOINE_SANS_PYTHON=1 \
+PATRIMOINE_ECRANS=$PWD/build/ecrans PATRIMOINE_CAPTURES=$PWD/build/captures \
+./gradlew :app:recordRoborazziDebug --tests '*EcransTest*'
+```
+
+`uv run patrimoine demo <dossier>` crée une base fictive pour développer l'appli sans aucune donnée personnelle.
+Les couleurs dynamiques (fond d'écran) du téléphone ne sont pas reproduites. Les captures de vraies données
+restent sur votre machine : ne les commitez pas et ne les publiez pas.
+
 ## Construire en local
 
 Il faut le SDK Android (Android Studio), Java 17 et Python 3.13 sur le PC. Ensuite :

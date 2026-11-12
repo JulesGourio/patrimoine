@@ -1,4 +1,5 @@
 """Cartes prépayées / comptes manuels : création, opérations, import de copier-coller, patrimoine, catégories."""
+import json
 from datetime import date, timedelta
 
 import pytest
@@ -145,3 +146,13 @@ def test_connecteur_edenred_squelette():
         edenred.login()
     with pytest.raises(NotImplementedError):
         edenred.Edenred().fetch_operations(date.today() - timedelta(days=30))
+
+
+def test_jeu_fictif_alimente_tous_les_ecrans(tmp_path):
+    from patrimoine import demo, mobile
+
+    demo.build(tmp_path / "patrimoine.db")
+    assert json.loads(mobile.init(str(tmp_path)))["ok"]
+    for name in ("accueil", "portefeuille", "depenses_ecran", "cartes", "alertes", "ordres_proposes"):
+        assert json.loads(mobile.call(name, "{}"))["ok"], name
+    assert json.loads(mobile.call("cartes", "{}"))["data"]["cartes"]

@@ -207,12 +207,18 @@ private fun App() {
         start = { Scheduler.syncNow(context) },
     )
 
+    AppContent(nav, refresh, sync)
+}
+
+/** Tabs and screens, without WorkManager or permissions: what the screen captures render (`app/src/test`). */
+@Composable
+internal fun AppContent(nav: NavHostController, refresh: Int, sync: SyncControl) {
     CompositionLocalProvider(LocalRefresh provides refresh, LocalSync provides sync) {
         Scaffold(
             bottomBar = { BottomBar(nav) },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
-                if (running) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (sync.running) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Graph(nav, Modifier.weight(1f))
             }
         }
