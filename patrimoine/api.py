@@ -567,7 +567,8 @@ def synthese(avec_peg: bool = True) -> dict:
     bal = analytics.monthly_balance(con)
     full = queries.complete_months(bal, queries.data_date(con)).tail(12)
     last = h[h.date == today]
-    by_group = last.assign(g=last.account.map(GROUPES)).groupby("g")["value"].sum()
+    groupes = queries.account_groups(con)
+    by_group = last.assign(g=last.account.map(groupes)).groupby("g")["value"].sum()
     replayed = portfolio.replay(con)
     pos = queries.positions(con, replayed)
     real = queries.realised(con, replayed)
@@ -586,7 +587,7 @@ def synthese(avec_peg: bool = True) -> dict:
     pea_open = queries.account_open_dates(con).get("tr_pea")
     pea_5y = bool(pea_open and (today - pd.Timestamp(pea_open)).days >= 365.25 * 5)
     invested = float(by_group.get("Bourse", 0) + by_group.get("Épargne salariale", 0))
-    comptes = [{"compte": r.account, "groupe": GROUPES.get(r.account), "valeur": float(r.value),
+    comptes = [{"compte": r.account, "groupe": groupes.get(r.account), "valeur": float(r.value),
                 "var_30j": float(r.value) - float(h[(h.account == r.account)].set_index("date")["value"]
                                                     .asof(today - pd.Timedelta(days=30)) or 0.0)}
                for r in last.itertuples()]
@@ -958,3 +959,109 @@ def abonnements() -> dict:
                    "total_mensuel": sum(i["montant_mensuel"] for i in items),
                    "note": "Détection automatique : un marchand régulier mais de montant variable n'apparaît pas. "
                            "Résiliés : plus payés depuis plus de 45 jours (sur 24 mois)."})
+
+
+# ---------- cartes prépayées / comptes tenus à la main (cartes.py) ----------
+
+def _revaloriser(con: sqlite3.Connection) -> None:
+    """Recalcule l'historique pour que le patrimoine tienne compte tout de suite d'une saisie (sinon à la prochaine
+    synchro). Sans conséquence si cela échoue."""
+    try:
+        df, _ = portfolio.valuations(con)
+        portfolio.store(con, df)
+    except Exception:  # noqa: BLE001 - la saisie est enregistrée, la synchro rattrapera
+        pass
+
+
+def _carte(con: sqlite3.Connection, carte: str) -> str:
+    from . import cartes as _cartes
+
+    return _cartes.resolve(con, carte)
+
+
+@tool
+def cartes() -> dict:
+    """Cartes prépayées et comptes tenus à la main (titres-restaurant Edenred…) : pour chacune id, nom, solde calculé
+    en euros (somme des opérations, ajustements compris), date du dernier paiement ou crédit, crédit mensuel moyen
+    (12 derniers mois, null sans crédit), jours depuis la dernière saisie et nombre d'opérations. Le solde compte
+    dans le patrimoine (liquidités)."""
+    from . import cartes as _cartes
+
+    con = _con()
+    liste = _cartes.summary(con)
+    return _clean({"cartes": liste, "total": sum(c["solde"] for c in liste)})
+
+
+@tool
+def creer_carte(nom: str, solde_initial: float = 0) -> dict:
+    """Crée une carte prépayée (compte `prepaye_<nom>`, établissement = nom) qui compte dans le patrimoine. Un solde
+    initial non nul est enregistré comme ajustement (ni revenu ni dépense). Retourne l'id à utiliser ailleurs (le nom
+    marche aussi)."""
+    from . import cartes as _cartes
+
+    con = _con()
+    try:
+        out = _cartes.create(con, nom, solde_initial)
+    except ValueError as e:
+        return {"erreur": str(e)}
+    _revaloriser(con)
+    return {"ok": True, **out, "solde": _cartes.balance_at(con, out["id"]) / 100}
+
+
+@tool
+def carte_operation(carte: str, date: str, montant: float, libelle: str, type: str = "paiement",
+                    autoriser_doublon: bool = False) -> dict:
+    """Saisit une opération sur une carte prépayée (`carte` : id ou nom). `type` « paiement » : dépense normale,
+    catégorisée d'après le vendeur (`libelle`), renommable avec `renommer_vendeur` ; « credit » : versement, compté
+    comme revenu de catégorie « Titres-restaurant ». `montant` en euros, positif (le signe est imposé par le type).
+    `date` AAAA-MM-JJ. Une opération identique déjà saisie n'est pas ajoutée deux fois, sauf `autoriser_doublon`."""
+    from . import cartes as _cartes
+
+    con = _con()
+    try:
+        acc = _carte(con, carte)
+        out = _cartes.add_operation(con, acc, date, montant, libelle, type, autoriser_doublon)
+    except ValueError as e:
+        return {"erreur": str(e)}
+    if out["ajoutee"]:
+        _revaloriser(con)
+    return {"ok": True, "carte": acc, **out, "solde": _cartes.balance_at(con, acc) / 100}
+
+
+@tool
+def carte_solde(carte: str, montant: float, date: str = "") -> dict:
+    """Recale le solde d'une carte prépayée sur celui qu'affiche l'appli du fournisseur (`montant` en euros, à la
+    `date` AAAA-MM-JJ, aujourd'hui par défaut) : ajoute une ligne d'ajustement (flux interne : ni revenu ni
+    dépense) de l'écart, rien si le solde est déjà bon."""
+    from . import cartes as _cartes
+
+    con = _con()
+    try:
+        acc = _carte(con, carte)
+        out = _cartes.set_balance(con, acc, montant, date)
+    except ValueError as e:
+        return {"erreur": str(e)}
+    if out["ajustement"]:
+        _revaloriser(con)
+    return {"ok": True, "carte": acc, **out}
+
+
+@tool
+def carte_import(carte: str, texte: str, apercu: bool = False) -> dict:
+    """Importe l'historique d'une carte prépayée depuis un copier-coller de l'appli (Edenred…) ou un CSV
+    `date;libellé;montant`. Tolérant : séparateurs ; , tabulation, dates JJ/MM/AAAA ou AAAA-MM-JJ, montants avec
+    virgule et signe (« - » paiement, « + » crédit ; sans signe, crédit si le libellé dit versement ou crédit). Les
+    lignes non reconnues sont rendues avec leur raison dans `ignorees`. Idempotent. `apercu` True : ne rien écrire.
+    Retour : lignes (date, libelle, montant signé, type, nouvelle), ignorees, nouvelles, deja_presentes, paiements,
+    credits (euros)."""
+    from . import cartes as _cartes
+
+    con = _con()
+    try:
+        acc = _carte(con, carte)
+    except ValueError as e:
+        return {"erreur": str(e)}
+    out = _cartes.import_text(con, acc, texte, preview=apercu)
+    if not apercu and out["nouvelles"]:
+        _revaloriser(con)
+    return _clean({"carte": acc, **out, "solde": _cartes.balance_at(con, acc) / 100})

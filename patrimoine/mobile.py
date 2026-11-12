@@ -238,7 +238,8 @@ def references() -> dict:
         accounts = [dict(r) for r in con.execute("SELECT id, institution, name, kind FROM accounts WHERE active = 1"
                                                  " ORDER BY institution, id")]
     return {"categories_depenses": SPENDING, "categories_revenus": INCOME, "comptes": accounts,
-            "comptes_solde_manuel": [a["id"] for a in accounts if a["kind"] == "livret"]}
+            "comptes_solde_manuel": [a["id"] for a in accounts if a["kind"] == "livret"],
+            "cartes_prepayees": [a["id"] for a in accounts if a["kind"] == "prepaye"]}
 
 
 @screen

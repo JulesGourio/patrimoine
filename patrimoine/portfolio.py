@@ -26,6 +26,11 @@ CASH_ACCOUNTS = {"tr_especes", "tr_pea", "cmb_courant", "cmb_livret_a", "cmb_liv
 SPLIT_TOLERANCE = 1.25  # a trade/close ratio beyond this means Yahoo's scale differs (split, wrong line)
 
 
+def cash_accounts(con: sqlite3.Connection) -> set[str]:
+    """Accounts whose cash counts in the valuation: the fixed ones plus the prepaid cards Jules created."""
+    return CASH_ACCOUNTS | {r[0] for r in con.execute("SELECT id FROM accounts WHERE kind = 'prepaye'")}
+
+
 @dataclass
 class Line:
     quantity: float = 0.0
@@ -198,6 +203,7 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
     prices = Prices(con, txs)
     peg = peg_without_history(con)
     start, end = date.fromisoformat(txs[0]["date"]), end or date.today()
+    cash_accs = cash_accounts(con)
     by_day: dict[str, list[sqlite3.Row]] = defaultdict(list)
     for r in txs:
         by_day[r["date"]].append(r)
@@ -210,7 +216,7 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
     while day <= end:
         for r in by_day.get(day.isoformat(), []):
             book.apply(r)
-            if r["account_id"] in CASH_ACCOUNTS and r["flow"] not in NON_CASH_FLOWS:
+            if r["account_id"] in cash_accs and r["flow"] not in NON_CASH_FLOWS:
                 cash[r["account_id"]] += r["amount_cents"] / 100
                 if r["flow"] == "interne":
                     deposits[r["account_id"]] += r["amount_cents"] / 100

@@ -25,6 +25,26 @@ ACCOUNT_GROUPS = {"PEA": "Bourse", "Compte-titres": "Bourse", "PEG Airbus": "Ép
                   "Livret Jeune": "Livrets", "Trade Republic espèces": "Liquidités", "CMB courant": "Liquidités"}
 
 
+def account_labels(con: sqlite3.Connection) -> dict[str, str]:
+    """Labels of the fixed accounts plus those of the accounts Jules created himself (prepaid cards: their name)."""
+    labels = dict(ACCOUNT_LABELS)
+    try:
+        for r in con.execute("SELECT id, name FROM accounts WHERE kind = 'prepaye'"):
+            labels[r[0]] = r[1]
+    except sqlite3.OperationalError:  # database without the table
+        pass
+    return labels
+
+
+def account_groups(con: sqlite3.Connection) -> dict[str, str]:
+    """Home page grouping by label; prepaid cards count as liquidities."""
+    groups = dict(ACCOUNT_GROUPS)
+    for acc, label in account_labels(con).items():
+        if acc not in ACCOUNT_LABELS:
+            groups[label] = "Liquidités"
+    return groups
+
+
 def history(con: sqlite3.Connection) -> pd.DataFrame:
     """Daily value per account, in EUR (from the valuations table, see portfolio.store)."""
     df = pd.read_sql_query(
@@ -33,7 +53,7 @@ def history(con: sqlite3.Connection) -> pd.DataFrame:
     for c in ("cash", "securities", "cost", "realised", "deposits"):
         df[c] = df.pop(f"{c}_cents") / 100
     df["value"] = df["cash"] + df["securities"]
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS).fillna(df["account_id"])
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     return df
 
 
@@ -115,7 +135,7 @@ def spending(con: sqlite3.Connection) -> pd.DataFrame:
     df["amount"] = -df.pop("amount_cents") / 100
     df["category"] = df["category_override"].fillna(df["category"])
     _name_merchants(con, df)
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS)
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
     return df
 
@@ -150,7 +170,7 @@ def income(con: sqlite3.Connection) -> pd.DataFrame:
                               "category_override": None, "amount": peg["amount"]})
         _name_merchants(con, extra)
         df = pd.concat([df, extra], ignore_index=True).sort_values("date", ascending=False, kind="stable")
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS)
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
     return df
 
@@ -184,7 +204,7 @@ def investment_income(con: sqlite3.Connection) -> pd.DataFrame:
         "SELECT flow, COALESCE(holding_account_id, account_id) AS account_id, SUM(amount_cents) AS cents"
         " FROM transactions WHERE flow IN ('interets', 'dividende') GROUP BY flow, account_id", con)
     df["amount"] = df.pop("cents") / 100
-    df["account"] = df["account_id"].map(ACCOUNT_LABELS).fillna(df["account_id"])
+    df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     return df
 
 

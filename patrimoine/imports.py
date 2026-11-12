@@ -75,6 +75,8 @@ def balance(settings: Settings, account: str, euros: str | float, day: str | Non
         db.init(con)
         if not con.execute("SELECT 1 FROM accounts WHERE id = ?", (account,)).fetchone():
             raise ValueError(f"Compte inconnu : {account}")
+        if account.startswith("prepaye_"):
+            raise ValueError("Carte prépayée : utiliser l'outil carte_solde (ajustement), pas un solde de référence")
         db.set_balance(con, account, day or date.today().isoformat(), cents)
     return cents
 
