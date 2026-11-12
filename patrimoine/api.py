@@ -26,6 +26,8 @@ INSTRUCTIONS = (
     "écran Analyses). Rapport libre à la demande : `enregistrer_rapport`."
 )
 
+RISKY_ACCOUNTS = {"PEA", "Compte-titres", "PEG Airbus"}  # libellés de queries.ACCOUNT_LABELS
+
 TOOLS: list[Callable[..., dict]] = []
 
 
@@ -791,3 +793,289 @@ def cours(isin: str, jours: int = 400) -> dict:
                     "prix": (value + fees if sale else value - fees) / r["quantity"] / ratio})
     return _clean({"isin": isin, "cours": points, "pmp": cost / qty if qty > 1e-6 and cost else None,
                    "operations": ops})
+
+
+@tool
+def projection(horizon_ans: int = 20, epargne_mensuelle: float | None = None, hausse_epargne_pct: float = 2.0,
+               objectif_eur: float = 500000, part_actions_pct: float | None = None, rendement_actions_pct: float = 7.0,
+               volatilite_pct: float = 18.0, rendement_livrets_pct: float = 2.4, inflation_pct: float = 2.0) -> dict:
+    """Projection Monte-Carlo du patrimoine (2000 scénarios, graine fixe) : médiane et scénarios prudent/favorable
+    (1 sur 10) à l'horizon, en euros courants et d'aujourd'hui, versé de la poche, chance d'atteindre l'objectif,
+    trajectoires et leviers (effet sur la médiane de ±200 €/mois, ±10 points d'actions, ±1 point de rendement).
+    Par défaut : épargne = moyenne des 12 derniers mois complets (arrondie à 50 €, sinon 1000), part d'actions =
+    part actuelle de PEA, compte-titres et PEG. Avant impôts ; une simulation, pas une promesse."""
+    import numpy as np
+
+    from . import analytics
+    from .projection import project
+
+    con = _con()
+    try:
+        valeurs = {"horizon_ans": float(horizon_ans), "hausse_epargne_pct": float(hausse_epargne_pct),
+                   "objectif_eur": float(objectif_eur), "rendement_actions_pct": float(rendement_actions_pct),
+                   "volatilite_pct": float(volatilite_pct), "rendement_livrets_pct": float(rendement_livrets_pct),
+                   "inflation_pct": float(inflation_pct)}
+        if epargne_mensuelle is not None:
+            valeurs["epargne_mensuelle"] = float(epargne_mensuelle)
+        if part_actions_pct is not None:
+            valeurs["part_actions_pct"] = float(part_actions_pct)
+    except (TypeError, ValueError):
+        return {"erreur": "les paramètres de la projection doivent être des nombres"}
+    if not all(math.isfinite(v) for v in valeurs.values()):
+        return {"erreur": "les paramètres de la projection doivent être des nombres finis"}
+    v = valeurs
+    if not 1 <= v["horizon_ans"] <= 40 or v["horizon_ans"] != int(v["horizon_ans"]):
+        return {"erreur": "horizon_ans doit être un entier entre 1 et 40"}
+    if not 0 <= v.get("part_actions_pct", 0) <= 100:
+        return {"erreur": "part_actions_pct doit être entre 0 et 100"}
+    if not 0 < v["volatilite_pct"] <= 100:
+        return {"erreur": "volatilite_pct doit être entre 0 (exclu) et 100"}
+    for k in ("rendement_actions_pct", "rendement_livrets_pct", "inflation_pct"):
+        if v[k] <= -100:
+            return {"erreur": f"{k} doit être supérieur à -100"}
+    if v.get("epargne_mensuelle", 0) < 0 or v["objectif_eur"] < 0:
+        return {"erreur": "epargne_mensuelle et objectif_eur doivent être positifs ou nuls"}
+    horizon_ans = int(v["horizon_ans"])
+    h = queries.history(con)
+    if h.empty:
+        return {"erreur": "historique vide : lancer synchroniser"}
+    last = h[h.date == h.date.max()]
+    risky = float(last[last.account.isin(RISKY_ACCOUNTS)].value.sum())
+    safe = float(last[~last.account.isin(RISKY_ACCOUNTS)].value.sum())
+    total = risky + safe
+    if epargne_mensuelle is None:
+        epargne_mensuelle = 1000.0
+        try:
+            bal = analytics.monthly_balance(con)
+            this_month = pd.Timestamp.today().to_period("M").to_timestamp()
+            saving = bal[bal.index < this_month].tail(12).epargne.mean()
+            if saving > 0:
+                epargne_mensuelle = float(round(saving / 50) * 50)
+        except Exception:  # noqa: BLE001 - pas encore d'opérations : on garde 1000
+            pass
+    if part_actions_pct is None:
+        part_actions_pct = round(100 * risky / total) if total > 0 else 0
+    try:
+        with np.errstate(all="ignore"):
+            res = project(risky, safe, horizon_ans=horizon_ans, monthly=epargne_mensuelle,
+                          growth_pct=hausse_epargne_pct, goal=objectif_eur, share_pct=part_actions_pct,
+                          mu_pct=rendement_actions_pct, vol_pct=volatilite_pct, safe_pct=rendement_livrets_pct,
+                          inflation_pct=inflation_pct)
+    except (OverflowError, ValueError, FloatingPointError):  # paramètres si extrêmes que le calcul déborde
+        return {"erreur": "paramètres trop extrêmes pour la projection"}
+    return _clean(res)
+
+
+# ---------- outils restaurés de l'ancien tableau de bord (frais, fiscalité de fin d'année, performance, risques) ----------
+
+@tool
+def frais() -> dict:
+    """Frais payés par année (banque, courtage, frais des fonds estimés sur leur valeur moyenne de l'année) et frais
+    des fonds au rythme actuel : TER × valeur de chaque ligne détenue (prélevés dans le cours, invisibles sur les
+    relevés). Montants en euros ; TER en %. Les lignes sans TER connu (table queries.TER) sont absentes."""
+    con = _con()
+    f = queries.fees_by_year(con)
+    if f.empty:
+        return {"erreur": "aucune opération : lancer synchroniser"}
+    f = f.assign(ordres=f["ordres"].astype(int)) if "ordres" in f else f.assign(ordres=0)
+    pos = queries.positions(con)
+    held = pos[pos["isin"].isin(queries.TER)] if not pos.empty else pos
+    detail = []
+    for r in held.itertuples():
+        if r.value == r.value and r.value:
+            detail.append({"nom": r.name, "isin": r.isin, "compte": r.account, "valeur": r.value,
+                           "ter_pct": queries.TER[r.isin] * 100, "cout_annuel": r.value * queries.TER[r.isin]})
+    return _clean({
+        "annees": f[["banque", "courtage", "ordres", "frais_fonds", "total"]].to_dict("index"),
+        "frais_fonds_rythme_actuel": sum(d["cout_annuel"] for d in detail),
+        "detail_fonds": detail,
+        "note": "frais_fonds = estimation (TER × valeur moyenne) ; TER à vérifier dans les DIC. courtage : 1 € par "
+                "ordre chez Trade Republic, plans d'épargne gratuits.",
+    })
+
+
+@tool
+def pistes_fiscales() -> dict:
+    """Pistes de fin d'année du compte-titres (le PEA et le PEG ne sont pas imposés tant qu'on n'en retire rien) :
+    plus-values réalisées de l'année, lignes en moins-value latente qu'on pourrait vendre avant le 31/12 pour les
+    compenser, économie d'impôt estimée = min(moins-values latentes, plus-values réalisées) × 30 %, moins-values
+    reportables, impôt latent si on vendait tout le compte-titres, et date des 5 ans du PEA. Estimation PFU 30 %,
+    à vérifier avec l'IFU ; pas un conseil fiscal."""
+    con = _con()
+    tax = queries.taxes(con)
+    pos = queries.positions(con)
+    if tax.empty and (pos.empty or pos["value"].isna().all()):
+        return {"erreur": "aucune donnée fiscale ni position : lancer synchroniser"}
+    today = pd.Timestamp.today().normalize()
+    year = str(today.year)
+    if not tax.empty:
+        tax.index = tax.index.astype(str)
+    cur = tax.loc[year] if year in tax.index else pd.Series(dtype=float)
+
+    def g(k: str) -> float:
+        return float(cur.get(k, 0.0) or 0.0)
+
+    cto = pos[pos.account == queries.ACCOUNT_LABELS["tr_cto"]] if not pos.empty else pos
+    latent = float(cto.gain.sum()) if not cto.empty else 0.0
+    if year in tax.index:
+        carry = g("moins_values_reportables")
+    elif not tax.empty and "plus_values" in tax:
+        # Année sans ligne (aucune vente, dividende ni intérêt) : report des années passées, moins de 10 ans.
+        carry = portfolio.carry_into({int(k): float(v or 0.0) for k, v in tax["plus_values"].items()}, today.year)
+    else:
+        carry = 0.0
+    gains = g("plus_values")
+    taxable = g("plus_values_imposables")  # après imputation des moins-values reportables
+    losers = cto[cto.gain < 0] if not cto.empty else cto
+    latent_losses = float(-losers.gain.sum()) if not losers.empty else 0.0
+    saving = min(latent_losses, taxable) * 0.30 if taxable > 0 else 0.0
+    pistes = []
+    if not losers.empty and taxable > 0:
+        pistes.append(f"{taxable:.0f} € de plus-values imposables (après moins-values reportées) et "
+                      f"{latent_losses:.0f} € de moins-values latentes : "
+                      f"vendre les lignes en perte avant le 31/12 (puis les racheter si la conviction reste) "
+                      f"économiserait jusqu'à {saving:.0f} € d'impôt.")
+    elif not losers.empty:
+        pistes.append("Lignes en perte sur le compte-titres : à vendre seulement si des plus-values sont réalisées "
+                      "ailleurs cette année, pour les compenser.")
+    if carry > 0:
+        pistes.append(f"{carry:.0f} € de moins-values reportables : autant de plus-values réalisables sans impôt.")
+    pea = None
+    pea_open = queries.account_open_dates(con).get("tr_pea")
+    if pea_open:
+        five = pd.Timestamp(pea_open) + pd.DateOffset(years=5)
+        left = (five - today).days
+        pea = {"premiere_operation": pd.Timestamp(pea_open).date().isoformat(), "cinq_ans": five.date().isoformat(),
+               "jours_restants": max(left, 0), "atteint": left <= 0}
+        pistes.append("PEA : avant 5 ans, un retrait clôture le PEA et les gains sont taxés à 30 %." if left > 0 else
+                      "PEA : 5 ans atteints, retraits possibles sans clôture (17,2 % de prélèvements sociaux sur les gains).")
+    return _clean({
+        "annee": int(year),
+        "plus_values_realisees": gains,
+        "dividendes_interets": g("dividendes") + g("interets"),
+        "impot_estime_a_ce_jour": max(g("pfu_estime"), 0.0),
+        "moins_values_reportables": carry,
+        "plus_value_latente_cto": latent,
+        "impot_si_tout_vendu": max(latent - carry, 0.0) * 0.30,
+        "moins_values_latentes": latent_losses,
+        "economie_estimee": saving,
+        "lignes_en_perte": [{"nom": r.name, "isin": r.isin, "valeur": r.value, "moins_value": r.gain}
+                            for r in losers.sort_values("gain").itertuples()],
+        "pea": pea,
+        "pistes": pistes,
+        "note": "Estimation PFU 30 % sur le compte-titres uniquement ; vérifier avec l'IFU de Trade Republic.",
+    })
+
+
+@tool
+def performance(compte: str = "", indice: str = "") -> dict:
+    """Performance des placements Trade Republic : valeur, net investi, gain total, TRI (rendement de ton argent selon
+    les dates de versement), TWR (rendement des placements, neutre aux versements : total, annualisé, 1 mois, depuis
+    le 1er janvier, 1 an), volatilité annualisée, pire baisse et baisse actuelle depuis le plus haut. Rendements en
+    fractions (0,05 = 5 %). `compte` : vide (compte-titres + PEA), "tr_cto" ou "tr_pea". `indice` (optionnel) :
+    MSCI World, S&P 500, CAC 40 ou Nasdaq 100 ; compare à ce que les mêmes achats et ventes vaudraient placés dans
+    l'indice (nécessite Internet pour les cours). Le PEG Airbus est exclu."""
+    from . import analytics
+
+    ids = {"": analytics.INVESTED, "tr_cto": ("tr_cto",), "cto": ("tr_cto",), "compte-titres": ("tr_cto",),
+           "tr_pea": ("tr_pea",), "pea": ("tr_pea",)}
+    accounts = ids.get(compte.strip().lower())
+    if accounts is None:
+        return {"erreur": f"compte inconnu : {compte!r} (tr_cto, tr_pea ou vide)"}
+    bench_key = next((k for k in analytics.BENCHMARKS if k.lower() == indice.strip().lower()), None)
+    if indice.strip() and bench_key is None:
+        return {"erreur": f"indice inconnu : {indice!r} ({', '.join(analytics.BENCHMARKS)})"}
+    con = _con()
+    v = analytics.invested_series(con, accounts)
+    if v.empty:
+        return {"erreur": "aucun historique de titres : lancer synchroniser"}
+    out: dict[str, Any] = {"comptes": list(accounts), "depuis": v.index[0].date().isoformat(),
+                           "jusqu_au": v.index[-1].date().isoformat(), **analytics.stats(v)}
+    if bench_key:
+        try:
+            b = analytics.benchmark(con, v, analytics.BENCHMARKS[bench_key])
+        except Exception:  # noqa: BLE001 - pas de réseau, symbole indisponible
+            b = None
+        if b is None or b.empty:
+            out["indice"] = {"nom": bench_key, "erreur": "cours indisponibles"}
+        else:
+            out["indice"] = {"nom": bench_key, "symbole": analytics.BENCHMARKS[bench_key],
+                             "valeur_memes_versements": float(b.iloc[-1]),
+                             "ecart_portefeuille": float(v.value.iloc[-1] - b.iloc[-1]),
+                             "note": "Valeur si chaque achat et vente avait porté sur l'indice ; écart > 0 : le "
+                                     "portefeuille a fait mieux."}
+    return _clean(out)
+
+
+@tool
+def risques(baisse_pct: float = 20) -> dict:
+    """Risques du portefeuille (PEA, compte-titres, PEG) : exposition réelle aux actions (valeur × levier : un ETF x2
+    compte double), part à levier, part exposée au dollar (devise des actifs sous-jacents), plus grosse ligne en % du
+    patrimoine total, et perte estimée si les actions baissent de `baisse_pct` % (chaque ligne baisse comme le marché,
+    × levier, sans pouvoir perdre plus que sa valeur) avec le nombre de mois d'épargne (12 derniers mois complets)
+    pour la combler. Détail par ligne. Estimation simple, sans corrélations ni effet de volatilité des ETF à levier."""
+    from . import analytics
+
+    if not 0 < baisse_pct <= 100:
+        return {"erreur": "baisse_pct doit être entre 0 et 100"}
+    con = _con()
+    h = queries.history(con)
+    pos = queries.positions(con)
+    pos = pos[pos["value"].notna()] if not pos.empty else pos
+    if h.empty or pos.empty:
+        return {"erreur": "aucune position ou historique vide : lancer synchroniser"}
+    wealth = float(h[h.date == h.date.max()].value.sum())
+    risk = pos.assign(lev=pos["isin"].map(analytics.LEVERAGE).fillna(1.0),
+                      cur=pos["isin"].map(analytics.CURRENCY).fillna("?"))
+    risk["exposure"] = risk.value * risk.lev
+    risk["loss"] = (risk.exposure * baisse_pct / 100).clip(upper=risk.value)
+    total_value, exposure = float(risk.value.sum()), float(risk.exposure.sum())
+    loss = float(risk.loss.sum())
+    top = risk.sort_values("value", ascending=False).iloc[0]
+    usd = float(risk[risk.cur == "USD"].exposure.sum())
+    saving = None
+    try:
+        bal = analytics.monthly_balance(con)
+        s = bal[bal.index < pd.Timestamp.today().to_period("M").to_timestamp()].epargne.tail(12).mean()
+        saving = float(s) if s == s else None
+    except Exception:  # noqa: BLE001 - pas encore de revenus ni de dépenses
+        pass
+    lignes = [{"nom": r.name, "compte": r.account, "devise_actifs": r.cur, "levier": r.lev, "valeur": r.value,
+               "part_patrimoine": r.value / wealth if wealth else None, "perte_si_baisse": -r.loss}
+              for r in risk.sort_values("loss", ascending=False).itertuples()]
+    return _clean({
+        "patrimoine_total": wealth,
+        "valeur_investie": total_value,
+        "exposition_reelle": exposure,
+        "part_a_levier": float(risk[risk.lev > 1].value.sum()) / total_value if total_value else None,
+        "exposition_dollar": usd,
+        "part_dollar": usd / exposure if exposure else None,
+        "plus_grosse_ligne": {"nom": top["name"], "valeur": top["value"],
+                              "part_patrimoine": top["value"] / wealth if wealth else None},
+        "baisse_pct": baisse_pct,
+        "perte_estimee": -loss,
+        "perte_pct_patrimoine": -loss / wealth if wealth else None,
+        "epargne_mensuelle_moyenne": saving,
+        "mois_epargne_pour_combler": loss / saving if saving and saving > 0 else None,
+        "lignes": lignes,
+        "note": "part_* en fractions. devise_actifs '?' : devise inconnue (analytics.CURRENCY). Au-delà de 20 % du "
+                "patrimoine sur une seule action, un accident propre à l'entreprise pèse lourd.",
+    })
+
+
+@tool
+def abonnements() -> dict:
+    """Charges récurrentes encore actives (abonnements, loyer, assurances…) : commerçants payés d'un montant stable
+    dans au moins 3 mois distincts et vus dans les 45 derniers jours. Pour chacun : montant mensuel médian, coût
+    annuel (× 12), catégorie, nombre de mois, dernier paiement ; plus le total mensuel et annuel. Montants en euros."""
+    from . import analytics
+
+    sp = queries.spending(_con())
+    if sp.empty:
+        return {"erreur": "aucune dépense : lancer synchroniser"}
+    rec = analytics.recurring(sp)
+    items = [{"marchand": r.merchant, "categorie": r.category, "montant_mensuel": r.median, "cout_annuel": r.annual,
+              "mois": r.months, "dernier_paiement": r.last} for r in rec.itertuples()] if not rec.empty else []
+    return _clean({"abonnements": items, "total_annuel": sum(i["cout_annuel"] for i in items),
+                   "total_mensuel": sum(i["montant_mensuel"] for i in items),
+                   "note": "Détection automatique : un marchand régulier mais de montant variable n'apparaît pas."})

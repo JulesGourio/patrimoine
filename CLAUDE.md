@@ -62,7 +62,10 @@ Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le d
   `consensus_investisseurs`, `recoupement_investisseurs`, `suivre_investisseur`, `nouveautes` (fil des déclarations
   rapides, élus, 13F et fraîcheur des sources), `positions_actuelles` (13F mis à jour), `dirigeants`, et pour les élus du Congrès
   américain (STOCK Act) `elus`, `elu`, `achats_elus`, `suivre_elu` ; `radar` (idées « quoi regarder » : élus,
-  fonds, tendance, analystes, exposition via mes ETF) et `performance_fonds` (rendement de la copie des 13F). Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
+  fonds, tendance, analystes, exposition via mes ETF) et `performance_fonds` (rendement de la copie des 13F). Outils repris de l'ancien tableau de bord : `projection`
+  (Monte-Carlo, `patrimoine/projection.py` ; écran Projection de l'appli), `performance` (TWR, TRI, volatilité,
+  comparaison à un indice), `risques` (levier, dollar, simulation de baisse), `frais`, `pistes_fiscales`,
+  `abonnements`. Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
 - Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
   session Trade Republic a expiré, une notification demande à l'utilisateur de confirmer dans l'appli.
 - Analyses de marché (`patrimoine/briefing.py`, méthode dans `scripts/analyse.md`) : Python calcule les faits

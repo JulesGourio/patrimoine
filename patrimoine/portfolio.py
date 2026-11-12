@@ -283,6 +283,31 @@ def store(con: sqlite3.Connection, df: pd.DataFrame) -> None:
 
 # ---------- tax ----------
 
+def _apply_carry(carry: list[tuple[int, float]], year: int, gain: float) -> tuple[list[tuple[int, float]], float, float]:
+    """Un an de plus-values nettes `gain` : (reports restants, moins-values imputées, plus-values imposables).
+    Les moins-values de plus de dix ans sont écartées ; une perte nette de l'année s'ajoute au report."""
+    carry = [(yr, amt) for yr, amt in carry if year - yr <= 10]
+    if gain < 0:
+        carry.append((year, -gain))
+        gain = 0.0
+    used = 0.0
+    while gain > 0 and carry:
+        yr, amt = carry[0]
+        take = min(amt, gain)
+        gain, used = gain - take, used + take
+        carry = [(yr, amt - take)] + carry[1:] if amt > take else carry[1:]
+    return carry, used, gain
+
+
+def carry_into(plus_values_by_year: dict[int, float], year: int) -> float:
+    """Moins-values reportables utilisables en `year` à partir des plus-values nettes des années antérieures
+    (celles de plus de dix ans sont écartées), pour une année sans ligne dans `tax_summary`."""
+    carry: list[tuple[int, float]] = []
+    for yr in sorted(k for k in plus_values_by_year if k < year):
+        carry, _, _ = _apply_carry(carry, yr, plus_values_by_year[yr])
+    return sum(a for yr, a in carry if year - yr <= 10)
+
+
 def tax_summary(con: sqlite3.Connection, book: Book) -> dict[int, dict[str, float]]:
     """Per year, what goes on the French return for the compte-titres (PFU estimate, check the IFU).
 
@@ -305,17 +330,7 @@ def tax_summary(con: sqlite3.Connection, book: Book) -> dict[int, dict[str, floa
     carry: list[tuple[int, float]] = []
     for year in sorted(years):
         y = years[year]
-        carry = [(yr, amt) for yr, amt in carry if year - yr <= 10]
-        gain = y["plus_values"]
-        if gain < 0:
-            carry.append((year, -gain))
-            gain = 0.0
-        used = 0.0
-        while gain > 0 and carry:
-            yr, amt = carry[0]
-            take = min(amt, gain)
-            gain, used = gain - take, used + take
-            carry = [(yr, amt - take)] + carry[1:] if amt > take else carry[1:]
+        carry, used, gain = _apply_carry(carry, year, y["plus_values"])
         y["moins_values_imputees"] = used
         y["plus_values_imposables"] = gain
         y["moins_values_reportables"] = sum(a for _, a in carry)

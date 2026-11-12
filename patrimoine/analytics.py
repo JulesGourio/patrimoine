@@ -22,6 +22,11 @@ from . import portfolio
 INVESTED = ("tr_cto", "tr_pea")
 MIN_BASE = 1000.0
 BENCHMARKS = {"MSCI World": "IWDA.AS", "S&P 500": "CSPX.AS", "CAC 40": "^FCHI", "Nasdaq 100": "EQQQ.DE"}
+# Tables de risque (outil `risques`). Levier : le Nasdaq 100 x2 bouge deux fois plus que l'indice chaque jour.
+# Devise : celle des actifs sous-jacents, pas celle de la cotation.
+LEVERAGE = {"FR0010342592": 2.0}
+CURRENCY = {"NL0000235190": "EUR", "IE00BHZRR030": "KRW", "FR0011550185": "USD", "FR0010342592": "USD",
+            "IE000YU9K6K2": "USD", "IE000KHX9DX6": "USD"}
 
 
 # ---------- returns ----------
