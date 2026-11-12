@@ -76,6 +76,7 @@ import fr.julesgourio.patrimoine.ui.screens.PlusScreen
 import fr.julesgourio.patrimoine.ui.screens.PortefeuilleScreen
 import fr.julesgourio.patrimoine.ui.screens.ReglagesScreen
 import fr.julesgourio.patrimoine.ui.screens.TitreScreen
+import fr.julesgourio.patrimoine.ui.screens.VendeursScreen
 import fr.julesgourio.patrimoine.ui.theme.PatrimoineTheme
 import fr.julesgourio.patrimoine.work.Scheduler
 import fr.julesgourio.patrimoine.work.SyncWorker
@@ -261,6 +262,7 @@ private fun Graph(nav: NavHostController, modifier: Modifier) {
             AnalyseScreen(it.arguments?.getInt("id") ?: 0, nav, back)
         }
         composable(Routes.OPERATIONS) { OperationsScreen(back) }
+        composable(Routes.VENDEURS) { VendeursScreen(back) }
         composable(Routes.PROJECTION) { ProjectionScreen(back) }
         composable(Routes.ORDRES) { OrdresScreen(back) }
         composable(Routes.ALERTES) { AlertesScreen(back) }
