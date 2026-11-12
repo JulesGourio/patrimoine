@@ -160,14 +160,18 @@ def flux(mois: int = 12) -> dict:
     from . import analytics
 
     con = _con()
-    since = pd.Timestamp.today().to_period("M").to_timestamp() - pd.DateOffset(months=mois)
+    ref = queries.data_date(con)
+    since = ref.to_period("M").to_timestamp() - pd.DateOffset(months=mois)
     out = analytics.monthly_balance(con)
     out = out[out.index >= since].rename(columns={"taux": "taux_epargne"})
     f = queries.flows_by_month(con).reindex(out.index, fill_value=0.0)
     col = lambda c: f[c] if c in f else 0.0  # noqa: E731
     out["investi_net"] = -(col("achat_titre") + col("vente_titre"))
     out["saveback"] = col("saveback")
-    return {"flux": _records(out.reset_index())}
+    # The month of the data date is incomplete unless the data reaches its last day: no savings rate for it.
+    out["partiel"] = (out.index + pd.offsets.MonthEnd(0)) > ref
+    out.loc[out["partiel"], "taux_epargne"] = float("nan")
+    return _clean({"donnees_au": ref.date().isoformat(), "flux": _records(out.reset_index())})
 
 
 @tool
@@ -484,7 +488,7 @@ def synthese(avec_peg: bool = True) -> dict:
     year_ago = at(today - pd.DateOffset(years=1))
     month_ago = at(today - pd.Timedelta(days=30))
     bal = analytics.monthly_balance(con)
-    full = bal[bal.index < pd.Timestamp.today().to_period("M").to_timestamp()].tail(12)
+    full = queries.complete_months(bal, queries.data_date(con)).tail(12)
     last = h[h.date == today]
     by_group = last.assign(g=last.account.map(GROUPES)).groupby("g")["value"].sum()
     replayed = portfolio.replay(con)
@@ -631,8 +635,7 @@ def projection(horizon_ans: int = 20, epargne_mensuelle: float | None = None, ha
         epargne_mensuelle = 1000.0
         try:
             bal = analytics.monthly_balance(con)
-            this_month = pd.Timestamp.today().to_period("M").to_timestamp()
-            saving = bal[bal.index < this_month].tail(12).epargne.mean()
+            saving = queries.complete_months(bal, queries.data_date(con)).tail(12).epargne.mean()
             if saving > 0:
                 epargne_mensuelle = float(round(saving / 50) * 50)
         except Exception:  # noqa: BLE001 - pas encore d'opérations : on garde 1000
@@ -647,7 +650,7 @@ def projection(horizon_ans: int = 20, epargne_mensuelle: float | None = None, ha
                           inflation_pct=inflation_pct)
     except (OverflowError, ValueError, FloatingPointError):  # paramètres si extrêmes que le calcul déborde
         return {"erreur": "paramètres trop extrêmes pour la projection"}
-    return _clean(res)
+    return _clean({**res, "donnees_au": queries.data_date(con).date().isoformat()})
 
 
 # ---------- outils restaurés de l'ancien tableau de bord (frais, fiscalité de fin d'année, performance, risques) ----------
@@ -656,12 +659,15 @@ def projection(horizon_ans: int = 20, epargne_mensuelle: float | None = None, ha
 def frais() -> dict:
     """Frais payés par année (banque, courtage, frais des fonds estimés sur leur valeur moyenne de l'année) et frais
     des fonds au rythme actuel : TER × valeur de chaque ligne détenue (prélevés dans le cours, invisibles sur les
-    relevés). Montants en euros ; TER en %. Les lignes sans TER connu (table queries.TER) sont absentes."""
+    relevés). Montants en euros ; TER en %. Les lignes sans TER connu (table queries.TER) sont absentes des frais de
+    fonds : elles figurent dans `isin_sans_ter` (frais sous-estimés). `ordres_payants` : ordres avec frais ;
+    `executions_plans` : exécutions gratuites (plans d'épargne, versements PEG)."""
     con = _con()
     f = queries.fees_by_year(con)
     if f.empty:
         return {"erreur": "aucune opération : lancer synchroniser"}
-    f = f.assign(ordres=f["ordres"].astype(int)) if "ordres" in f else f.assign(ordres=0)
+    f = f.assign(ordres_payants=f["ordres_payants"].astype(int), executions_plans=f["executions_plans"].astype(int))         if "ordres_payants" in f else f.assign(ordres_payants=0, executions_plans=0)
+    sans_ter = queries.lines_without_ter(con)
     pos = queries.positions(con)
     held = pos[pos["isin"].isin(queries.TER)] if not pos.empty else pos
     detail = []
@@ -670,9 +676,12 @@ def frais() -> dict:
             detail.append({"nom": r.name, "isin": r.isin, "compte": r.account, "valeur": r.value,
                            "ter_pct": queries.TER[r.isin] * 100, "cout_annuel": r.value * queries.TER[r.isin]})
     return _clean({
-        "annees": f[["banque", "courtage", "ordres", "frais_fonds", "total"]].to_dict("index"),
+        "annees": f[["banque", "courtage", "ordres_payants", "executions_plans", "frais_fonds", "total"]].to_dict("index"),
         "frais_fonds_rythme_actuel": sum(d["cout_annuel"] for d in detail),
         "detail_fonds": detail,
+        "isin_sans_ter": sans_ter,
+        "note_isin_sans_ter": "frais des fonds sous-estimés pour ces lignes (TER inconnu, lignes détenues à un moment "
+                              "sur la période) ; les actions n'ont pas de TER." if sans_ter else None,
         "note": "frais_fonds = estimation (TER × valeur moyenne) ; TER à vérifier dans les DIC. courtage : 1 € par "
                 "ordre chez Trade Republic, plans d'épargne gratuits.",
     })
@@ -773,7 +782,7 @@ def performance(compte: str = "", indice: str = "") -> dict:
     v = analytics.invested_series(con, accounts)
     if v.empty:
         return {"erreur": "aucun historique de titres : lancer synchroniser"}
-    out: dict[str, Any] = {"comptes": list(accounts), "depuis": v.index[0].date().isoformat(),
+    out: dict[str, Any] = {"donnees_au": queries.data_date(con).date().isoformat(), "comptes": list(accounts), "depuis": v.index[0].date().isoformat(),
                            "jusqu_au": v.index[-1].date().isoformat(), **analytics.stats(v)}
     if bench_key:
         try:
@@ -820,7 +829,7 @@ def risques(baisse_pct: float = 20) -> dict:
     saving = None
     try:
         bal = analytics.monthly_balance(con)
-        s = bal[bal.index < pd.Timestamp.today().to_period("M").to_timestamp()].epargne.tail(12).mean()
+        s = queries.complete_months(bal, queries.data_date(con)).epargne.tail(12).mean()
         saving = float(s) if s == s else None
     except Exception:  # noqa: BLE001 - pas encore de revenus ni de dépenses
         pass
@@ -828,6 +837,7 @@ def risques(baisse_pct: float = 20) -> dict:
                "part_patrimoine": r.value / wealth if wealth else None, "perte_si_baisse": -r.loss}
               for r in risk.sort_values("loss", ascending=False).itertuples()]
     return _clean({
+        "donnees_au": queries.data_date(con).date().isoformat(),
         "patrimoine_total": wealth,
         "valeur_investie": total_value,
         "exposition_reelle": exposure,
@@ -851,15 +861,23 @@ def risques(baisse_pct: float = 20) -> dict:
 def abonnements() -> dict:
     """Charges récurrentes encore actives (abonnements, loyer, assurances…) : commerçants payés d'un montant stable
     dans au moins 3 mois distincts et vus dans les 45 derniers jours. Pour chacun : montant mensuel médian, coût
-    annuel (× 12), catégorie, nombre de mois, dernier paiement ; plus le total mensuel et annuel. Montants en euros."""
+    annuel (× 12), catégorie, nombre de mois, dernier paiement ; plus le total mensuel et annuel. Montants en euros.
+    Le montant est celui du dernier paiement ; `ancien_montant` et `modifie_le` signalent une hausse ou baisse de prix."""
     from . import analytics
 
-    sp = queries.spending(_con())
+    con = _con()
+    sp = queries.spending(con)
     if sp.empty:
         return {"erreur": "aucune dépense : lancer synchroniser"}
-    rec = analytics.recurring(sp)
-    items = [{"marchand": r.merchant, "categorie": r.category, "montant_mensuel": r.median, "cout_annuel": r.annual,
-              "mois": r.months, "dernier_paiement": r.last} for r in rec.itertuples()] if not rec.empty else []
-    return _clean({"abonnements": items, "total_annuel": sum(i["cout_annuel"] for i in items),
+    rec = analytics.recurring(sp, include_ended=True)
+    allitems = [{"marchand": r.merchant, "categorie": r.category, "montant_mensuel": r.amount, "cout_annuel": r.annual,
+                 "mois": r.months, "depuis": r.since, "dernier_paiement": r.last, "statut": r.status,
+                 "ancien_montant": None if pd.isna(r.previous_amount) else r.previous_amount,
+                 "modifie_le": None if pd.isna(r.changed_on) else r.changed_on}
+                for r in rec.itertuples()] if not rec.empty else []
+    items = [i for i in allitems if i["statut"] == "actif"]
+    ended = sorted((i for i in allitems if i["statut"] != "actif"), key=lambda i: i["dernier_paiement"], reverse=True)
+    return _clean({"donnees_au": queries.data_date(con).date().isoformat(), "abonnements": items, "resilies": ended, "total_annuel": sum(i["cout_annuel"] for i in items),
                    "total_mensuel": sum(i["montant_mensuel"] for i in items),
-                   "note": "Détection automatique : un marchand régulier mais de montant variable n'apparaît pas."})
+                   "note": "Détection automatique : un marchand régulier mais de montant variable n'apparaît pas. "
+                           "Résiliés : plus payés depuis plus de 45 jours (sur 24 mois)."})

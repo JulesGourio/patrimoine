@@ -88,7 +88,8 @@ def test_frais(base):
     r = api.frais()
     json.dumps(r)
     y = r["annees"][str(TODAY.year)]
-    assert y["banque"] == pytest.approx(4.70) and y["courtage"] == pytest.approx(1.0) and y["ordres"] == 6
+    assert y["banque"] == pytest.approx(4.70) and y["courtage"] == pytest.approx(1.0)
+    assert y["ordres_payants"] == 1 and y["executions_plans"] == 5
     assert y["total"] == pytest.approx(y["banque"] + y["courtage"] + y["frais_fonds"])
     assert {x["isin"] for x in r["detail_fonds"]} == {TER_ISIN, LEV}
     sp = next(x for x in r["detail_fonds"] if x["isin"] == TER_ISIN)

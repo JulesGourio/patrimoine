@@ -323,6 +323,8 @@ def tax_summary(con: sqlite3.Connection, book: Book) -> dict[int, dict[str, floa
             " FROM transactions WHERE flow IN ('dividende', 'interets')"):
         if flow == "dividende" and acc == "tr_pea":
             continue
+        if flow == "interets" and acc != "tr_especes":  # livrets CMB : exonérés
+            continue
         y = years[int(d[:4])]
         y["dividendes" if flow == "dividende" else "interets"] += (amount + (tax or 0)) / 100  # gross
         y["deja_preleve"] += (tax or 0) / 100

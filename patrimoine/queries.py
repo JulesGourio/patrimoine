@@ -163,20 +163,37 @@ TER = {
 }
 
 
+def data_date(con: sqlite3.Connection) -> pd.Timestamp:
+    """Reference date of the data: latest transaction of the current account (``cmb_courant``), else of any account,
+    else today. A database a few days old must not be read as if it were up to date."""
+    for sql in ("SELECT MAX(date) FROM transactions WHERE account_id = 'cmb_courant'",
+                "SELECT MAX(date) FROM transactions"):
+        d = con.execute(sql).fetchone()[0]
+        if d:
+            return pd.Timestamp(d).normalize()
+    return pd.Timestamp.today().normalize()
+
+
+def complete_months(balance: pd.DataFrame, ref: pd.Timestamp) -> pd.DataFrame:
+    """Months of a ``monthly_balance`` frame that are over at the reference date (the month of ``ref`` only if ``ref``
+    is its last day)."""
+    return balance[(balance.index + pd.offsets.MonthEnd(0)) <= ref]
+
+
 def fees_by_year(con: sqlite3.Connection) -> pd.DataFrame:
     """Per year, EUR: brokerage fees on trades, bank fees, and the funds' ongoing charges estimated on each line's
-    average value that year (TER table above; lines without a known TER are left out)."""
+    average value that year (TER table above; lines without a known TER are left out, see ``lines_without_ter``).
+    ``ordres_payants``: orders with fees; ``executions_plans``: free executions (savings plans, PEG payments)."""
     trades = pd.read_sql_query(
-        "SELECT substr(date, 1, 4) AS year, SUM(COALESCE(fees_cents, 0)) / 100.0 AS courtage, COUNT(*) AS ordres"
+        "SELECT substr(date, 1, 4) AS year, SUM(COALESCE(fees_cents, 0)) / 100.0 AS courtage,"
+        " SUM(COALESCE(fees_cents, 0) > 0) AS ordres_payants, SUM(COALESCE(fees_cents, 0) <= 0) AS executions_plans"
         " FROM transactions WHERE flow IN ('achat_titre', 'vente_titre') GROUP BY year", con).set_index("year")
     bank = pd.read_sql_query(
         "SELECT substr(date, 1, 4) AS year, -SUM(amount_cents) / 100.0 AS banque FROM transactions"
         " WHERE flow = 'frais' GROUP BY year", con).set_index("year")
     out = trades.join(bank, how="outer")
     book, prices = portfolio.replay(con)
-    held = pd.read_sql_query("SELECT date, isin, COALESCE(holding_account_id, account_id) AS acc, flow, quantity"
-                             " FROM transactions WHERE isin IS NOT NULL AND quantity IS NOT NULL ORDER BY date", con,
-                             parse_dates=["date"])
+    held = _held_quantities(con)
     ter = {}
     for isin, rate in TER.items():
         h = held[held["isin"] == isin]
@@ -186,10 +203,33 @@ def fees_by_year(con: sqlite3.Connection) -> pd.DataFrame:
         qty = (h.quantity * sign).groupby(h.date).sum().cumsum()
         days = pd.date_range(qty.index.min(), pd.Timestamp.today().normalize())
         qty = qty.reindex(days).ffill().clip(lower=0)
-        px = pd.Series({d: prices.get(isin, d) for d in days[::7]}, dtype=float).reindex(days).ffill().bfill()
+        # Daily price: a weekly sample carried forward would pair post-split quantities with the pre-split price.
+        px = pd.Series([prices.get(isin, d) for d in days], index=days, dtype=float).ffill().bfill()
         daily = (qty * px * rate / 365).groupby(days.year).sum()
         for y, v in daily.items():
             ter[str(y)] = ter.get(str(y), 0.0) + float(v)
     out = out.join(pd.Series(ter, name="frais_fonds"), how="outer").fillna(0.0)
     out["total"] = out.courtage + out.banque + out.frais_fonds
     return out.sort_index()
+
+
+def _held_quantities(con: sqlite3.Connection) -> pd.DataFrame:
+    return pd.read_sql_query("SELECT date, isin, COALESCE(holding_account_id, account_id) AS acc, flow, quantity"
+                             " FROM transactions WHERE isin IS NOT NULL AND quantity IS NOT NULL ORDER BY date", con,
+                             parse_dates=["date"])
+
+
+def lines_without_ter(con: sqlite3.Connection) -> list[dict]:
+    """Lines held at some point (quantity above zero after some operation) whose TER is not in ``TER``: their ongoing
+    charges are missing from ``fees_by_year``. Plain shares have no TER; ``type`` helps tell them from funds."""
+    from .analytics import kind_of
+
+    names = dict(con.execute("SELECT isin, name FROM instruments"))
+    held = _held_quantities(con)
+    out = []
+    for isin, h in held[~held["isin"].isin(TER)].groupby("isin"):
+        sign = h.flow.map(lambda f: -1 if f == "vente_titre" else 1)
+        if (h.quantity * sign).cumsum().max() > 1e-6:
+            name = names.get(isin) or isin
+            out.append({"isin": isin, "nom": name, "type": kind_of(name)})
+    return sorted(out, key=lambda x: x["nom"])
