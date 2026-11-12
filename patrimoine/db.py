@@ -140,6 +140,11 @@ CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT
 );
+CREATE TABLE IF NOT EXISTS merchant_names (   -- display name of a merchant; several raw names may share one
+    raw TEXT PRIMARY KEY,               -- merchant as queries.spending/income derive it (counterparty cleaned)
+    display TEXT NOT NULL,
+    not_subscription INTEGER NOT NULL DEFAULT 0  -- 1: never listed among the recurring charges
+);
 """
 
 ACCOUNTS = [

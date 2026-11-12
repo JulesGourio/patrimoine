@@ -13,7 +13,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from . import alerts, db, portfolio, queries
-from .categories import CATEGORIES, SPENDING
+from .categories import CATEGORIES, REFUNDS, SPENDING, WINDFALLS
 from .config import Settings
 
 INSTRUCTIONS = (
@@ -154,9 +154,12 @@ def depenses(mois: int = 12) -> dict:
 
 @tool
 def flux(mois: int = 12) -> dict:
-    """Par mois : revenus (salaire, aides, intérêts, dividendes), dépenses nettes des remboursements (amis qui
+    """Par mois : revenus (salaire, primes et intéressement, aides, intérêts, dividendes ; `primes` en donne la part,
+    versements PEG d'intéressement et de participation compris, qui restent aussi dans `investi_net`), dépenses nettes des remboursements (amis qui
     rendent leur part, sécu), épargne (revenus - dépenses), taux d'épargne, héritages et donations (à part : ni
-    revenu ni épargne), montants investis (achats nets de titres) et Saveback. Mêmes chiffres que l'écran Dépenses de l'appli."""
+    revenu ni épargne), montants investis (achats nets de titres) et Saveback. `revenus_par_categorie` : répartition
+    des revenus de la période par catégorie (Salaire, Primes et intéressement, Aides et allocations…), hors
+    remboursements et héritages. Mêmes chiffres que l'écran Dépenses de l'appli."""
     from . import analytics
 
     con = _con()
@@ -171,7 +174,11 @@ def flux(mois: int = 12) -> dict:
     # The month of the data date is incomplete unless the data reaches its last day: no savings rate for it.
     out["partiel"] = (out.index + pd.offsets.MonthEnd(0)) > ref
     out.loc[out["partiel"], "taux_epargne"] = float("nan")
-    return _clean({"donnees_au": ref.date().isoformat(), "flux": _records(out.reset_index())})
+    inc = queries.income(con)
+    inc = inc[(inc.month >= since) & ~inc.category.isin(REFUNDS + WINDFALLS)]
+    par_categorie = inc.groupby("category")["amount"].sum().sort_values(ascending=False).to_dict()
+    return _clean({"donnees_au": ref.date().isoformat(), "flux": _records(out.reset_index()),
+                   "revenus_par_categorie": par_categorie})
 
 
 @tool
@@ -215,6 +222,10 @@ def operations(recherche: str = "", jours: int = 90, compte: str = "", flux_type
         q += " AND flow = ?"
         args.append(flux_type)
     rows = [dict(r) for r in con.execute(q + " ORDER BY date DESC LIMIT 300", args)]
+    names = queries.merchant_names(con)
+    for r in rows:
+        raw = queries.merchant_raw(r["counterparty"], r["label"])
+        r["commercant"] = names[raw][0] if raw in names else raw
     return {"operations": rows, "tronque": len(rows) == 300}
 
 
@@ -230,6 +241,72 @@ def categoriser(transaction_id: str, categorie: str, tout_le_commercant: bool = 
         return {"erreur": "opération inconnue"}
     queries.set_category(con, transaction_id, categorie, row["counterparty"] if tout_le_commercant else None)
     return {"ok": True}
+
+
+def _vendeurs_bruts(con: sqlite3.Connection) -> pd.DataFrame:
+    """Une ligne par vendeur brut et par sens (dépense / revenu) : nom brut, nom affiché, opérations, total, dernier."""
+    parts = []
+    for sens, df in (("depense", queries.spending(con)), ("revenu", queries.income(con))):
+        if df.empty:
+            continue
+        g = df.groupby("merchant_raw").agg(affiche=("merchant", "first"), operations=("id", "count"),
+                                            total=("amount", "sum"), dernier=("date", "max"),
+                                            pas_abonnement=("not_subscription", "first")).reset_index()
+        g["sens"] = sens
+        parts.append(g.rename(columns={"merchant_raw": "brut"}))
+    return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(
+        columns=["brut", "affiche", "operations", "total", "dernier", "pas_abonnement", "sens"])
+
+
+@tool
+def vendeurs(recherche: str = "", limite: int = 50) -> dict:
+    """Vendeurs (commerçants, payeurs) tels qu'ils apparaissent dans les opérations, les plus dépensés ou perçus
+    d'abord : nom brut, nom affiché actuel (après renommage), sens (depense ou revenu), nombre d'opérations, total
+    en euros, date de la dernière opération et indicateur pas_abonnement. `recherche` filtre sur le nom brut ou
+    affiché (sans tenir compte de la casse). Sert à choisir quoi passer à `renommer_vendeur`."""
+    con = _con()
+    g = _vendeurs_bruts(con)
+    if recherche.strip() and not g.empty:
+        q = recherche.strip().lower()
+        g = g[g["brut"].str.lower().str.contains(q, regex=False) | g["affiche"].str.lower().str.contains(q, regex=False)]
+    g = g.assign(total=g["total"].abs()).sort_values(["total", "operations"], ascending=False).head(max(1, limite))
+    g["dernier"] = g["dernier"].map(lambda d: d.date().isoformat())
+    g["pas_abonnement"] = g["pas_abonnement"].astype(bool)
+    return {"vendeurs": _records(g[["brut", "affiche", "sens", "operations", "total", "dernier", "pas_abonnement"]])}
+
+
+@tool
+def renommer_vendeur(raw: str, nouveau_nom: str = "", pas_abonnement: bool | None = None) -> dict:
+    """Donne un nom d'affichage à un vendeur (`raw` : nom brut de `vendeurs`, ou un nom d'affichage déjà donné, ce
+    qui touche tous les noms bruts qui le portent). Plusieurs noms bruts renommés pareil sont fusionnés (montants
+    additionnés dans les dépenses, abonnements, etc.). `nouveau_nom` vide : supprime le renommage. `pas_abonnement`
+    True : ce vendeur n'est plus proposé comme abonnement ; False : de nouveau ; None : inchangé. Les opérations
+    ne sont pas modifiées. Retourne le nombre d'opérations touchées."""
+    con = _con()
+    raw, nom = (raw or "").strip(), " ".join((nouveau_nom or "").split())[:120]
+    if not raw:
+        return {"erreur": "vendeur manquant"}
+    names = queries.merchant_names(con)
+    brut = _vendeurs_bruts(con)
+    connus = set(brut["brut"])
+    cibles = {r for r, (d, _) in names.items() if d == raw}
+    if raw in connus or raw in names:
+        cibles.add(raw)
+    if not cibles:
+        return {"erreur": f"vendeur inconnu : {raw}"}
+    for r in cibles:
+        flag = names[r][1] if r in names else False
+        flag = flag if pas_abonnement is None else bool(pas_abonnement)
+        if nom or flag:
+            con.execute("INSERT INTO merchant_names (raw, display, not_subscription) VALUES (?, ?, ?)"
+                        " ON CONFLICT(raw) DO UPDATE SET display = excluded.display,"
+                        " not_subscription = excluded.not_subscription", (r, nom or r, int(flag)))
+        else:
+            con.execute("DELETE FROM merchant_names WHERE raw = ?", (r,))
+    con.commit()
+    touchees = int(brut[brut["brut"].isin(cibles)]["operations"].sum())
+    return {"ok": True, "noms_bruts": sorted(cibles), "nom_affiche": nom or None, "operations": touchees,
+            "pas_abonnement": pas_abonnement}
 
 
 @tool

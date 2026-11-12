@@ -1,12 +1,13 @@
 """Read models for the dashboard (and later the MCP server): plain DataFrames out of the database."""
 from __future__ import annotations
 
+import re
 import sqlite3
 
 import pandas as pd
 
 from . import db, portfolio
-from .categories import CATEGORIES
+from .categories import CATEGORIES, PEG_PRIMES, PRIMES
 
 ACCOUNT_LABELS = {
     "tr_especes": "Trade Republic espèces",
@@ -80,6 +81,32 @@ def taxes(con: sqlite3.Connection) -> pd.DataFrame:
     return pd.DataFrame(portfolio.tax_summary(con, book)).T
 
 
+def merchant_raw(counterparty: str | None, label: str | None) -> str:
+    """Merchant of a line, as the screens show it before any renaming (counterparty, else label, transfer prefix cut)."""
+    name = counterparty if isinstance(counterparty, str) and counterparty.strip() else label
+    return re.sub(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", name or "").strip()
+
+
+def merchant_names(con: sqlite3.Connection) -> dict[str, tuple[str, bool]]:
+    """Renamed merchants: raw name -> (display name, not a subscription). The table is created if the database
+    predates it."""
+    try:
+        con.execute("CREATE TABLE IF NOT EXISTS merchant_names (raw TEXT PRIMARY KEY, display TEXT NOT NULL,"
+                    " not_subscription INTEGER NOT NULL DEFAULT 0)")
+        return {r[0]: (r[1], bool(r[2])) for r in con.execute("SELECT raw, display, not_subscription FROM merchant_names")}
+    except sqlite3.OperationalError:  # read-only database without the table
+        return {}
+
+
+def _name_merchants(con: sqlite3.Connection, df: pd.DataFrame) -> None:
+    """Add ``merchant_raw`` (as derived from the data), ``merchant`` (display name) and ``not_subscription``."""
+    names = merchant_names(con)
+    raw = df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True).str.strip()
+    df["merchant_raw"] = raw
+    df["merchant"] = [names[r][0] if r in names else r for r in raw]
+    df["not_subscription"] = [bool(names[r][1]) if r in names else False for r in raw]
+
+
 def spending(con: sqlite3.Connection) -> pd.DataFrame:
     """Every spending line (refunds included, positive), with the category that applies."""
     df = pd.read_sql_query(
@@ -87,23 +114,42 @@ def spending(con: sqlite3.Connection) -> pd.DataFrame:
         " FROM transactions WHERE flow = 'depense' ORDER BY date DESC", con, parse_dates=["date"])
     df["amount"] = -df.pop("amount_cents") / 100
     df["category"] = df["category_override"].fillna(df["category"])
-    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True)
-                      .str.strip())
+    _name_merchants(con, df)
     df["account"] = df["account_id"].map(ACCOUNT_LABELS)
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
     return df
 
 
+def peg_primes(con: sqlite3.Connection) -> pd.DataFrame:
+    """Profit-sharing and bonuses paid into the PEG (intéressement, participation): date, amount (EUR, positive =
+    value invested) and the kind. They stay purchases of securities for the portfolio; for the budget they are income."""
+    marks = ",".join("?" * len(PEG_PRIMES))
+    df = pd.read_sql_query(
+        "SELECT id, date, account_id, label, amount_cents, event_type FROM transactions"
+        f" WHERE account_id = 'peg_airbus' AND flow = 'achat_titre' AND event_type IN ({marks})",
+        con, params=list(PEG_PRIMES), parse_dates=["date"])
+    df["amount"] = -df.pop("amount_cents") / 100
+    return df
+
+
 def income(con: sqlite3.Connection) -> pd.DataFrame:
     """Every income line (positive), with the category that applies. Internal transfers are a separate
-    flow ('interne') and never show up here."""
+    flow ('interne') and never show up here. Bonuses paid into the PEG are included (category « Primes et
+    intéressement », account PEG Airbus)."""
     df = pd.read_sql_query(
         "SELECT id, date, account_id, counterparty, label, amount_cents, category, category_override"
         " FROM transactions WHERE flow = 'revenu' ORDER BY date DESC", con, parse_dates=["date"])
     df["amount"] = df.pop("amount_cents") / 100
     df["category"] = df["category_override"].fillna(df["category"])
-    df["merchant"] = (df["counterparty"].fillna(df["label"]).str.replace(r"^((vers|VIR|PRLV|WERO|INST)\s+)+", "", regex=True)
-                      .str.strip())
+    _name_merchants(con, df)
+    peg = peg_primes(con)
+    if not peg.empty:
+        kind = peg["event_type"].str.replace("PEG_", "", regex=False).str.replace("_", " ").str.capitalize()
+        extra = pd.DataFrame({"id": peg["id"], "date": peg["date"], "account_id": peg["account_id"],
+                              "counterparty": kind, "label": peg["label"], "category": PRIMES,
+                              "category_override": None, "amount": peg["amount"]})
+        _name_merchants(con, extra)
+        df = pd.concat([df, extra], ignore_index=True).sort_values("date", ascending=False, kind="stable")
     df["account"] = df["account_id"].map(ACCOUNT_LABELS)
     df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
     return df

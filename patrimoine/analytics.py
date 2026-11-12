@@ -235,6 +235,8 @@ def recurring(spending: pd.DataFrame, min_months: int = 3, include_ended: bool =
     if spending.empty:
         return pd.DataFrame()
     today = spending["date"].max().normalize()
+    if "not_subscription" in spending:
+        spending = spending[~spending["not_subscription"].astype(bool)]
     sp = spending[(spending.amount > 0) & (spending.date >= today - pd.DateOffset(months=24))].sort_values("date")
     rows = []
     for merchant, d in sp.groupby("merchant"):
@@ -278,21 +280,31 @@ def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
     Refunds (friends paying back their share, health insurance) are netted off spending rather than counted
     as income: otherwise a shared dinner paid by Jules would inflate both sides and the savings rate.
     Windfalls (inheritance, gifts) are kept apart in ``heritage``: neither income nor savings.
+    Bonuses and profit-sharing (``primes``: category « Primes et intéressement » on the bank account, plus the
+    intéressement / participation paid into the PEG) are income, hence savings; the PEG ones remain securities
+    purchases for the portfolio (``investi_net`` is untouched).
     """
-    from .categories import REFUNDS, WINDFALLS
+    from .categories import PRIMES, REFUNDS, WINDFALLS
+    from .queries import peg_primes
 
     f = pd.read_sql_query("SELECT date, flow, amount_cents, COALESCE(category_override, category) AS category"
                           " FROM transactions WHERE flow IN ('revenu','depense','frais','interets','dividende')",
                           con, parse_dates=["date"])
-    f["month"] = f.date.dt.to_period("M").dt.to_timestamp()
     f.loc[(f.flow == "revenu") & f.category.isin(REFUNDS), "flow"] = "remboursement"
     f.loc[(f.flow == "revenu") & (f.category == "Salaire"), "flow"] = "salaire"
     f.loc[(f.flow == "revenu") & f.category.isin(WINDFALLS), "flow"] = "heritage"
+    f.loc[(f.flow == "revenu") & (f.category == PRIMES), "flow"] = "prime"
+    peg = peg_primes(con)
+    if not peg.empty:
+        f = pd.concat([f, pd.DataFrame({"date": peg["date"], "flow": "prime", "amount_cents": (peg["amount"] * 100).round(),
+                                        "category": PRIMES})], ignore_index=True)
+    f["month"] = f.date.dt.to_period("M").dt.to_timestamp()
     p = f.pivot_table(index="month", columns="flow", values="amount_cents", aggfunc="sum", fill_value=0) / 100
     col = lambda c: p[c] if c in p else pd.Series(0.0, index=p.index)  # noqa: E731
-    out = pd.DataFrame({"revenus": col("salaire") + col("revenu") + col("interets") + col("dividende"),
+    out = pd.DataFrame({"revenus": col("salaire") + col("revenu") + col("prime") + col("interets") + col("dividende"),
                         "depenses": -(col("depense") + col("frais")) - col("remboursement")})
     out["salaire"] = col("salaire")
+    out["primes"] = col("prime")
     out["remboursements"] = col("remboursement")
     out["heritage"] = col("heritage")
     out["epargne"] = out.revenus - out.depenses
