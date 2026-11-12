@@ -22,7 +22,6 @@ TONE_STYLE = {"haussier": ("#dcfce7", GREEN), "baissier": ("#fee2e2", RED), "mit
               "calme": ("#f3f4f6", "#374151")}
 ACTION_STYLE = {"acheter": ("#dcfce7", GREEN), "renforcer": ("#dcfce7", GREEN), "alléger": ("#fee2e2", RED),
                 "vendre": ("#fee2e2", RED), "arbitrer": ("#dbeafe", "#1e40af"), "attendre": ("#f3f4f6", "#374151")}
-DASHBOARD = "http://localhost:8501/analyses"
 DAYS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
 MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
 
@@ -235,8 +234,7 @@ def render(kind: str, facts: dict, a: dict, with_chart: bool = True) -> str:
         out.append("".join(f'<div style="margin-bottom:6px">☐ {e(x)}</div>' for x in a["a_faire"]))
 
     out.append(f'<p style="margin:24px 0 0;padding-top:10px;border-top:1px solid {LINE};font-size:12px;color:{MUTED}">'
-               f'Détail, graphiques et les {len(a.get("sources", []))} sources : <a href="{DASHBOARD}" '
-               f'style="color:#1d4ed8">tableau de bord → Analyses</a> (sur ton PC). Rien n’est un ordre : '
+               f'Détail, graphiques et les {len(a.get("sources", []))} sources : écran Analyses de l’appli. Rien n’est un ordre : '
                f'tu décides et tu exécutes.</p></div>')
     return "".join(out)
 
@@ -249,7 +247,6 @@ def text(kind: str, facts: dict, a: dict) -> str:
     for v in a.get("lignes", []):
         l = lines.get(v["isin"], {"nom": v["isin"], "isin": v["isin"]})
         rows.append(f"{short(l)} {pct(l.get('move'))} · {v['verdict']} : {v['cause']}")
-    rows += ["", f"Détail : {DASHBOARD}"]
     return "\n".join(rows)
 
 

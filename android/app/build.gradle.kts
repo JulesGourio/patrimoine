@@ -70,10 +70,10 @@ kotlin {
 }
 
 // The Python engine is the repository's own `patrimoine` package, copied at build time (never duplicated in git).
-// PC-only modules stay out: the Streamlit helpers, the MCP server and the Windows scheduled tasks.
+// PC-only modules stay out: the MCP server and the Windows scheduled tasks.
 val copyEngine by tasks.registering(Sync::class) {
     from(rootProject.file("../patrimoine")) {
-        exclude("**/__pycache__/**", "ui.py", "mcp_server.py", "tasks.py")
+        exclude("**/__pycache__/**", "mcp_server.py", "tasks.py")
     }
     into(layout.buildDirectory.dir("python-src/patrimoine"))
 }

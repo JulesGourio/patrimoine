@@ -1,7 +1,7 @@
 """The read and write operations on Jules's data, as plain functions returning JSON-safe dicts.
 
 One list (`TOOLS`) serves the MCP server (`mcp_server`), the mobile app (`mobile`) and the cloud export
-(`cloud`); none of them needs the others' libraries (no `mcp` or Streamlit import here).
+(`cloud`); none of them needs the others' libraries (no `mcp` import here).
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ INSTRUCTIONS = (
     "Toujours partir de ces données ; utiliser `marche` pour les cours et fondamentaux, la recherche web pour "
     "l'actualité. Jamais d'ordre passé : proposer avec `preparer_ordre`, l'utilisateur exécute. Analyse de marché "
     "(quotidienne ou hebdo) : `faits_du_jour` puis `publier_analyse` (format fixe, mail court avec graphique, "
-    "page Analyses). Rapport libre à la demande : `enregistrer_rapport`."
+    "écran Analyses). Rapport libre à la demande : `enregistrer_rapport`."
 )
 
 TOOLS: list[Callable[..., dict]] = []
@@ -154,7 +154,7 @@ def depenses(mois: int = 12) -> dict:
 def flux(mois: int = 12) -> dict:
     """Par mois : revenus (salaire, aides, intérêts, dividendes), dépenses nettes des remboursements (amis qui
     rendent leur part, sécu), épargne (revenus - dépenses), taux d'épargne, héritages et donations (à part : ni
-    revenu ni épargne), montants investis (achats nets de titres) et Saveback. Mêmes chiffres que la page Dépenses du tableau de bord."""
+    revenu ni épargne), montants investis (achats nets de titres) et Saveback. Mêmes chiffres que l'écran Dépenses de l'appli."""
     from . import analytics
 
     con = _con()
@@ -397,7 +397,7 @@ def faits_du_jour(periode: str = "jour") -> dict:
 
 @tool
 def publier_analyse(id: int, analyse: dict, notifier: bool = True) -> dict:
-    """Publie l'analyse du brouillon `id` (de `faits_du_jour`) : page Analyses, mail court avec graphique et push.
+    """Publie l'analyse du brouillon `id` (de `faits_du_jour`) : écran Analyses, mail court avec graphique et push.
     Format (voir scripts/analyse.md) : titre, ton, points_cles (3), lignes [{isin, cause, these, verdict,
     confiance, action?, sources}], marche {resume, themes [{titre, detail, sources}]}, idees [{ticker, nom, these,
     risque, sources}], conseils [{action, cible, ticker, cours_ref, montant_eur, prix_limite, horizon, pourquoi, risque,
@@ -678,7 +678,7 @@ GROUPES = queries.ACCOUNT_GROUPS
 
 @tool
 def synthese(avec_peg: bool = True) -> dict:
-    """Les chiffres de l'accueil du tableau de bord : patrimoine total (30 j, 1 an, depuis le 1er janvier), après
+    """Les chiffres de l'accueil de l'appli : patrimoine total (30 j, 1 an, depuis le 1er janvier), après
     impôts si tout était vendu, épargne moyenne, part investie, gains d'investissement bruts et nets d'impôt estimé
     (PFU 30 % sur le compte-titres, les dividendes hors PEA et les intérêts ; prélèvements sociaux 17,2 % sur le PEA
     et le PEG), et la valeur par compte avec sa variation sur 30 jours. Mêmes règles que la page Patrimoine du PC."""

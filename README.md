@@ -1,10 +1,10 @@
 # Patrimoine
 
-Suivi **local** de tes dépenses, de ton portefeuille et de ton patrimoine total, avec analyses de marché, alertes et
-rapports. Tout reste sur ta machine : une base SQLite, des secrets dans le gestionnaire d'identifiants de ton
-système, aucun serveur à héberger.
+Application Android de suivi **local** de tes dépenses, de ton portefeuille et de ton patrimoine total, avec analyses
+de marché, alertes et rapports. Le moteur Python tourne sur le téléphone : une base SQLite, des secrets dans
+l'Android Keystore, aucun serveur à héberger.
 
-> *English summary: a local-first personal finance tracker (spending, brokerage portfolio, net worth, alerts,
+> *English summary: a local-first Android personal finance app, whose Python engine runs on the phone (spending, brokerage portfolio, net worth, alerts,
 > AI-assisted market analysis through an MCP server). Documentation is in French for now; contributions and
 > translations are welcome.*
 
@@ -26,7 +26,7 @@ client des mêmes établissements. C'est précisément là que ton aide est la b
   déclarations rapides (Form 4, 13D/13G), ETF d'ARK.
 - **Serveur MCP** : tes données exposées à Claude (ou un autre client MCP) pour analyser et préparer des ordres.
   **Aucun ordre n'est jamais passé** : l'outil prépare, tu exécutes chez ton courtier.
-- **Appli Android** (optionnelle) : le même moteur tourne sur le téléphone ([`android/README.md`](android/README.md)).
+- **Appli Android** : l'interface de l'outil ; le moteur Python tourne sur le téléphone ([`android/README.md`](android/README.md)).
 
 ## Sources prises en charge aujourd'hui
 
@@ -53,6 +53,9 @@ D'autres banques et courtiers sont prévus : voir [`docs/GENERALISATION.md`](doc
 
 ## Installation
 
+L'appli se construit et s'installe depuis [`android/README.md`](android/README.md). Ce qui suit prépare le dépôt sur
+PC, pour développer et lancer les tests.
+
 Il te faut [`uv`](https://docs.astral.sh/uv/) et Python 3.11 ou plus.
 
 ```bash
@@ -62,7 +65,6 @@ uv sync
 uv run patrimoine init                 # crée data/patrimoine.db
 uv run patrimoine secret set tr_pin    # les secrets vont dans le gestionnaire d'identifiants du système
 uv run pytest                          # vérifie que tout est en ordre
-uv run patrimoine app                  # tableau de bord sur http://localhost:8501
 ```
 
 Optionnel, variables d'environnement (ou fichier `.env`, ignoré par git) :
@@ -70,7 +72,7 @@ Optionnel, variables d'environnement (ou fichier `.env`, ignoré par git) :
 | Variable | Rôle |
 |---|---|
 | `PATRIMOINE_DATA_DIR` | Dossier de la base (par défaut `data/`) |
-| `PATRIMOINE_EMAIL` | Adresse Gmail des mails (sinon saisie dans la page Réglages) |
+| `PATRIMOINE_EMAIL` | Adresse Gmail des mails (à défaut, le secret `smtp_email`) |
 | `PATRIMOINE_CONTACT` | Contact joint aux requêtes vers la SEC et le Congrès (la SEC en demande un) |
 | `PATRIMOINE_GITHUB_REPO` | Dépôt `propriétaire/nom` utilisé par les routines cloud (voir plus bas) |
 
@@ -101,8 +103,7 @@ uv run patrimoine --help         # la liste complète
 
 ```
 patrimoine/      moteur : base, sources/ (une par établissement), analyses, alertes, API d'outils
-app_pages/       pages du tableau de bord Streamlit
-android/         appli Android (Kotlin, Jetpack Compose, Chaquopy)
+android/         appli Android (Kotlin, Jetpack Compose, Chaquopy) : écrans et synchro
 scripts/         consignes des analyses de marché, déploiement
 tests/           pytest
 docs/            généralisation, exemples
@@ -122,9 +123,9 @@ Licence : [MIT](LICENSE).
 
 ## Feuille de route
 
-Fait : socle, Trade Republic, historique, CMB, patrimoine total, serveur MCP, tableau de bord, alertes, synchro
-planifiée, suivi des investisseurs et des élus, déclarations rapides.
-En cours : appli Android autonome.
+Fait : socle, Trade Republic, historique, CMB, patrimoine total, serveur MCP, alertes, synchro
+planifiée, suivi des investisseurs et des élus, déclarations rapides, appli Android.
+En cours : appli Android autonome (moteur complet sur le téléphone).
 **Prochain chantier : ouverture à d'autres utilisateurs** — comptes et règles configurables au lieu d'être en dur,
 interface de connecteurs (banques, courtiers), import CSV générique, traduction. Détail dans
 [`docs/GENERALISATION.md`](docs/GENERALISATION.md).

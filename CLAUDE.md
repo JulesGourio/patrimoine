@@ -1,7 +1,8 @@
 # Patrimoine — contexte pour Claude
 
-Outil local de suivi des dépenses, du portefeuille et du patrimoine, partagé en open source. Voir README pour les
-sources prises en charge et `docs/GENERALISATION.md` pour ce qui reste à rendre configurable.
+Appli Android de suivi des dépenses, du portefeuille et du patrimoine, partagée en open source. Son moteur Python tourne
+sur le téléphone ; le dépôt sert aussi au développement et aux tests sur PC. Voir README pour les sources prises en
+charge et `docs/GENERALISATION.md` pour ce qui reste à rendre configurable.
 
 **Profil de l'utilisateur** : il est dans `CLAUDE.local.md` (ignoré par git, modèle : `docs/profil-exemple.md`).
 Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le demander avant de conseiller.
@@ -62,27 +63,25 @@ Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le d
   rapides, élus, 13F et fraîcheur des sources), `positions_actuelles` (13F mis à jour), `dirigeants`, et pour les élus du Congrès
   américain (STOCK Act) `elus`, `elu`, `achats_elus`, `suivre_elu` ; `radar` (idées « quoi regarder » : élus,
   fonds, tendance, analystes, exposition via mes ETF) et `performance_fonds` (rendement de la copie des 13F). Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
-- Tableau de bord : `pat` (raccourci `~/.local/bin/pat.cmd`) ou `uv run patrimoine app` : le lance s'il ne tourne pas et ouvre
-  le navigateur (http://localhost:8501).
 - Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
   session Trade Republic a expiré, une notification demande à l'utilisateur de confirmer dans l'appli.
 - Analyses de marché (`patrimoine/briefing.py`, méthode dans `scripts/analyse.md`) : Python calcule les faits
   (lignes contre leur indice, écart en écarts-types, marchés, secteurs, moteurs des ETF, analystes, résultats à
   venir), Claude Code (`-p`) cherche les causes sur le web (24–72 h, sources citées) et publie un JSON au format
   fixe via `faits_du_jour` puis `publier_analyse`. Rendus : mail court avec graphique (`brief_mail.py`), push d'une
-  ligne, page Analyses (verdicts suivis dans le temps). Planification : routines Claude cloud « Patrimoine - analyse
+  ligne, écran Analyses de l'appli (verdicts suivis dans le temps). Planification : routines Claude cloud « Patrimoine - analyse
   du jour » (mar.–sam. 8 h 05) et « Patrimoine - bilan de la semaine » (dimanche 18 h 05), visibles et déclenchables
   sur claude.ai/code/routines. Elles n'ont pas accès au PC (`patrimoine/cloud.py`, `scripts/analyse_cloud.md`) :
   chaque synchro pousse `jour.json` et `semaine.json` sur la branche `donnees` (un seul commit, écrasé) ; la routine
   pousse son analyse sur `claude/analyses` (accès GitHub par `git` sur le PC, par l'API GitHub avec le secret
   `github_token` sur le téléphone ou dès qu'il est défini) ; la tâche Windows « Patrimoine - analyses cloud » (toutes les 15 min,
-  `uv run patrimoine cloud`) la publie. `uv run patrimoine analyse` / `rapport` et le bouton « Nouvelle analyse »
-  restent pour une analyse locale à la demande. `enregistrer_rapport` reste pour les rapports libres (Markdown).
+  `uv run patrimoine cloud`) la publie. `uv run patrimoine analyse` / `rapport` restent pour une analyse locale à la
+  demande. `enregistrer_rapport` reste pour les rapports libres (Markdown).
   `uv run patrimoine taches` recrée les tâches (appel direct de `uvw`, pas de script PowerShell : l'antivirus avait
   mis le .ps1 en quarantaine). Si la
   commande bloque, enregistrer les tâches avec `Register-ScheduledTask` depuis l'outil PowerShell de Claude.
 - Notifications (`patrimoine.notify`) : push ntfy (sujet secret dans le keyring) et mail via Gmail SMTP avec un
-  mot de passe d'application (`smtp_password`, saisi par l'utilisateur dans la page Réglages). ntfy.sh refuse le mail anonyme.
+  mot de passe d'application (`smtp_password`, saisi par l'utilisateur dans l'écran Réglages de l'appli). ntfy.sh refuse le mail anonyme.
 - CMB via Enable Banking : seul le compte courant est exposé (DSP2). Accès valable 180 jours (meta
   `cmb_consent_until`) ; pour le renouveler, `eb.start_consent` puis ouvrir le lien dans le navigateur de l'utilisateur
   (il se connecte à la CMB), récupérer l'URL `https://localhost/patrimoine?code=…` et `eb.finish_consent`.
@@ -108,10 +107,9 @@ Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le d
   Pershing Square Inc. depuis mi-2026). Scion (Burry) ne dépose plus : désactivé.
 - Dates d'élus impossibles (opération après la déclaration) : `congress.fix_date` (année corrigée ou date vide).
 - Radar (`patrimoine/radar.py`) recalculé chaque jour ; fonds 13F sous-performants désactivés (`investors.active`).
-- Pages : Patrimoine (total avant impôts + après impôts latents, « Cette semaine »), Dépenses (« À retenir »,
-  salaires, recherche), Portefeuille (Risques : levier, dollar, concentration, simulation de baisse),
-  Analyses (séance ou semaine, verdicts, sources, rapports libres), Projection (Monte-Carlo), Fiscalité et frais (année en cours, TER dans `queries.TER`), Investisseurs (Nouveautés,
-  Radar, Fonds avec positions estimées, Élus ; fiche par titre), Suivi, Réglages.
+- Écrans de l'appli (`android/app/src/main/java/fr/julesgourio/patrimoine/ui/screens/`) : Accueil, Analyses (liste
+  et détail), Dépenses (et opérations), Portefeuille (et fiche titre), Investisseurs (et alertes), Ordres, consentement
+  CMB, Réglages, Plus.
 - Parseur PDF de la Chambre corrigé pour les sauts de page ; après une correction du parseur,
   `congress.reparse_house(con)` réanalyse les rapports suspects (`all_reports=True` pour tout).
 - Notifications : un seul récapitulatif « Suivi des investisseurs » par jour (13F + opérations des élus suivis et

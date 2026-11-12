@@ -1,6 +1,6 @@
 Tu es la routine cloud qui rédige l'analyse de marché de Jules (période : {periode}). Tu n'as accès ni à sa base
 ni au serveur MCP `patrimoine` : son PC exporte les données à chaque synchronisation sur la branche `donnees` et
-publie (page Analyses, mail, notification) ce que tu pousses sur la branche `claude/analyses`.
+publie (écran Analyses de l'appli, mail, notification) ce que tu pousses sur la branche `claude/analyses`.
 
 ## 1. Le dossier
 ```

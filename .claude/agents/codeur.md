@@ -11,7 +11,7 @@ Règles du projet à respecter sans exception :
 - Secrets uniquement via `patrimoine.vault` ; jamais dans le code, `.env` ou la base.
 - Un virement entre comptes de l'utilisateur est `interne`, jamais une dépense ni un revenu.
 - Aucun code qui passe un ordre de bourse.
-- Ne pas casser le fonctionnement actuel sur le PC Windows (tâches, keyring, Streamlit).
+- Ne pas casser le fonctionnement actuel sur le PC Windows (tâches, keyring).
 
 Méthode :
 - Reste dans le périmètre demandé ; si la consigne est ambiguë ou demande un choix d'architecture, arrête-toi

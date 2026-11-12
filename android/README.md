@@ -67,7 +67,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Le moteur est recopié depuis `../patrimoine` à chaque construction ; il n'est jamais dupliqué dans git. Les
-modules réservés au PC restent en dehors : `ui.py` (Streamlit), `mcp_server.py` et `tasks.py` (tâches Windows).
+modules réservés au PC restent en dehors : `mcp_server.py` et `tasks.py` (tâches Windows).
 
 ## Organisation
 

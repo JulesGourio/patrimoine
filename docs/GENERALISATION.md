@@ -7,7 +7,7 @@ au moins urgent. Chaque point est un bon sujet de PR ; ouvre une issue avant de 
 
 Les comptes sont codés en dur (`patrimoine/db.py`, liste `ACCOUNTS` : `cmb_courant`, `cmb_livret_a`, `tr_cto`,
 `tr_pea`, `peg_airbus`…) et ces identifiants sont référencés dans `sync.py`, `portfolio.py`, `queries.py`, `api.py`,
-`analytics.py`, `imports.py`, `app_pages/accueil.py` et `app_pages/fiscalite.py`.
+`analytics.py` et `imports.py`.
 
 À faire : une configuration des comptes de l'utilisateur (table ou fichier `data/comptes.toml` créé par
 `patrimoine init`), plutôt qu'une liste fixe ; remplacer chaque identifiant en dur par une recherche par type
