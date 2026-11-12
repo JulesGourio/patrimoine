@@ -19,6 +19,7 @@ object Routes {
     const val OPERATIONS = "operations"
     const val PROJECTION = "projection"
     const val VENDEURS = "vendeurs"
+    const val CARTES = "cartes"
 
     /** Market detail of a line or idea: a Yahoo ticker (AIR.PA, NVDA) or an ISIN. */
     fun titre(symbole: String) = "titre/" + Uri.encode(symbole)

@@ -83,5 +83,6 @@ class EcransTest {
     @Test fun projection() = capture("08-projection", Routes.PROJECTION)
     @Test fun ordres() = capture("09-ordres", Routes.ORDRES)
     @Test fun alertes() = capture("10-alertes", Routes.ALERTES)
+    @Test fun cartes() = capture("12-cartes-prepayees", Routes.CARTES)
     @Test fun reglages() = capture("11-reglages", Routes.REGLAGES)
 }

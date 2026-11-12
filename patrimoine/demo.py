@@ -126,9 +126,9 @@ def build(db_path: Path | str, seed: int = 7, today: date | None = None) -> dict
         d = start
         while d <= today:
             if d.day == 1:
-                cartes.add_operation(con, card, d.isoformat(), 90.0, "Versement employeur", "credit")
-            if d.weekday() < 5 and rnd.random() < 0.7:
-                cartes.add_operation(con, card, d.isoformat(), round(rnd.uniform(7, 14), 2), rnd.choice(["Boulangerie Dupain", "Café du Port", "Bistro Lumière"]), "paiement", True)
+                cartes.add_operation(con, card, d.isoformat(), 180.0, "Versement employeur", "credit")
+            if d.weekday() < 5 and rnd.random() < 0.9:
+                cartes.add_operation(con, card, d.isoformat(), round(rnd.uniform(8, 10), 2), rnd.choice(["Boulangerie Dupain", "Café du Port", "Bistro Lumière"]), "paiement", True)
             d += timedelta(days=1)
 
         # budgets, une règle d'alerte et une idée d'ordre

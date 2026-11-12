@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -34,6 +35,7 @@ fun PlusScreen(nav: NavController) {
             Entry(Icons.Filled.NotificationsActive, "Alertes", "Règles et alertes déclenchées") { nav.navigate(Routes.ALERTES) }
             Entry(Icons.AutoMirrored.Filled.ReceiptLong, "Opérations", "Recherche, recatégorisation") { nav.navigate(Routes.OPERATIONS) }
             Entry(Icons.Filled.Storefront, "Vendeurs", "Renommer, fusionner, exclure des abonnements") { nav.navigate(Routes.VENDEURS) }
+            Entry(Icons.Filled.CreditCard, "Cartes prépayées", "Titres-restaurant : solde, opérations, import") { nav.navigate(Routes.CARTES) }
             HorizontalDivider()
             Entry(Icons.Filled.Settings, "Réglages", "Comptes, imports, sauvegarde, notifications") { nav.navigate(Routes.REGLAGES) }
         }
