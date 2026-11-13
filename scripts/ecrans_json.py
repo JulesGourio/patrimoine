@@ -41,13 +41,13 @@ def main() -> None:
         calls = list(ECRANS)
         with db.session(work / "patrimoine.db") as con:
             for r in con.execute("SELECT isin FROM positions WHERE quantity > 0 GROUP BY isin"):
-                calls.append(("cours", {"isin": r["isin"]}))
+                calls.append(("titre", {"isin": r["isin"]}))
         for name, a in calls:
             r = json.loads(mobile.call(name, json.dumps(a)))
             if not r["ok"]:
                 print(f"! {name} {a} : {r.get('message') or r}")
                 continue
-            key = name + ("-" + str(a["isin"]) if name == "cours" else "")
+            key = name + ("-" + str(a["isin"]) if name == "titre" else "")
             (out / f"{key}.json").write_text(json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"{len(list(out.glob('*.json')))} écrans écrits dans {out}")
     finally:

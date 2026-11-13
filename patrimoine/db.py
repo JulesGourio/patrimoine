@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS prices (
     source TEXT,
     PRIMARY KEY (isin, date)
 );
+CREATE TABLE IF NOT EXISTS prices_intraday (  -- 5-minute quotes of the last days (prices.update_intraday), purged
+    isin TEXT NOT NULL,
+    ts TEXT NOT NULL,                   -- UTC, YYYY-MM-DDTHH:MM:SSZ
+    close REAL NOT NULL,                -- EUR per share, same unit as prices.close
+    source TEXT,
+    PRIMARY KEY (isin, ts)
+);
 CREATE TABLE IF NOT EXISTS balances (
     account_id TEXT NOT NULL REFERENCES accounts(id),
     date TEXT NOT NULL,

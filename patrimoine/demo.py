@@ -40,6 +40,39 @@ def _tx(con, n, day, account, flow, cents, label="", counterparty="", category=N
     )
 
 
+def _seance(con, prices: dict[str, dict[date, float]], rnd: random.Random) -> None:
+    """Cours à 5 minutes de la dernière séance, sans réseau : un pont brownien entre la clôture de la veille et le
+    dernier cours du jeu (ouverture à la clôture précédente, dernier point = dernier cours). Les titres américains
+    cotent de 15 h 30 à 22 h (heure de Paris), les autres de 9 h à 17 h 30."""
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    paris = ZoneInfo("Europe/Paris")
+    for isin, serie in prices.items():
+        jours = sorted(serie)
+        if len(jours) < 2:
+            continue
+        veille, jour = serie[jours[-2]], jours[-1]
+        cloture = serie[jour]
+        (h0, m0), (h1, m1) = ((15, 30), (22, 0)) if isin.startswith("US") else ((9, 0), (17, 30))
+        debut = datetime(jour.year, jour.month, jour.day, h0, m0, tzinfo=paris)
+        n = ((h1 * 60 + m1) - (h0 * 60 + m0)) // 5
+        sigma = abs(cloture - veille) / max(veille, 1e-9) + 0.004   # amplitude de la séance, plausible
+        marche = 0.0
+        pas = [rnd.gauss(0, 1) for _ in range(n + 1)]
+        cumul = [0.0]
+        for x in pas[1:]:
+            marche += x
+            cumul.append(marche)
+        rows = []
+        for i in range(n + 1):
+            pont = cumul[i] - cumul[-1] * i / n   # nul au début et à la fin
+            p = veille + (cloture - veille) * i / n + veille * sigma * 0.35 * pont / n ** 0.5
+            ts = (debut + timedelta(minutes=5 * i)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            rows.append((isin, ts, round(cloture if i == n else max(p, 0.01), 4), "demo"))
+        con.executemany("INSERT OR REPLACE INTO prices_intraday VALUES (?,?,?,?)", rows)
+
+
 def build(db_path: Path | str, seed: int = 7, today: date | None = None) -> dict:
     """Crée (ou complète) la base `db_path` avec le jeu fictif. Retourne un résumé."""
     rnd = random.Random(seed)
@@ -138,5 +171,6 @@ def build(db_path: Path | str, seed: int = 7, today: date | None = None) -> dict
             "INSERT INTO order_ideas (created_at, account_id, isin, name, side, quantity, limit_price, rationale, risks)"
             " VALUES (?, 'tr_cto', ?, ?, 'achat', 3, ?, 'Renforcer la ligne après repli, valorisation redevenue raisonnable.', 'Secteur cyclique, concentration.')",
             (db.now_iso(), TITRES[1][0], TITRES[1][1], px(TITRES[1][0], today) * 0.97))
+        _seance(con, prices, rnd)
         db.set_meta(con, "demo", True)
         return {"operations": con.execute("SELECT COUNT(*) FROM transactions").fetchone()[0], "base": str(db_path)}

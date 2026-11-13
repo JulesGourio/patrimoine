@@ -44,9 +44,13 @@ sealed interface ModeleBourse {
     /** Année affichée dans les dates de l'axe (périodes d'un an et plus). */
     val anneeAxe: Boolean
 
-    /** Valeur en euros : aire dégradée, montant investi en pointillé si fourni. */
+    /**
+     * Valeur en euros : aire dégradée, ligne de référence en pointillé si fournie (montant investi, prix de revient,
+     * clôture précédente). [centimes] pour un cours unitaire ; [reperes] : achats et ventes posés sur la courbe.
+     * Des dates de la forme « 2026-11-13T10:35 » donnent un axe en heures.
+     */
     class Euros(override val dates: List<String>, val valeurs: List<Double>, val investi: List<Double>?, val hausse: Boolean,
-                override val anneeAxe: Boolean) : ModeleBourse
+                override val anneeAxe: Boolean, val centimes: Boolean = false, val reperes: List<Repere> = emptyList()) : ModeleBourse
 
     /** Rendement en fraction : portefeuille (blanc), indice (gris), ligne de zéro. */
     class Pourcent(override val dates: List<String>, val portefeuille: List<Double>, val indice: List<Double>?,
@@ -55,6 +59,16 @@ sealed interface ModeleBourse {
     /** Aires empilées, une couleur par compte. */
     class Comptes(override val dates: List<String>, val piles: List<Pair<Color, List<Double>>>, override val anneeAxe: Boolean) : ModeleBourse
 }
+
+/** Un achat ou une vente de l'utilisateur, posé sur le point [index] de la courbe. */
+class Repere(val index: Int, val achat: Boolean)
+
+/** Couleurs des repères : achat (triangle vers le haut) et vente (triangle vers le bas), lisibles sur fond sombre. */
+val CouleurAchat = Color(0xFF6CB2FF)
+val CouleurVente = Color(0xFFFFB84D)
+
+/** Heure « 10:35 » d'une date horodatée, sinon la date courte. */
+private fun libelleAxe(iso: String, annee: Boolean) = if (iso.length > 10) iso.substring(11, 16) else dateCourte(iso, annee)
 
 private const val MARGE_DROITE = 8f
 private val HAUT = 10.dp
@@ -119,7 +133,10 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
                 val fin = Offset(l, y(modele.valeurs.last()))
                 drawCircle(Pt.Nuit, 6.dp.toPx(), fin)
                 drawCircle(c, 4.dp.toPx(), fin)
-                survol?.let { pointSurvol = Offset(x(it), y(modele.valeurs[it])); texteSurvol = euros(modele.valeurs[it], cents = false) }
+                modele.reperes.forEach { r ->
+                    if (r.index in modele.valeurs.indices) repere(Offset(x(r.index), y(modele.valeurs[r.index])), r.achat, haut, bas, 0f, l)
+                }
+                survol?.let { pointSurvol = Offset(x(it), y(modele.valeurs[it])); texteSurvol = euros(modele.valeurs[it], cents = modele.centimes) }
             }
             is ModeleBourse.Pourcent -> {
                 val zy = y(0.0)
@@ -147,21 +164,46 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
         }
 
         // Axes : bornes à gauche, première et dernière dates en pied.
-        val fmt: (Double) -> String = if (modele is ModeleBourse.Pourcent) { v -> pct(v, digits = 1) } else { v -> eurosK(v) }
+        val fmt: (Double) -> String = when {
+            modele is ModeleBourse.Pourcent -> { v -> pct(v, digits = 1) }
+            modele is ModeleBourse.Euros && modele.centimes -> { v -> euros(v, cents = true) }
+            else -> { v -> eurosK(v) }
+        }
         drawText(mesure, fmt(hi), Offset(6.dp.toPx(), haut + 1.dp.toPx()), axe)
         drawText(mesure, fmt(lo), Offset(6.dp.toPx(), bas - 14.dp.toPx()), axe)
         val pied = 170.dp.toPx() - 15.dp.toPx()
-        drawText(mesure, dateCourte(modele.dates.first(), modele.anneeAxe), Offset(6.dp.toPx(), pied), axe)
-        val fin = mesure.measure(dateCourte(modele.dates.last(), modele.anneeAxe), axe)
-        drawText(mesure, dateCourte(modele.dates.last(), modele.anneeAxe), Offset(size.width - 6.dp.toPx() - fin.size.width, pied), axe)
+        val premier = libelleAxe(modele.dates.first(), modele.anneeAxe)
+        val dernier = libelleAxe(modele.dates.last(), modele.anneeAxe)
+        drawText(mesure, premier, Offset(6.dp.toPx(), pied), axe)
+        val fin = mesure.measure(dernier, axe)
+        drawText(mesure, dernier, Offset(size.width - 6.dp.toPx() - fin.size.width, pied), axe)
 
         pointSurvol?.let { p ->
             drawLine(Color.White.copy(alpha = 0.5f), Offset(p.x, haut), Offset(p.x, bas), 1.dp.toPx())
             drawCircle(Pt.Nuit, 6.5.dp.toPx(), p)
             drawCircle(Color.White, 4.5.dp.toPx(), p)
-            bulle(mesure, texteSurvol, dateCourte(modele.dates[survol!!], true), p.x, bulleTexte, bulleDate)
+            bulle(mesure, texteSurvol, libelleAxe(modele.dates[survol!!], true), p.x, bulleTexte, bulleDate)
         }
     }
+}
+
+/** Triangle d'achat (pointe en haut, sous la courbe) ou de vente (pointe en bas, au-dessus), cerné de la couleur du fond. */
+private fun DrawScope.repere(sur: Offset, achat: Boolean, haut: Float, bas: Float, gauche: Float, droite: Float) {
+    val r = 5.dp.toPx()
+    // Sous la courbe pour un achat, au-dessus pour une vente ; de l'autre côté quand le bord du graphique (et son étiquette) gêne.
+    val marge = 22.dp.toPx()
+    var dy = (if (achat) 1 else -1) * 10.dp.toPx()
+    if (sur.y + dy > bas - marge || sur.y + dy < haut + r) dy = -dy
+    val c = Offset(sur.x.coerceIn(gauche + r * 1.4f, droite - r * 1.4f), (sur.y + dy).coerceIn(haut + r, bas - r))
+    val s = if (achat) -1f else 1f   // sens de la pointe
+    val tri = Path().apply {
+        moveTo(c.x, c.y + s * r)
+        lineTo(c.x + r * 1.15f, c.y - s * r * 0.8f)
+        lineTo(c.x - r * 1.15f, c.y - s * r * 0.8f)
+        close()
+    }
+    drawPath(tri, Pt.Nuit, style = Stroke(3.dp.toPx(), join = StrokeJoin.Round))
+    drawPath(tri, if (achat) CouleurAchat else CouleurVente)
 }
 
 private fun bornes(m: ModeleBourse): Pair<Double, Double> = when (m) {

@@ -13,12 +13,15 @@ import time
 from collections import defaultdict
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
-from . import analytics, portfolio, queries
+from . import analytics, db, portfolio, prices as _prices, queries
 
 PERIODES = ["1J", "1S", "1M", "3M", "YTD", "1A", "MAX"]
 MAX_POINTS = 90
+MAX_POINTS_JOUR = 96
+TOLERANCE_JOUR = 0.02  # écart accepté entre la série du jour et la valeur de la base avant d'y renoncer
 TYPES = {"action": "Actions", "etf": "ETF", "crypto": "Crypto", "obligation": "Obligations", "derive": "Dérivés"}
 
 
@@ -108,12 +111,130 @@ def _vol_1an(idx: pd.Series) -> float | None:
     return float(r.std() * math.sqrt(252)) if len(r) > 20 else None
 
 
+
+# ---------- séance du jour (période 1J) ----------
+
+class Seance:
+    """Cours à pas fin de la séance du jour (ou de la dernière séance), par titre, sur une grille commune."""
+
+    def __init__(self, jour: Any, grille: list[pd.Timestamp], prix: dict[str, np.ndarray], veille: dict[str, float],
+                 brut: dict[str, pd.Series]):
+        # brut : les cours propres à chaque titre (heure de Paris), pour la fiche d'un titre ; prix : sur la grille commune
+        self.jour, self.grille, self.prix, self.veille, self.brut = jour, grille, prix, veille, brut
+
+
+def rafraichir_seance(con: sqlite3.Connection, isins: list[str]) -> None:
+    """Va chercher les cours du jour manquants ou vieux de plus de 15 minutes pendant la séance. Sans effet sur le
+    jeu fictif ; ne lève jamais (hors ligne : on garde ce qui est stocké)."""
+    try:
+        if db.get_meta(con, "demo") or not isins:
+            return
+        _prices.update_intraday(con, isins)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def charger_seance(con: sqlite3.Connection, px: portfolio.Prices) -> Seance | None:
+    """La séance la plus récente stockée dans `prices_intraday`, ou None (rien de stocké, ou plus ancienne que le
+    dernier cours quotidien : on ne mélange pas un cours du jour avec une séance périmée)."""
+    from zoneinfo import ZoneInfo
+
+    paris = ZoneInfo(_prices.PARIS)
+    try:
+        rows = con.execute("SELECT isin, ts, close FROM prices_intraday ORDER BY isin, ts").fetchall()
+    except sqlite3.OperationalError:  # base ouverte en lecture seule sans la table
+        return None
+    brut: dict[str, dict[pd.Timestamp, float]] = defaultdict(dict)
+    for isin, ts, close in rows:
+        brut[isin][pd.Timestamp(ts).tz_convert(paris)] = close
+    series = {i: pd.Series(d).sort_index() for i, d in brut.items() if d}
+    if not series:
+        return None
+    jour = max(s.index[-1].date() for s in series.values())
+    dernier = [px.series[i].index[-1].date() for i in series if i in px.series and len(px.series[i])]
+    if dernier and jour < max(dernier):
+        return None
+    du_jour = {i: s[[d.date() == jour for d in s.index]] for i, s in series.items()}
+    du_jour = {i: s for i, s in du_jour.items() if len(s)}
+    union = sorted(set().union(*(set(s.index) for s in du_jour.values())))
+    pos = _echantillon(len(union), MAX_POINTS_JOUR)
+    grille = [union[i] for i in pos]
+    prix: dict[str, np.ndarray] = {}
+    veille: dict[str, float] = {}
+    for isin, s in du_jour.items():
+        d = px.series.get(isin)
+        avant = d[d.index < pd.Timestamp(jour)] if d is not None else None
+        v0 = float(avant.iloc[-1]) if avant is not None and len(avant) else float(s.iloc[0])
+        a = s.reindex(pd.DatetimeIndex(union).union(s.index)).ffill().reindex(union).fillna(v0)
+        prix[isin] = a.to_numpy()[pos]
+        veille[isin] = v0
+    return Seance(jour, grille, prix, veille, du_jour)
+
+
+def _valeurs_jour(ctx: "Contexte", lignes: pd.DataFrame, valeur: float) -> tuple[np.ndarray, float] | None:
+    """Valeur des lignes à chaque instant de la séance (quantité × cours à 5 minutes) et valeur à la clôture
+    précédente. Un titre sans cours du jour garde sa valeur du moment. La série est recalée pour finir sur `valeur`
+    (la valeur de la base) quand l'écart est faible ; trop grand, on renonce (None) plutôt que de déformer."""
+    se = ctx.seance
+    if se is None:
+        return None
+    v = np.zeros(len(se.grille))
+    base = 0.0
+    for r in lignes.itertuples():
+        if r.value is None or math.isnan(r.value):
+            continue
+        px = se.prix.get(r.isin)
+        d = ctx.prices.series.get(r.isin)
+        if px is None or d is None or not len(d) or r.price is None or math.isnan(r.price):
+            v += r.value
+            base += r.value
+            continue
+        f = r.price / float(d.iloc[-1]) if d.iloc[-1] else 1.0
+        v += r.quantity * f * px
+        base += r.quantity * f * se.veille[r.isin]
+    ecart = valeur - float(v[-1])
+    if abs(ecart) > TOLERANCE_JOUR * max(valeur, 1.0):
+        return None
+    return v + ecart, base + ecart
+
+
+def _stamp(t: pd.Timestamp) -> str:
+    return t.strftime("%Y-%m-%dT%H:%M")
+
+
+def _periode_jour(ctx: "Contexte", par_compte: dict[str, pd.DataFrame]) -> dict | None:
+    """Série 1J d'une vue (somme de ses comptes, donc la somme des comptes vaut toujours le total)."""
+    se = ctx.seance
+    if se is None:
+        return None
+    total = np.zeros(len(se.grille))
+    base = 0.0
+    comptes: dict[str, list[list]] = {}
+    for acc, va in par_compte.items():
+        lg = ctx.pos[ctx.pos["account_id"] == acc] if len(ctx.pos) else ctx.pos
+        r = _valeurs_jour(ctx, lg, float(va.value.iloc[-1]))
+        if r is None:
+            return None
+        total += r[0]
+        base += r[1]
+        comptes[acc] = [[_stamp(t), _f(x, 2)] for t, x in zip(se.grille, r[0])]
+    if base <= 0:
+        return None
+    var = float(total[-1]) - base
+    return {
+        "depuis": se.jour.isoformat(), "intraday": True, "variation": _f(var, 2), "variation_pct": _f(var / base),
+        "cloture_precedente": _f(base, 2),
+        "serie": [[_stamp(t), _f(x, 2)] for t, x in zip(se.grille, total)],
+        "serie_pct": [[_stamp(t), _f(x / base - 1, 5)] for t, x in zip(se.grille, total)],
+        "indice_serie": [], "investi": [], "comptes": comptes,
+    }
+
 # ---------- une vue (un compte, ou tous) ----------
 
 class Contexte:
     """Ce qui est lu une fois pour toutes les vues."""
 
-    def __init__(self, con: sqlite3.Connection, indice: str | None = None):
+    def __init__(self, con: sqlite3.Connection, indice: str | None = None, rafraichir: bool = True):
         self.con = con
         self.replayed = portfolio.replay(con)
         self.book, self.prices = self.replayed
@@ -124,6 +245,9 @@ class Contexte:
         self.pos = queries.positions(con, self.replayed)
         if not self.pos.empty:
             self.pos = self.pos[self.pos["account_id"].isin(self.ids)]
+        if rafraichir and len(self.pos):
+            rafraichir_seance(con, sorted(set(self.pos["isin"])))
+        self.seance = charger_seance(con, self.prices)
         self.nom_indice = next((k for k in analytics.BENCHMARKS if k.lower() == (indice or "").lower()), "MSCI World")
         self.symbole = analytics.BENCHMARKS[self.nom_indice]
         self.kinds = {r[0]: r[1] for r in con.execute("SELECT isin, kind FROM instruments")}
@@ -182,8 +306,12 @@ def _periodes(ctx: Contexte, v: pd.DataFrame, par_compte: dict[str, pd.DataFrame
             ind = None
             if idx_ret is not None and len(idx_ret) >= 2:
                 ind = _f(idx_ret.iloc[-1] / idx_ret.iloc[-2] - 1)
-            out[label] = {**j, "indice_pct": ind, "intraday": False, "serie": [], "serie_pct": [],
-                          "indice_serie": [], "investi": [], "comptes": {}}
+            jour = _periode_jour(ctx, par_compte)
+            if jour is not None:
+                out[label] = {**jour, "indice_pct": ind}
+            else:
+                out[label] = {**j, "indice_pct": ind, "intraday": False, "serie": [], "serie_pct": [],
+                              "indice_serie": [], "investi": [], "comptes": {}}
             continue
         d0 = _debut(label, v.index[-1], v.index[0])
         base_date = v.index[v.index <= d0][-1] if (v.index <= d0).any() else v.index[0]
@@ -329,8 +457,8 @@ def _vue(ctx: Contexte, vid: str, nom: str, ids: list[str]) -> dict:
     }
 
 
-def donnees(con: sqlite3.Connection, indice: str | None = None) -> dict:
-    ctx = Contexte(con, indice)
+def donnees(con: sqlite3.Connection, indice: str | None = None, rafraichir: bool = True) -> dict:
+    ctx = Contexte(con, indice, rafraichir)
     if not ctx.ids:
         return {"comptes": [], "tous": None, "par_compte": {}, "note": "Aucune position détenue."}
     labels = {a: libelle_compte(con, a) for a in ctx.ids}

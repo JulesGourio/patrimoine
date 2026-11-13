@@ -643,22 +643,23 @@ def cours(isin: str, jours: int = 400) -> dict:
             points.append([d.date().isoformat(), round(float(s.asof(d)) * today_factor, 4)])
     qty = sum(ln.quantity for (_, i), ln in book.lines.items() if i == isin and ln.quantity > 1e-6)
     cost = sum(ln.cost for (_, i), ln in book.lines.items() if i == isin and ln.quantity > 1e-6)
-    ops = []
-    for r in txs:
-        if r["isin"] != isin or not r["quantity"] or r["flow"] not in (
-                "achat_titre", "saveback", "vente_titre", "titres_offerts", "transfert_titres"):
-            continue
-        fees = (r["fees_cents"] or 0) / 100
-        value = abs(r["amount_cents"]) / 100
-        sale = r["flow"] == "vente_titre"
-        if value == 0 and r["flow"] in ("titres_offerts", "transfert_titres"):
-            continue
-        # Quantities and prices of the operations are put on today's scale (divide by later splits).
-        ratio = math.prod(x for d, x in later_splits if d > pd.Timestamp(r["date"])) or 1.0
-        ops.append({"date": r["date"], "sens": "vente" if sale else "achat", "quantite": r["quantity"] * ratio,
-                    "prix": (value + fees if sale else value - fees) / r["quantity"] / ratio})
+    from . import titre as _titre
+
+    ops = [{k: o[k] for k in ("date", "sens", "quantite", "prix")} for o in _titre.operations(txs, isin, later_splits)]
     return _clean({"isin": isin, "cours": points, "pmp": cost / qty if qty > 1e-6 and cost else None,
                    "operations": ops})
+
+
+@tool
+def titre(isin: str) -> dict:
+    """Fiche d'un titre en un appel (ISIN, ou ticker Yahoo d'un titre connu) : cours en euros, série par période
+    (1J à cours de séance quand ils sont stockés, `intraday` faux sinon), variation du cours en % et en euros par
+    titre, prix de revient unitaire, position détenue (valeur, plus-value, quantité, montant investi, variation du
+    jour, poids, une ligne par compte), variations du cours (1J, 1S, 1M, 3M, YTD, 1A), volatilité et plus forte
+    baisse sur 1 an, dividendes reçus et opérations (achat, vente, dividende)."""
+    from . import titre as _titre
+
+    return _clean(_titre.donnees(_con(), isin))
 
 
 @tool

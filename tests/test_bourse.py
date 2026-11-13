@@ -4,7 +4,7 @@ import json
 import pandas as pd
 import pytest
 
-from patrimoine import api, bourse, demo, mobile, prices
+from patrimoine import api, bourse, db, demo, mobile, prices
 
 
 @pytest.fixture
@@ -65,6 +65,8 @@ def test_une_periode_serie_variation_et_indice(base, monkeypatch):
 
 def test_un_jour_sans_intrajournalier(base, monkeypatch):
     sans_reseau(monkeypatch)
+    with db.session(base / "patrimoine.db") as con:  # le jeu fictif porte une séance : on la retire (cours en séance : test_seance.py)
+        con.execute("DELETE FROM prices_intraday")
     j = api.bourse()["tous"]["periodes"]["1J"]
     assert j["intraday"] is False and j["serie"] == []
     assert j["variation"] is not None and j["variation_pct"] is not None and j["depuis"]

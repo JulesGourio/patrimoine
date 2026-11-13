@@ -37,6 +37,12 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w411dp-h914dp-420dpi", application = android.app.Application::class)
 class EcransTest {
+    companion object {
+        const val ACTION = "DE000DEMO001"
+        const val ETF = "IE000DEMO005"
+        const val SANS_COUT = "NL0000235190"  // PEG du jeu fictif : cours connus, prix de revient inconnu
+    }
+
     @get:Rule
     val rule = createComposeRule()
 
@@ -48,7 +54,7 @@ class EcransTest {
         assumeTrue("PATRIMOINE_ECRANS non défini : pas de captures", ecrans?.isDirectory == true)
         Engine.override = { name, args ->
             val key = when (name) {
-                "cours" -> "cours-" + args.optString("isin")
+                "titre" -> "titre-" + args.optString("isin")
                 else -> name
             }
             val f = File(ecrans!!, "$key.json")
@@ -101,6 +107,17 @@ class EcransTest {
     @Test fun bourseUnComptePct() = capture("02-bourse-compte-pct", Routes.BOURSE) { toucher("Compte-titres"); toucher("%"); toucher("3M") }
     @Test fun bourseUnCompteEuros() = capture("02-bourse-compte-eur-ytd", Routes.BOURSE) { toucher("PEA"); toucher("YTD") }
     @Test fun bourseCompteSansCout() = capture("02-bourse-compte-sans-cout", Routes.BOURSE) { toucher("PEG Airbus"); toucher("1A") }
+    @Test fun bourse1JPourcent() = capture("02-bourse-1j-pct", Routes.BOURSE) { toucher("%") }
+    @Test fun bourse1JComptes() = capture("02-bourse-1j-comptes", Routes.BOURSE) { toucher("Comptes") }
+
+    // Fiche d'un titre (jeu fictif : une action avec dividende et vente, un titre sans prix de revient)
+    @Test fun titre1J() = capture("13-titre-1j", Routes.titre(ACTION))
+    @Test fun titre1A() = capture("13-titre-1a-haut", Routes.titre(ACTION)) { toucher("1A") }
+    @Test fun titreBas() = capture("13-titre-bas", Routes.titre(ACTION)) { toucher("1A"); defiler(4) }
+    @Test fun titreToutVoir() = capture("13-titre-operations", Routes.titre(ACTION)) { toucher("1A"); defiler(4); toucher("Tout voir (9)") }
+    @Test fun titreEtf() = capture("13-titre-etf-3m", Routes.titre(ETF)) { toucher("3M") }
+    @Test fun titreSansPrixDeRevient() = capture("13-titre-sans-prix-de-revient", Routes.titre(SANS_COUT)) { toucher("1A") }
+    @Test fun titreSansPrixDeRevientBas() = capture("13-titre-sans-prix-de-revient-bas", Routes.titre(SANS_COUT)) { toucher("1A"); defiler(2) }
     @Test fun flux() = capture("03-flux", Routes.DEPENSES)
     @Test fun analyses() = capture("04-analyses", Routes.ANALYSES)
     @Test fun plus() = capture("05-plus", Routes.PLUS)

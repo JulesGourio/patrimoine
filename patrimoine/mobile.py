@@ -311,6 +311,7 @@ def veille(force: bool = False) -> str:
                 held = sorted({isin for (_, isin), line in book.lines.items() if line.quantity > 1e-6})
                 if held:  # only the lines held: the full history of every instrument is the daily sync's job
                     prices.update(con, held)
+                    prices.update_intraday(con, held, force=True)  # 5-minute quotes of the day (period 1J); never raises
                 df, _ = portfolio.valuations(con)
                 portfolio.store(con, df)
                 con.commit()

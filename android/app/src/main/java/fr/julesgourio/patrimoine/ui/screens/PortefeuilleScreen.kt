@@ -273,7 +273,9 @@ private fun modele(data: JSONObject, vue: JSONObject, p: JSONObject?, periode: S
             if (piles.isEmpty()) null else ModeleBourse.Comptes(dates, piles, annee)
         }
         else -> {
-            val inv = p.points("investi").second.takeIf { it.size == dates.size && periode in listOf("YTD", "1A", "MAX") }
+            // En 1J, la ligne pointillée est la valeur à la clôture précédente.
+            val inv = if (periode == "1J") p.num("cloture_precedente")?.let { c -> List(dates.size) { c } }
+            else p.points("investi").second.takeIf { it.size == dates.size && periode in listOf("YTD", "1A", "MAX") }
             ModeleBourse.Euros(dates, valeurs, inv, (p.num("variation") ?: 0.0) >= 0, annee)
         }
     }
@@ -302,6 +304,7 @@ private fun legende(
             ItemLegende(ton, "Valeur", null)
             val inv = p?.points("investi")?.second.orEmpty()
             if (periode in listOf("YTD", "1A", "MAX") && inv.size == dates.size && inv.isNotEmpty()) ItemLegende(Pt.NuitSub, "Investi", euros(inv.last(), cents = false))
+            else if (periode == "1J" && p?.num("cloture_precedente") != null) ItemLegende(Pt.NuitSub, "Clôture préc.", euros(p.num("cloture_precedente"), cents = false))
             else if (valeurs.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Ouverture", fontSize = 12.sp, color = Pt.NuitSub)
