@@ -93,6 +93,7 @@ fun ErrorBox(message: String, retry: (() -> Unit)? = null) {
 fun CallScreen(
     state: LoadState,
     padding: PaddingValues = PaddingValues(0.dp),
+    horizontal: androidx.compose.ui.unit.Dp = 16.dp,
     content: LazyListScope.(JSONObject) -> Unit,
 ) {
     PullToRefreshBox(
@@ -102,7 +103,7 @@ fun CallScreen(
     ) {
         LazyColumn(
             Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(horizontal = horizontal, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (val l = state.load) {

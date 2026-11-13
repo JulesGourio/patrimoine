@@ -18,7 +18,7 @@ ECRANS = [
     ("etat", {}), ("accueil", {}), ("references", {}), ("portefeuille", {}), ("depenses_ecran", {"mois": 13}),
     ("alertes", {}), ("analyses", {"n": 20}), ("ordres_proposes", {"statut": "proposé"}),
     ("vendeurs", {"recherche": "", "limite": 100}), ("cartes", {}), ("ventes_realisees", {}), ("positions", {}),
-    ("projection", {}), ("abonnements", {}),
+    ("projection", {}), ("abonnements", {}), ("bourse", {}),
 ]
 
 

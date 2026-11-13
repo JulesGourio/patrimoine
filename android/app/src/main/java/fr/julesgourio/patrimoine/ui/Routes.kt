@@ -5,7 +5,7 @@ import android.net.Uri
 /** Every destination of the app. Tabs first, then the screens opened from them. */
 object Routes {
     const val ACCUEIL = "accueil"
-    const val PORTEFEUILLE = "portefeuille"
+    const val BOURSE = "bourse"
     const val DEPENSES = "depenses"
     const val ANALYSES = "analyses"
     const val PLUS = "plus"
@@ -20,6 +20,7 @@ object Routes {
     const val PROJECTION = "projection"
     const val VENDEURS = "vendeurs"
     const val CARTES = "cartes"
+    const val AJOUTER = "ajouter"
 
     /** Market detail of a line or idea: a Yahoo ticker (AIR.PA, NVDA) or an ISIN. */
     fun titre(symbole: String) = "titre/" + Uri.encode(symbole)

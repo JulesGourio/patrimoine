@@ -38,9 +38,9 @@ private fun kindLabel(kind: String?) = if (kind == "hebdo") "Semaine" else "Séa
 
 /** The analyses the Claude routines write (daily, weekly), newest first, and how their verdicts aged. */
 @Composable
-fun AnalysesScreen(nav: NavController) {
+fun AnalysesScreen(nav: NavController, onBack: (() -> Unit)? = null) {
     val state = rememberCall("analyses", Engine.args("n" to 20))
-    ScreenScaffold("Analyses") { padding ->
+    ScreenScaffold("Analyses", onBack = onBack) { padding ->
         CallScreen(state, padding) { data ->
             val list = data.list("analyses")
             if (list.isEmpty()) {

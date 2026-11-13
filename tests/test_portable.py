@@ -5,7 +5,7 @@ import textwrap
 
 PC_ONLY = ["mcp", "keyring", "matplotlib"]
 ENGINE = ["api", "mobile", "pipeline", "sync", "cloud", "imports", "briefing", "brief_mail", "alerts",
-          "portfolio", "queries", "analytics", "notify", "vault",
+          "portfolio", "queries", "analytics", "bourse", "notify", "vault",
           "sources.trade_republic", "sources.enable_banking", "sources.amundi", "sources.cmb_csv"]
 
 

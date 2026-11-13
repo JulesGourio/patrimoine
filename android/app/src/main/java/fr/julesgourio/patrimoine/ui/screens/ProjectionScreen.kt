@@ -78,7 +78,7 @@ private fun JSONObject.suite(key: String): List<Double> {
 
 /** Simulation Monte-Carlo de l'évolution du patrimoine (outil `projection`), avec des hypothèses modifiables. */
 @Composable
-fun ProjectionScreen(back: () -> Unit) {
+fun ProjectionScreen(back: (() -> Unit)? = null) {
     // Champs de saisie (texte) et valeurs appliquées au dernier calcul ; vide au départ = valeurs du moteur.
     val champs = remember { mutableStateMapOf<String, String>() }
     var appliquees by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }

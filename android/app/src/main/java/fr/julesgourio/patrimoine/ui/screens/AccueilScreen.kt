@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -85,6 +86,9 @@ fun AccueilScreen(nav: NavController) {
         actions = {
             IconButton(onClick = sync.start, enabled = !sync.running) {
                 Icon(Icons.Filled.Sync, contentDescription = "Synchroniser")
+            }
+            IconButton(onClick = { nav.navigate(Routes.PLUS) }) {
+                Icon(Icons.Filled.Tune, contentDescription = "Plus")
             }
         },
     ) { padding ->
@@ -204,7 +208,7 @@ fun AccueilScreen(nav: NavController) {
                                 centerValue = euros(sumTotal),
                                 modifier = Modifier.width(130.dp),
                                 size = 130.dp,
-                                onSliceClick = { s -> if (s.label in securities) nav.navigate(Routes.PORTEFEUILLE) },
+                                onSliceClick = { s -> if (s.label in securities) nav.navigate(Routes.BOURSE) },
                                 showLegend = false,
                             )
                             Text("Touche un compte pour voir son détail (lignes, historique).",
@@ -217,7 +221,7 @@ fun AccueilScreen(nav: NavController) {
                             val v30 = c.num("var_30j")
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .let { if (name in securities) it.clickable { nav.navigate(Routes.PORTEFEUILLE) } else it }
+                                    .let { if (name in securities) it.clickable { nav.navigate(Routes.BOURSE) } else it }
                                     .padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),

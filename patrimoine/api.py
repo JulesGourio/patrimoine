@@ -879,6 +879,21 @@ def performance(compte: str = "", indice: str = "") -> dict:
 
 
 @tool
+def bourse(indice: str = "") -> dict:
+    """Tout l'écran Bourse en un appel, pour « tous les comptes » (`tous`) et chaque compte de placement
+    (`par_compte`) : valeur, montant investi, plus-values latentes et réalisées, dividendes, frais, gain total ;
+    pour chaque période (1J, 1S, 1M, 3M, YTD, 1A, MAX) la série de valeur, le montant investi, la variation en
+    euros et en % hors versements (TWR) et celle de l'indice de référence (`indice` : MSCI World par défaut ; null
+    sans cours) ; rendement annualisé, volatilité 1 an, plus forte baisse ; rendements mensuels ; lignes avec leur
+    variation par période ; répartition (compte, type, devise quand la base la connaît) ; dividendes sur 12 mois.
+    Rendements en fractions. En 1J, `intraday` est faux : pas de série, seulement la variation du jour."""
+    from . import bourse as _bourse
+
+    con = _con()
+    return _clean(_bourse.donnees(con, indice or None))
+
+
+@tool
 def risques(baisse_pct: float = 20) -> dict:
     """Risques du portefeuille (PEA, compte-titres, PEG) : exposition réelle aux actions (valeur × levier : un ETF x2
     compte double), part à levier, part exposée au dollar (devise des actifs sous-jacents), plus grosse ligne en % du

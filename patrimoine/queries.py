@@ -74,7 +74,7 @@ def positions(con: sqlite3.Connection, replayed: tuple | None = None) -> pd.Data
         price = prices.get(isin, today)
         value = qty * price if price is not None else None
         rows.append({
-            "account": ACCOUNT_LABELS.get(acc, acc), "isin": isin, "name": names.get(isin) or isin,
+            "account": ACCOUNT_LABELS.get(acc, acc), "account_id": acc, "isin": isin, "name": names.get(isin) or isin,
             "quantity": qty, "unit_cost": cost / qty if cost else float("nan"), "price": price, "value": value,
             "cost": cost if cost else float("nan"),
             "gain": value - cost if value is not None and cost else float("nan"),

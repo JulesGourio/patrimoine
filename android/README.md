@@ -73,7 +73,8 @@ PATRIMOINE_ECRANS=$PWD/build/ecrans PATRIMOINE_CAPTURES=$PWD/build/captures \
 ```
 
 `uv run patrimoine demo <dossier>` crée une base fictive pour développer l'appli sans aucune donnée personnelle.
-Les couleurs dynamiques (fond d'écran) du téléphone ne sont pas reproduites. Les captures de vraies données
+Les couleurs dynamiques (fond d'écran) du téléphone ne sont pas reproduites (l'appli n'en utilise plus : thème clair de la maquette `docs/maquette`). L'écran Bourse a ses propres captures (`02-bourse-*.png` : défaut, mode Comptes sur 1A, un compte en %, etc.).
+La police Inter (`app/src/main/res/font/inter.ttf`, licence SIL OFL 1.1, © The Inter Project Authors) est embarquée. Les captures de vraies données
 restent sur votre machine : ne les commitez pas et ne les publiez pas.
 
 ## Construire en local

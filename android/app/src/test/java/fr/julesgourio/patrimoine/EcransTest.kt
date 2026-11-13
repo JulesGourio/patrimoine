@@ -1,6 +1,11 @@
 package fr.julesgourio.patrimoine
 
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.onRoot
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -57,7 +62,7 @@ class EcransTest {
         Engine.override = null
     }
 
-    private fun capture(name: String, route: String) {
+    private fun capture(name: String, route: String, apres: () -> Unit = {}) {
         sortie.mkdirs()
         lateinit var nav: NavHostController
         rule.setContent {
@@ -70,12 +75,33 @@ class EcransTest {
         rule.waitForIdle()
         rule.mainClock.advanceTimeBy(1500)
         rule.waitForIdle()
+        apres()
+        rule.mainClock.advanceTimeBy(500)
+        rule.waitForIdle()
         rule.onRoot().captureRoboImage(File(sortie, "$name.png").path)
     }
 
+    private fun toucher(texte: String) {
+        rule.onAllNodesWithText(texte)[0].performScrollTo().performClick()
+        rule.waitForIdle()
+    }
+
+    /** Fait défiler l'écran Bourse jusqu'à la carte d'indice [i] (0 en-tête, 1 comptes, 2 bloc sombre, 3 performance…). */
+    private fun defiler(i: Int) {
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(i)
+        rule.waitForIdle()
+    }
+
     @Test fun accueil() = capture("01-patrimoine", Routes.ACCUEIL)
-    @Test fun portefeuille() = capture("02-portefeuille", Routes.PORTEFEUILLE)
-    @Test fun depenses() = capture("03-depenses", Routes.DEPENSES)
+    @Test fun bourse() = capture("02-bourse-defaut", Routes.BOURSE)
+    @Test fun bourseCartes() = capture("02-bourse-positions", Routes.BOURSE) { defiler(4) }
+    @Test fun bourseMilieu() = capture("02-bourse-rendements", Routes.BOURSE) { defiler(5) }
+    @Test fun bourseBas() = capture("02-bourse-dividendes", Routes.BOURSE) { defiler(7) }
+    @Test fun bourseComptes1A() = capture("02-bourse-comptes-1a", Routes.BOURSE) { toucher("Comptes"); toucher("1A") }
+    @Test fun bourseUnComptePct() = capture("02-bourse-compte-pct", Routes.BOURSE) { toucher("Compte-titres"); toucher("%"); toucher("3M") }
+    @Test fun bourseUnCompteEuros() = capture("02-bourse-compte-eur-ytd", Routes.BOURSE) { toucher("PEA"); toucher("YTD") }
+    @Test fun bourseCompteSansCout() = capture("02-bourse-compte-sans-cout", Routes.BOURSE) { toucher("PEG Airbus"); toucher("1A") }
+    @Test fun flux() = capture("03-flux", Routes.DEPENSES)
     @Test fun analyses() = capture("04-analyses", Routes.ANALYSES)
     @Test fun plus() = capture("05-plus", Routes.PLUS)
     @Test fun vendeurs() = capture("06-vendeurs", Routes.VENDEURS)
