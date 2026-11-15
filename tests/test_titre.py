@@ -36,7 +36,7 @@ def test_la_position_vient_de_la_base_et_se_decompose_par_compte(base):
     p = t["position"]
     pos = {x["isin"]: x for x in api.positions()["positions"] if x["isin"] == ACTION}
     assert p["valeur"] == pytest.approx(sum(x["value"] for x in api.positions()["positions"] if x["isin"] == ACTION), abs=0.05)
-    assert p["pmp"] == pytest.approx(p["investi"] / p["quantite"], abs=0.01)
+    assert p["pmp"] == pytest.approx(p["investi"] / p["quantite"], rel=1e-3)  # la sortie JSON arrondit les quantités à 2 décimales
     assert p["plus_value"] == pytest.approx(p["valeur"] - p["investi"], abs=0.05)
     assert p["plus_value_pct"] == pytest.approx(p["plus_value"] / p["investi"], abs=1e-3)
     assert p["variation_jour"] == pytest.approx(p["quantite"] * t["periodes"]["1J"]["eur"], abs=0.05)
