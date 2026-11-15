@@ -99,6 +99,9 @@ class EcransTest {
     }
 
     @Test fun accueil() = capture("01-patrimoine", Routes.ACCUEIL)
+    @Test fun accueilBas() = capture("01-patrimoine-milieu", Routes.ACCUEIL) { defiler(3) }
+    @Test fun accueilComptes() = capture("01-patrimoine-comptes", Routes.ACCUEIL) { defiler(5) }
+    @Test fun accueil3M() = capture("01-patrimoine-3m", Routes.ACCUEIL) { toucher("3M") }
     @Test fun bourse() = capture("02-bourse-defaut", Routes.BOURSE)
     @Test fun bourseCartes() = capture("02-bourse-positions", Routes.BOURSE) { defiler(4) }
     @Test fun bourseMilieu() = capture("02-bourse-rendements", Routes.BOURSE) { defiler(5) }
@@ -119,6 +122,10 @@ class EcransTest {
     @Test fun titreSansPrixDeRevient() = capture("13-titre-sans-prix-de-revient", Routes.titre(SANS_COUT)) { toucher("1A") }
     @Test fun titreSansPrixDeRevientBas() = capture("13-titre-sans-prix-de-revient-bas", Routes.titre(SANS_COUT)) { toucher("1A"); defiler(2) }
     @Test fun flux() = capture("03-flux", Routes.DEPENSES)
+    @Test fun fluxRevenus() = capture("03-flux-revenus", Routes.DEPENSES) { defiler(2) }
+    @Test fun fluxDepenses() = capture("03-flux-depenses", Routes.DEPENSES) { defiler(4) }
+    @Test fun fluxTaux() = capture("03-flux-taux", Routes.DEPENSES) { defiler(5) }
+    @Test fun fluxOperations() = capture("03-flux-operations", Routes.DEPENSES) { defiler(7) }
     @Test fun analyses() = capture("04-analyses", Routes.ANALYSES)
     @Test fun plus() = capture("05-plus", Routes.PLUS)
     @Test fun vendeurs() = capture("06-vendeurs", Routes.VENDEURS)

@@ -84,8 +84,12 @@ def _jour(sc: pd.Series, seance: bourse.Seance | None, isin: str, cours: float |
         brut = seance.brut[isin]
         pos = bourse._echantillon(len(brut), bourse.MAX_POINTS_JOUR)
         px = brut.to_numpy(dtype=float)[pos].copy()
-        if abs(px[-1] - cours) <= TOLERANCE_JOUR * cours and len(px) >= 2:
-            px[-1] = cours
+        # séance plus récente que la dernière clôture quotidienne : `cours` est la clôture de la veille, le dernier
+        # cours de séance fait foi (le recaler dessus donnerait une variation nulle)
+        plus_recente = len(sc) and seance.jour > sc.index[-1].date()
+        if len(px) >= 2 and (plus_recente or abs(px[-1] - cours) <= TOLERANCE_JOUR * cours):
+            if not plus_recente:
+                px[-1] = cours
             base = seance.veille[isin]
             return {
                 "intraday": True, "depuis": seance.jour.isoformat(), "complet": True, "base": bourse._f(base, 4),

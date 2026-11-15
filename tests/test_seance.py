@@ -14,9 +14,11 @@ def base(tmp_path, monkeypatch):
     demo.build(tmp_path / "patrimoine.db")
     bourse._INDICE.clear()
     prices._ECHEC.clear()
+    prices._ESSAI.clear()
     yield tmp_path
     bourse._INDICE.clear()
     prices._ECHEC.clear()
+    prices._ESSAI.clear()
 
 
 def hors_ligne(monkeypatch):

@@ -219,6 +219,7 @@ INTRADAY_FETCH_DAYS = 5      # Yahoo serves 5-minute bars for the last 60 days; 
 INTRADAY_MAX_AGE_MIN = 15    # during the session, quotes older than this are fetched again
 _ECHEC: dict[str, float] = {}  # isin -> monotonic time before which the source is not asked again
 _ECHEC_ERREUR = 300.0          # offline, Yahoo down
+_ESSAI: dict[str, datetime] = {}  # isin -> heure du dernier essai (réussi ou non) : pas de nouvel appel avant 15 min
 _ECHEC_VIDE = 1800.0           # no bars (holiday, unknown symbol)
 
 
@@ -321,6 +322,9 @@ def update_intraday(con: sqlite3.Connection, isins: list[str] | None = None, now
             if time.monotonic() < _ECHEC.get(isin, 0.0):
                 continue
             last = con.execute("SELECT MAX(ts) FROM prices_intraday WHERE isin = ?", (isin,)).fetchone()[0]
+            essai = _ESSAI.get(isin)
+            if not force and essai is not None and timedelta(0) <= now - essai < timedelta(minutes=INTRADAY_MAX_AGE_MIN):
+                continue  # Yahoo renvoie les barres des 5 derniers jours : la dernière peut rester vieille
             if force or _a_rafraichir(last, now):
                 todo.append((isin, symbol, currency or "EUR"))
         if not todo:
@@ -337,6 +341,8 @@ def update_intraday(con: sqlite3.Connection, isins: list[str] | None = None, now
 
         with ThreadPoolExecutor(max_workers=4) as pool:
             fetched = list(pool.map(fetch, todo))
+        for isin, _, _ in todo:
+            _ESSAI[isin] = now
         fx: dict[str, pd.Series | None] = {}
         for (isin, symbol, stored_cur), (_, _, s, cur) in zip(todo, fetched):
             if s is None:

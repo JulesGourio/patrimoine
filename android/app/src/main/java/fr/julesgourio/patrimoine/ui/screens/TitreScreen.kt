@@ -132,7 +132,7 @@ fun TitreScreen(symbole: String, onBack: () -> Unit) {
         Box(Modifier.weight(1f)) {
             CallScreen(state, PaddingValues(0.dp), horizontal = 0.dp) { t ->
                 val periodes = t.objOrNull("periodes")
-                val periode = choix ?: if (periodes?.objOrNull("1J")?.get("intraday") == true) "1J" else "1A"
+                val periode = choix ?: if (periodes?.objOrNull("1J")?.optBoolean("intraday") == true) "1J" else "1A"
                 item { Box(Modifier.padding(horizontal = 16.dp)) { BlocCours(t, periode) { choix = it } } }
                 item { Box(Modifier.padding(horizontal = 16.dp)) { CartePosition(t) } }
                 item { Box(Modifier.padding(horizontal = 16.dp)) { CarteVariations(t) } }
@@ -190,7 +190,7 @@ private fun BlocCours(t: JSONObject, periode: String, onPeriode: (String) -> Uni
     val pctP = p?.num("pct")
     val eurP = p?.num("eur")
     val ton = if ((eurP ?: 0.0) < 0) money.lossNight else money.gainNight
-    val intraday = p?.get("intraday") == true && dates.size >= 2
+    val intraday = p?.optBoolean("intraday") == true && dates.size >= 2
     val pmp = t.num("pmp")
     val base = p?.num("base")
     val reference = if (periode == "1J") base else pmp
@@ -247,7 +247,7 @@ private fun BlocCours(t: JSONObject, periode: String, onPeriode: (String) -> Uni
         } else {
             Box(Modifier.fillMaxWidth().height(96.dp).padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    if (periode == "1J" && p?.get("intraday") != true) "Cours intrajournaliers indisponibles" else "Pas assez d'historique",
+                    if (periode == "1J" && p?.optBoolean("intraday") != true) "Cours intrajournaliers indisponibles" else "Pas assez d'historique",
                     fontSize = 12.sp, color = Pt.NuitSub,
                 )
             }

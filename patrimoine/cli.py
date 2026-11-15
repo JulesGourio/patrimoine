@@ -21,7 +21,12 @@ def cmd_demo(args: argparse.Namespace, settings: Settings) -> None:
 
     from . import demo
 
-    target = Path(args.dossier) if args.dossier else settings.data_dir
+    if not args.dossier:
+        raise SystemExit("Indique un dossier explicite pour le jeu fictif (patrimoine demo DOSSIER) : "
+                         "il ne s'écrit jamais dans le dossier de données réel.")
+    target = Path(args.dossier)
+    if target.resolve() == Path(settings.data_dir).resolve():
+        raise SystemExit("Ce dossier est le dossier de données réel : choisis-en un autre pour le jeu fictif.")
     out = demo.build(target / "patrimoine.db")
     print(f"Jeu fictif écrit dans {out['base']} ({out['operations']} opérations). "
           f"Pour l'utiliser : PATRIMOINE_DATA_DIR={target}")
@@ -230,7 +235,7 @@ def main(argv: list[str] | None = None) -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init", help="Créer la base et les comptes").set_defaults(func=cmd_init)
     p = sub.add_parser("demo", help="Remplir une base vide avec un jeu de données fictif")
-    p.add_argument("dossier", nargs="?", help="Dossier de données (défaut : PATRIMOINE_DATA_DIR ou ./data)")
+    p.add_argument("dossier", nargs="?", help="Dossier où écrire le jeu fictif (obligatoire, jamais le dossier de données réel)")
     p.set_defaults(func=cmd_demo)
     sub.add_parser("comptes", help="Lister les comptes").set_defaults(func=cmd_accounts)
     p = sub.add_parser("secret", help="Gérer les secrets (PIN, jetons)")

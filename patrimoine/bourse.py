@@ -150,10 +150,13 @@ def charger_seance(con: sqlite3.Connection, px: portfolio.Prices) -> Seance | No
     series = {i: pd.Series(d).sort_index() for i, d in brut.items() if d}
     if not series:
         return None
-    jour = max(s.index[-1].date() for s in series.values())
-    dernier = [px.series[i].index[-1].date() for i in series if i in px.series and len(px.series[i])]
-    if dernier and jour < max(dernier):
+    # titre par titre : on écarte ceux dont la clôture quotidienne est plus récente que leur séance (une crypto
+    # clôturée le samedi ne doit pas faire disparaître la séance des actions)
+    series = {i: s for i, s in series.items()
+              if not (i in px.series and len(px.series[i]) and s.index[-1].date() < px.series[i].index[-1].date())}
+    if not series:
         return None
+    jour = max(s.index[-1].date() for s in series.values())
     du_jour = {i: s[[d.date() == jour for d in s.index]] for i, s in series.items()}
     du_jour = {i: s for i, s in du_jour.items() if len(s)}
     union = sorted(set().union(*(set(s.index) for s in du_jour.values())))
@@ -263,20 +266,52 @@ class Contexte:
         self.dividendes = self._dividendes()
 
     def _dividendes(self) -> dict[str, list[tuple[pd.Timestamp, float]]]:
-        """Dividendes reçus par compte de placement : compte de détention, sinon compte qui détient le titre."""
-        held: dict[str, dict[str, float]] = defaultdict(dict)
-        for (acc, isin), line in self.book.lines.items():
-            if acc in self.ids and line.quantity > 1e-6:
-                held[isin][acc] = line.quantity
+        """Dividendes reçus par compte de placement : compte de détention s'il est renseigné, sinon compte qui
+        détenait le titre à la date du dividende (le plus gros), sinon le dernier qui l'a détenu (ligne vendue)."""
+        mouvements: dict[str, list[tuple[str, str, float]]] = defaultdict(list)  # isin -> (date, compte, ±quantité)
+        for r in self.con.execute(
+                "SELECT date, isin, quantity, flow, COALESCE(holding_account_id, account_id) acc FROM transactions"
+                " WHERE isin IS NOT NULL AND quantity IS NOT NULL ORDER BY date, id"):
+            if r["flow"] in portfolio.IN_FLOWS:
+                mouvements[r["isin"]].append((r["date"], r["acc"], r["quantity"]))
+            elif r["flow"] == "vente_titre":
+                mouvements[r["isin"]].append((r["date"], r["acc"], -r["quantity"]))
+
+        def detenteur(isin: str, date: str) -> str | None:
+            qte: dict[str, float] = defaultdict(float)
+            dernier = None
+            for d, acc, q in mouvements.get(isin, []):
+                if acc not in self.ids:
+                    continue
+                if d <= date:
+                    qte[acc] += q
+                dernier = acc if d <= date or dernier is None else dernier
+            en_cours = {a: q for a, q in qte.items() if q > 1e-6}
+            if en_cours:
+                return max(en_cours, key=en_cours.get)
+            return dernier
+
         out: dict[str, list] = defaultdict(list)
         for r in self.con.execute("SELECT date, amount_cents, isin, COALESCE(holding_account_id, account_id) acc"
                                   " FROM transactions WHERE flow = 'dividende'"):
             acc = r["acc"] if r["acc"] in self.ids else None
-            if acc is None and r["isin"] in held:
-                acc = max(held[r["isin"]], key=held[r["isin"]].get)
+            if acc is None and r["isin"]:
+                acc = detenteur(r["isin"], r["date"])
             if acc:
                 out[acc].append((pd.Timestamp(r["date"]), r["amount_cents"] / 100))
         return out
+
+
+def _cours_seance(ctx: Contexte, isin: str) -> tuple[float, float] | None:
+    """(dernier cours de séance, clôture précédente) quand la séance stockée est plus récente que la dernière clôture
+    quotidienne ; sinon None (la variation se calcule sur les deux dernières clôtures)."""
+    se = ctx.seance
+    s = ctx.prices.series.get(isin)
+    if se is None or s is None or not len(s) or isin not in se.brut or isin not in se.veille:
+        return None
+    if se.jour <= s.index[-1].date():
+        return None
+    return float(se.brut[isin].iloc[-1]), float(se.veille[isin])
 
 
 def _variation_jour(ctx: Contexte, lignes: pd.DataFrame, valeur: float) -> dict:
@@ -284,11 +319,19 @@ def _variation_jour(ctx: Contexte, lignes: pd.DataFrame, valeur: float) -> dict:
     var, depuis = 0.0, None
     for r in lignes.itertuples():
         s = ctx.prices.series.get(r.isin)
-        if s is None or len(s) < 2 or r.price is None or math.isnan(r.price):
+        if s is None or not len(s) or r.price is None or math.isnan(r.price):
             continue
         factor = r.price / float(s.iloc[-1]) if s.iloc[-1] else 1.0
-        var += r.quantity * (float(s.iloc[-1]) - float(s.iloc[-2])) * factor
-        depuis = s.index[-2] if depuis is None else max(depuis, s.index[-2])
+        sc = _cours_seance(ctx, r.isin)
+        if sc is not None:
+            var += r.quantity * (sc[0] - sc[1]) * factor
+            d0 = s.index[-1]
+        elif len(s) >= 2:
+            var += r.quantity * (float(s.iloc[-1]) - float(s.iloc[-2])) * factor
+            d0 = s.index[-2]
+        else:
+            continue
+        depuis = d0 if depuis is None else max(depuis, d0)
     if depuis is None:
         return {"variation": None, "variation_pct": None, "depuis": None}
     veille = valeur - var
@@ -369,11 +412,14 @@ def _lignes(ctx: Contexte, pos: pd.DataFrame) -> list[dict]:
                 pct = None if math.isnan(r.gain_pct) else float(r.gain_pct)
             elif s is not None and len(s) >= 2:
                 if label == "1J":
-                    base = float(s.iloc[-2])
+                    sc = _cours_seance(ctx, r.isin)
+                    base = sc[1] if sc else float(s.iloc[-2])
+                    dernier = sc[0] if sc else float(s.iloc[-1])
                 else:
                     d0 = _debut(label, fin, fin)
                     base = _asof(s, d0) if d0 >= s.index[0] else None
-                pct = float(s.iloc[-1]) / base - 1 if base else None
+                    dernier = float(s.iloc[-1])
+                pct = dernier / base - 1 if base else None
             eur = value - value / (1 + pct) if pct is not None and value is not None and pct > -1 else None
             var[label] = {"pct": _f(pct), "eur": _f(eur, 2)}
         gain = None if math.isnan(r.gain) else float(r.gain)
@@ -447,7 +493,7 @@ def _vue(ctx: Contexte, vid: str, nom: str, ids: list[str]) -> dict:
         "id": vid, "nom": nom, "nb_comptes": len(ids), "nb_lignes": len(lignes), "cout_connu": complet,
         "valeur": _f(valeur, 2), "investi": _f(investi, 2), "plus_value_latente": _f(latente, 2),
         "plus_value_realisee": _f(realisee, 2), "dividendes": _f(divs, 2), "frais": _f(frais, 2),
-        "gain_total": _f(gain, 2), "gain_total_pct": _f(gain / investi) if gain is not None and investi else None,
+        "gain_total": _f(gain, 2), "gain_total_pct": _f(gain / investi) if gain is not None and investi and investi > 0 else None,
         "rendement_annualise": _f(st.get("twr_annuel")), "volatilite": _f(vol),
         "plus_forte_baisse": _f(st.get("pire_baisse")), "indice": ind_stats,
         "periodes": _periodes(ctx, v, par_compte, pos, avec_investi=complet),

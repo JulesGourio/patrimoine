@@ -133,3 +133,11 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+// Un APK sans moteur Python (captures d'écran) ne doit jamais être livré : échec explicite en release.
+if (System.getenv("PATRIMOINE_SANS_PYTHON") != null) {
+    tasks.matching { it.name.contains("Release") && (it.name.startsWith("assemble") || it.name.startsWith("bundle")) }
+        .configureEach {
+            doFirst { throw GradleException("PATRIMOINE_SANS_PYTHON n'est pas permis pour une version release (moteur Python absent).") }
+        }
+}

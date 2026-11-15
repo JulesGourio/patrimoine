@@ -109,7 +109,7 @@ def tools() -> str:
 
 # Read-only functions computed from the database alone (no network): their answer only changes when the database
 # does, so a tab opened twice is instant (pandas on a phone takes seconds per screen).
-_CACHEABLE = {"accueil", "portefeuille", "depenses_ecran", "ventes_realisees", "analyses", "analyse", "positions",
+_CACHEABLE = {"accueil", "accueil_ecran", "portefeuille", "depenses_ecran", "ventes_realisees", "analyses", "analyse", "positions",
               "synthese", "patrimoine", "historique", "depenses", "flux", "fiscalite", "alertes", "ordres_proposes", "references"}
 _cache: dict[tuple, str] = {}
 
@@ -309,7 +309,8 @@ def veille(force: bool = False) -> str:
                 db.init(con)
                 book, _ = portfolio.replay(con)
                 held = sorted({isin for (_, isin), line in book.lines.items() if line.quantity > 1e-6})
-                if held:  # only the lines held: the full history of every instrument is the daily sync's job
+                if held and not db.get_meta(con, "demo"):  # jeu fictif : jamais de réseau
+                    # only the lines held: the full history of every instrument is the daily sync's job
                     prices.update(con, held)
                     prices.update_intraday(con, held, force=True)  # 5-minute quotes of the day (period 1J); never raises
                 df, _ = portfolio.valuations(con)
@@ -422,12 +423,13 @@ def test_notification() -> str:
 @screen
 def depenses_ecran(mois: int = 13) -> dict:
     """Écran Dépenses en un appel : opérations des N derniers mois, totaux par mois, budgets du mois en cours,
-    revenus/dépenses/épargne par mois et liste des catégories de dépenses."""
+    revenus/dépenses/épargne par mois, liste des catégories de dépenses et détail des flux (`flux_ecran`)."""
     from .categories import SPENDING
 
     dep = api.depenses(mois)
     return {"operations": api.depenses_operations(mois)["operations"], "par_mois": dep["par_mois"],
-            "mois_en_cours": dep["mois_en_cours"], "flux": api.flux(mois)["flux"], "categories": SPENDING}
+            "mois_en_cours": dep["mois_en_cours"], "flux": api.flux(mois)["flux"], "categories": SPENDING,
+            "flux_detail": api.flux_ecran(mois)}
 
 
 @screen

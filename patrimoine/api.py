@@ -182,6 +182,16 @@ def flux(mois: int = 12) -> dict:
 
 
 @tool
+def flux_ecran(mois: int = 13) -> dict:
+    """Écran Flux : par mois revenus par source (salaire, primes, placements, autres), dépenses nettes, épargne,
+    taux, part investie, charges fixes et dépenses courantes ; indicateurs sur 12 mois complets (moyenne, évolution
+    sur un an, salaire, revenus de placements) ; prélèvements récurrents encore attendus ce mois-ci."""
+    from . import flux_ecran as _flux
+
+    return _clean(_flux.donnees(_con(), mois))
+
+
+@tool
 def fiscalite() -> dict:
     """Par année, compte-titres : plus-values, moins-values reportées, dividendes, intérêts, PFU estimé."""
     return {"annees": _clean(queries.taxes(_con()).to_dict("index")),
@@ -892,6 +902,27 @@ def bourse(indice: str = "") -> dict:
 
     con = _con()
     return _clean(_bourse.donnees(con, indice or None))
+
+
+@tool
+def accueil_ecran() -> dict:
+    """Tout l'écran Patrimoine (accueil de l'appli) en un appel : patrimoine net par type de compte (placements,
+    comptes courants, livrets) sur chaque période (1S à MAX) avec la variation en euros et en % (versements
+    inclus) et d'où elle vient (épargne, marchés, dividendes et intérêts) ; répartition ; indicateurs (taux
+    d'épargne, mois de dépenses couverts, disponible sous 48 h, valeur après impôts latents) ; comptes avec leur
+    variation et leur courbe sur 30 jours ; dernière analyse, ordres préparés, alertes et dernière synchro."""
+    from . import accueil_ecran as _accueil
+
+    con = _con()
+    out = _clean(_accueil.donnees(con, synthese()))
+    if out.get("erreur"):
+        return out
+    last = analyses(1)
+    out["derniere_analyse"] = (last.get("analyses") or [None])[0]
+    out["ordres_proposes"] = len(ordres_proposes().get("ordres") or [])
+    out["alertes_30j"] = len(alertes().get("recentes") or [])
+    out["derniere_synchro"] = patrimoine().get("derniere_synchro")
+    return out
 
 
 @tool

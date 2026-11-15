@@ -204,7 +204,7 @@ private fun BlocPrincipal(
     val baisse = (variation ?: 0.0) < 0
     val ton = if (baisse) money.lossNight else money.gainNight
     val (dates, valeurs) = p?.points("serie") ?: (emptyList<String>() to emptyList())
-    val intraday = p?.get("intraday") == true
+    val intraday = p?.optBoolean("intraday") == true
     val modele = remember(vue.str("id"), periode, mode, data) { modele(data, vue, p, periode, mode, couleurs) }
 
     Column(
@@ -253,7 +253,7 @@ private fun BlocPrincipal(
 }
 
 private fun modele(data: JSONObject, vue: JSONObject, p: JSONObject?, periode: String, mode: String, couleurs: Map<String, Color>): ModeleBourse? {
-    if (p == null || p.get("intraday") != true) return null
+    if (p == null || !p.optBoolean("intraday")) return null
     val (dates, valeurs) = p.points("serie")
     if (dates.size < 2) return null
     val annee = periode in listOf("1A", "MAX")
