@@ -206,12 +206,23 @@ def migrate(con: sqlite3.Connection) -> None:
             con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
 
+def _signature() -> int:
+    """Empreinte du schéma, des comptes fixes et des règles par défaut : change quand le code change."""
+    import zlib
+
+    texte = repr((SCHEMA, ACCOUNTS, MIGRATIONS, AIRBUS, PEG_AIRBUS_SHARES, sorted(DEFAULT_RULES.items())))
+    return zlib.crc32(texte.encode()) & 0x7FFFFFFF
+
+
 def init(con: sqlite3.Connection) -> None:
     """Create the schema and seed the fixed accounts, the PEG holding and the default rules.
 
     Idempotent: seeds never overwrite what is already there (a PEG quantity or a rule edited
     by hand survives a re-run).
     """
+    signature = _signature()
+    if con.execute("PRAGMA user_version").fetchone()[0] == signature:
+        return  # déjà à jour : aucune écriture, donc aucune attente derrière une synchro en cours
     con.executescript(SCHEMA)
     migrate(con)
     con.executemany(
@@ -232,6 +243,7 @@ def init(con: sqlite3.Connection) -> None:
         DEFAULT_RULES.items(),
     )
     con.commit()
+    con.execute(f"PRAGMA user_version = {signature}")
 
 
 def get_meta(con: sqlite3.Connection, key: str) -> Any:

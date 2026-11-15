@@ -51,10 +51,13 @@ def donnees(con: sqlite3.Connection, mois: int = 13, aujourdhui: date | None = N
     bal["autres"] = (bal.revenus - bal.salaire - bal.primes - bal.placements).clip(lower=0)
     bal["investi"] = (-(col("achat_titre") + col("vente_titre"))).clip(lower=0)
     bal["charges_fixes"] = sp[sp.merchant.isin(fixes)].groupby("month")["amount"].sum().reindex(tous, fill_value=0.0)
-    bal["partiel"] = (bal.index + pd.offsets.MonthEnd(0)) > max(ref, today)
+    # Même règle que `synthese` et l'accueil : un mois est complet s'il est fini à la date des données (une base plus
+    # ancienne que le mois n'en couvre pas la fin).
+    bal["partiel"] = ~bal.index.isin(queries.complete_months(bal, ref).index)
     # Le premier mois d'activité compte pour du vide avant lui : pas de taux ni de moyenne sur ces mois-là.
-    debut = bal.index[(bal.revenus != 0) | (bal.depenses != 0)].min() if ((bal.revenus != 0) | (bal.depenses != 0)).any() else None
-    bal["vide"] = False if debut is None else bal.index < debut
+    actifs = (bal.revenus != 0) | (bal.depenses != 0)
+    debut = bal.index[actifs].min() if actifs.any() else None
+    bal["vide"] = True if debut is None else bal.index < debut
 
     lignes = []
     for m, r in bal.iloc[-mois:].iterrows():
@@ -63,15 +66,17 @@ def donnees(con: sqlite3.Connection, mois: int = 13, aujourdhui: date | None = N
         lignes.append({
             "mois": m.strftime("%Y-%m"), "revenus": float(r.revenus), "salaire": float(r.salaire), "primes": float(r.primes),
             "placements": float(r.placements), "autres": float(r.autres), "depenses": float(r.depenses),
-            "epargne": float(r.epargne), "taux": taux, "investi": float(r.investi), "charges_fixes": fixes_m,
+            "epargne": float(r.epargne), "taux": taux, "investi": float(r.investi) + 0.0,
+            "remboursements": float(r.remboursements) + 0.0, "charges_fixes": fixes_m,
             "depenses_courantes": float(r.depenses) - fixes_m, "partiel": bool(r.partiel), "vide": bool(r.vide),
         })
 
     complets = bal[~bal.partiel & ~bal.vide]
     d12, p12 = complets.tail(12), complets.iloc[-24:-12]
     evolution = float(d12.revenus.sum() / p12.revenus.sum() - 1) if len(d12) == 12 and len(p12) == 12 and p12.revenus.sum() > 0 else None
+    taux_moyen = float(d12.epargne.sum() / d12.revenus.sum()) if len(d12) and d12.revenus.sum() > 0 else None
     indicateurs = {
-        "mois_comptes": len(d12), "revenus_moyens": float(d12.revenus.mean()) if len(d12) else None,
+        "taux_moyen_12m": taux_moyen, "mois_comptes": len(d12), "revenus_moyens": float(d12.revenus.mean()) if len(d12) else None,
         "revenus_12m": float(d12.revenus.sum()), "evolution_1an": evolution,
         "placements_12m": float(d12.placements.sum()), "salaire": _salaire(complets),
         "revenus_par_source_12m": {k: float(d12[k].sum()) for k in ("salaire", "primes", "placements", "autres")},

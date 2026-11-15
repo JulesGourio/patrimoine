@@ -12,7 +12,7 @@ import sqlite3
 
 import pandas as pd
 
-from . import analytics, bourse, queries
+from . import analytics, bourse, portfolio, queries
 
 PERIODES = ["1S", "1M", "3M", "YTD", "1A", "MAX"]
 MAX_POINTS = 120
@@ -41,12 +41,32 @@ def _points(s: pd.Series, pos: list[int]) -> list[list]:
     return [[s.index[i].date().isoformat(), _f(s.iloc[i])] for i in pos]
 
 
+def _entrees_sans_cout(con: sqlite3.Connection, comptes: set[str], d0: pd.Timestamp, d1: pd.Timestamp) -> float:
+    """Valeur, à leur date, des titres entrés sans coût (transfert depuis un autre courtier, actions offertes) dans les
+    comptes donnés pendant la période : un apport, pas un gain de marché."""
+    rows = con.execute(
+        "SELECT date, COALESCE(holding_account_id, account_id) AS acc, isin, quantity FROM transactions"
+        " WHERE flow IN ('titres_offerts', 'transfert_titres') AND amount_cents = 0 AND quantity > 0 AND isin IS NOT NULL"
+        " AND date > ? AND date <= ?", (d0.date().isoformat(), d1.date().isoformat())).fetchall()
+    rows = [r for r in rows if r["acc"] in comptes]
+    if not rows:
+        return 0.0
+    prices = portfolio.replay(con)[1]
+    total = 0.0
+    for r in rows:
+        p = prices.get(r["isin"], pd.Timestamp(r["date"]))
+        if p is not None:
+            total += r["quantity"] * p
+    return total
+
+
 def _cascade(con: sqlite3.Connection, h: pd.DataFrame, total: pd.Series, d0: pd.Timestamp, d1: pd.Timestamp) -> dict:
     """Variation entre `d0` et `d1` décomposée : marchés (plus-values latentes et réalisées des lignes dont le prix de
     revient est connu aux deux dates), dividendes et intérêts reçus, et le reste, qui est l'épargne et les apports."""
     delta = float(total.loc[d1] - total.loc[d0])
     marches = 0.0
-    for _, g in h.groupby("account_id"):
+    comptes: set[str] = set()
+    for acc, g in h.groupby("account_id"):
         g = g.set_index("date")
         a, b = g[g.index <= d0], g[g.index <= d1]
         if a.empty or b.empty:
@@ -55,9 +75,13 @@ def _cascade(con: sqlite3.Connection, h: pd.DataFrame, total: pd.Series, d0: pd.
         if (a.securities > 0 and a.cost <= 0) or (b.securities > 0 and b.cost <= 0):
             continue  # prix de revient inconnu : le mouvement reste dans l'épargne plutôt qu'inventé
         marches += (b.securities - b.cost + b.realised) - (a.securities - a.cost + a.realised)
+        comptes.add(acc)
+    marches -= _entrees_sans_cout(con, comptes, d0, d1)
+    ids = sorted(set(h.account_id))
     row = con.execute(
         "SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE flow IN ('interets', 'dividende')"
-        " AND date > ? AND date <= ?", (d0.date().isoformat(), d1.date().isoformat())).fetchone()
+        f" AND COALESCE(holding_account_id, account_id) IN ({','.join('?' * len(ids))})"
+        " AND date > ? AND date <= ?", (*ids, d0.date().isoformat(), d1.date().isoformat())).fetchone()
     revenus = row[0] / 100
     return {"debut": _f(total.loc[d0]), "epargne": _f(delta - marches - revenus), "marches": _f(marches),
             "dividendes": _f(revenus), "fin": _f(total.loc[d1])}
@@ -65,6 +89,8 @@ def _cascade(con: sqlite3.Connection, h: pd.DataFrame, total: pd.Series, d0: pd.
 
 def _indicateurs(con: sqlite3.Connection, disponible: float, total: float, synthese: dict | None) -> dict:
     s = synthese or {}
+    ouverture = s.get("pea_ouverture")
+    cinq_ans = (pd.Timestamp(ouverture) + pd.DateOffset(years=5)).date().isoformat() if ouverture else None
     bal = analytics.monthly_balance(con)
     full = queries.complete_months(bal, queries.data_date(con)).tail(12)
     depenses = float(full.depenses.mean()) if len(full) else 0.0
@@ -73,6 +99,7 @@ def _indicateurs(con: sqlite3.Connection, disponible: float, total: float, synth
         "mois_precaution": _f(disponible / depenses, 1) if depenses > 0 else None,
         "depenses_mensuelles": _f(depenses) if depenses > 0 else None,
         "disponible_48h": _f(disponible), "disponible_part": _f(disponible / total, 4) if total else None,
+        "pea_ouverture": ouverture, "pea_5_ans": bool(s.get("pea_5_ans")), "pea_5_ans_date": cinq_ans,
         "apres_impots": _f(s.get("apres_impots")), "impots_latents": _f(s.get("impots_latents")),
     }
 
@@ -121,7 +148,9 @@ def donnees(con: sqlite3.Connection, synthese: dict | None = None) -> dict:
         valeur = float(s.iloc[-1])
         if abs(valeur) < 0.005:
             continue
-        ancien = _asof(s, d30) if s.index[0] <= d30 else None
+        non_nul = s.index[s.abs() > 0.005]
+        # Compte ouvert depuis moins de 30 jours : pas de variation (elle ne dirait que le premier versement).
+        ancien = _asof(s, d30) if s.index[0] <= d30 and len(non_nul) and non_nul[0] <= d30 else None
         w = s[s.index >= d30]
         pos = bourse._echantillon(len(w), POINTS_COMPTE)
         comptes.append({
@@ -135,7 +164,9 @@ def donnees(con: sqlite3.Connection, synthese: dict | None = None) -> dict:
 
     types = [{"id": t, "nom": nom_type[t], "valeur": _f(par_type[t].iloc[-1]),
               "part": _f(float(par_type[t].iloc[-1]) / n_fin, 4) if n_fin else None} for t in ids]
-    disponible = float(sum(par_type[t].iloc[-1] for t in LIQUIDES))
+    prepayes = {r[0] for r in con.execute("SELECT id FROM accounts WHERE kind = 'prepaye'")}  # cartes : pas de l'épargne
+    disponible = float(sum(par_compte[a].iloc[-1] for a in par_compte.columns
+                           if type_de[a] in LIQUIDES and a not in prepayes))
     return {
         "date": fin.date().isoformat(), "nb_comptes": len(comptes), "total": _f(n_fin), "periodes_dispo": PERIODES,
         "types": types, "periodes": periodes, "comptes": comptes,

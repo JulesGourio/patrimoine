@@ -179,14 +179,14 @@ private fun operations(d: JSONObject): List<Op> = d.list("operations").mapNotNul
 private class MoisFlux(
     val mois: String, val revenus: Double, val salaire: Double, val primes: Double, val placements: Double,
     val autres: Double, val depenses: Double, val epargne: Double, val taux: Double?, val investi: Double,
-    val chargesFixes: Double, val partiel: Boolean, val vide: Boolean,
+    val chargesFixes: Double, val partiel: Boolean, val vide: Boolean, val remboursements: Double = 0.0,
 )
 
 private fun moisFlux(d: JSONObject): List<MoisFlux> = d.objOrNull("flux_detail")?.list("mois").orEmpty().mapNotNull { m ->
     val mois = m.str("mois") ?: return@mapNotNull null
     MoisFlux(mois, m.num("revenus") ?: 0.0, m.num("salaire") ?: 0.0, m.num("primes") ?: 0.0, m.num("placements") ?: 0.0,
         m.num("autres") ?: 0.0, m.num("depenses") ?: 0.0, m.num("epargne") ?: 0.0, m.num("taux"), m.num("investi") ?: 0.0,
-        m.num("charges_fixes") ?: 0.0, m.bool("partiel"), m.bool("vide"))
+        m.num("charges_fixes") ?: 0.0, m.bool("partiel"), m.bool("vide"), m.num("remboursements") ?: 0.0)
 }
 
 /** The 13 months ending with the current one, oldest first. */
@@ -267,17 +267,21 @@ fun DepensesScreen(nav: NavController) {
         item {
             Box(Modifier.padding(horizontal = 16.dp)) {
                 Carte {
-                    CarteEntete("Dépenses", if (moisComplets.isEmpty()) null else "écart à ta moyenne")
+                    CarteEntete("Dépenses", if (moisComplets.isEmpty() || fluxSel?.partiel == true) null else "écart à ta moyenne")
                     if (cats.isEmpty()) Muted("Aucune dépense ce mois-là.")
                     val echelle = maxOf(1.0, cats.maxOfOrNull { maxOf(it.depense, it.budget ?: 0.0) } ?: 1.0)
                     cats.forEach { c ->
                         val av = moyenneCat(c.nom)
                         LigneCategorie(
-                            c, couleur(c.nom), echelle, if (moisComplets.isEmpty() || av <= 0) null else c.depense - av,
+                            c, couleur(c.nom), echelle, if (moisComplets.isEmpty() || fluxSel?.partiel == true || av <= 0) null else c.depense - av,
                             choisie = catSel == c.nom,
                             onClick = { catSel = if (catSel == c.nom) null else c.nom },
                             onBudget = { edit = c },
                         )
+                    }
+                    if ((fluxSel?.remboursements ?: 0.0) > 0.5) Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)) {
+                        Text("Remboursements", Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Pt.Mute)
+                        Text("−" + euros(fluxSel!!.remboursements, cents = false), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = LocalMoney.current.gain)
                     }
                     if (sel == courant) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(Modifier.width(2.dp).height(12.dp).background(Pt.Encre, RoundedCornerShape(1.dp)))
@@ -290,7 +294,7 @@ fun DepensesScreen(nav: NavController) {
 
         // (3) Taux d'épargne.
         if (flux.any { it.taux != null }) {
-            item { Box(Modifier.padding(horizontal = 16.dp)) { CarteTaux(flux, sel) } }
+            item { Box(Modifier.padding(horizontal = 16.dp)) { CarteTaux(flux, sel, d.objOrNull("flux_detail")?.objOrNull("indicateurs")?.num("taux_moyen_12m")) } }
         }
 
         // (4) Prélèvements attendus ce mois-ci.
@@ -494,8 +498,8 @@ private fun BlocFlux(flux: List<MoisFlux>, m: MoisFlux, autres: List<MoisFlux>, 
     val moyRev = autres.takeIf { it.isNotEmpty() }?.map { it.revenus }?.average()
     val moyDep = autres.takeIf { it.isNotEmpty() }?.map { it.depenses }?.average()
     fun ecart(v: Double, moy: Double?) = if (moy == null || moy <= 0) null else (v - moy) / moy
-    val eRev = ecart(m.revenus, moyRev)
-    val eDep = ecart(m.depenses, moyDep)
+    val eRev = if (m.partiel) null else ecart(m.revenus, moyRev)
+    val eDep = if (m.partiel) null else ecart(m.depenses, moyDep)
     val barres = flux.map { f ->
         val lettre = try { YearMonth.parse(f.mois).month.getDisplayName(TextStyle.SHORT, Locale.FRANCE).take(1).uppercase() } catch (e: Exception) { "" }
         BarreFlux(lettre, listOf(COULEUR_SALAIRE to f.salaire, COULEUR_PRIMES to f.primes, COULEUR_PLACEMENTS to f.placements, COULEUR_AUTRES to f.autres),
@@ -506,9 +510,9 @@ private fun BlocFlux(flux: List<MoisFlux>, m: MoisFlux, autres: List<MoisFlux>, 
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chiffre(Modifier.weight(1f), "Revenus", euros(m.revenus, cents = false), if (eRev == null) "—" else pct(eRev, digits = 0) + " vs moy.", Color.White,
+            Chiffre(Modifier.weight(1f), "Revenus", euros(m.revenus, cents = false), if (m.partiel) "mois en cours" else if (eRev == null) "—" else pct(eRev, digits = 0) + " vs moy.", Color.White,
                 if (eRev == null) Pt.NuitSub else if (eRev >= 0) money.gainNight else money.lossNight)
-            Chiffre(Modifier.weight(1f), "Dépenses", euros(m.depenses, cents = false), if (eDep == null) "—" else pct(eDep, digits = 0) + " vs moy.", Color.White,
+            Chiffre(Modifier.weight(1f), "Dépenses", euros(m.depenses, cents = false), if (m.partiel) "mois en cours" else if (eDep == null) "—" else pct(eDep, digits = 0) + " vs moy.", Color.White,
                 if (eDep == null) Pt.NuitSub else if (eDep <= 0) money.gainNight else money.lossNight)
             Chiffre(Modifier.weight(1f), "Épargne", euros(m.epargne, cents = false), if (m.taux != null) "taux " + pctEntier(m.taux) else "mois en cours",
                 if (m.epargne >= 0) money.gainNight else money.lossNight, Pt.NuitSub)
@@ -643,16 +647,16 @@ private fun LigneCategorie(
 }
 
 @Composable
-private fun CarteTaux(flux: List<MoisFlux>, sel: String) {
+private fun CarteTaux(flux: List<MoisFlux>, sel: String, tauxMoyen: Double?) {
     val taux = flux.map { it.taux }
     val valides = flux.filter { it.taux != null && it.mois <= sel }
     val dernier = valides.lastOrNull() ?: flux.last { it.taux != null }
-    val moyenne = taux.filterNotNull().average()
+    val moyenne = tauxMoyen ?: taux.filterNotNull().average()
     Carte {
         CarteEntete("Taux d'épargne", "${flux.size} mois")
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(pctEntier(dernier.taux), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Pt.Encre)
-            Text("moyenne ${pctEntier(moyenne)}", Modifier.padding(bottom = 4.dp), fontSize = 13.sp, color = Pt.Mute)
+            Text("moyenne 12 mois ${pctEntier(moyenne)}", Modifier.padding(bottom = 4.dp), fontSize = 13.sp, color = Pt.Mute)
         }
         CourbeTaux(taux, moisCourt(dernier.mois))
         Muted("Dépenses nettes des remboursements ; héritages et donations à part. Le mois en cours est exclu tant qu'il n'est pas fini.")

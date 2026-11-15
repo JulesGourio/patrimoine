@@ -193,7 +193,7 @@ private fun BlocPrincipal(data: JSONObject, p: JSONObject?, periode: String, tot
         ) {
             PastilleVariation(variationPct, sombre = true)
             if (variation != null) Text(euros(variation, sign = true, cents = false), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ton)
-            val depuis = if (p?.get("complet") == false) "depuis le " + dateCourte(p.str("depuis"), true) else LEGENDE_PERIODE[periode].orEmpty()
+            val depuis = if (p != null && !p.optBoolean("complet", true)) "depuis le " + dateCourte(p.str("depuis"), true) else LEGENDE_PERIODE[periode].orEmpty()
             Text("$depuis · versements inclus", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Pt.NuitSub)
         }
         if (modele != null) {
@@ -224,7 +224,7 @@ private fun BlocPrincipal(data: JSONObject, p: JSONObject?, periode: String, tot
 private fun CarteVariation(c: JSONObject, p: JSONObject, periode: String) {
     val debut = c.num("debut") ?: return
     val fin = c.num("fin") ?: return
-    val libDebut = if (p.get("complet") == false || periode == "MAX") "Au début · " + dateCourte(p.str("depuis"), true)
+    val libDebut = if (!p.optBoolean("complet", true) || periode == "MAX") "Au début · " + dateCourte(p.str("depuis"), true)
     else DEBUT_CASCADE[periode] ?: "Au début"
     // (libellé, valeur, total ?) ; les étapes sont des écarts posés les uns sur les autres.
     val lignes = listOf(
@@ -330,6 +330,8 @@ private fun CarteIndicateurs(i: JSONObject) {
                     "de dépenses disponibles"),
                 Indicateur("Disponible sous 48 h", euros(i.num("disponible_48h"), cents = false),
                     i.num("disponible_part")?.let { pct(it, sign = false, digits = 0) + " du patrimoine" }),
+                Indicateur("PEA", i.str("pea_ouverture")?.let { if (i.optBoolean("pea_5_ans")) "5 ans atteints" else "5 ans le " + dateCourte(i.str("pea_5_ans_date"), true) } ?: "—",
+                    i.str("pea_ouverture")?.let { "ouvert le " + dateCourte(it, true) }),
                 Indicateur("Après impôts latents", euros(i.num("apres_impots"), cents = false), "si tout était vendu"),
             ),
         )
@@ -378,7 +380,7 @@ private fun LigneCompte(c: JSONObject, couleur: Color, separateur: Boolean, onCl
             Courbette(valeurs, trait, stable)
             Column(horizontalAlignment = Alignment.End) {
                 Text(euros(c.num("valeur"), cents = false), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Pt.Encre, maxLines = 1)
-                Text(if (stable) "stable" else if (pc == null) euros(c.num("var_30j"), sign = true, cents = false) else pct(pc, digits = 1),
+                if (c.num("var_30j") != null) Text(if (stable) "stable" else if (pc == null) euros(c.num("var_30j"), sign = true, cents = false) else pct(pc, digits = 1),
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, color = if (stable || pc == null) Pt.Mute else trait)
             }
         }

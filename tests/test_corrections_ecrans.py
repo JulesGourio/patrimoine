@@ -162,3 +162,30 @@ def test_la_veille_ne_met_pas_a_jour_les_cours_du_jeu_fictif(base, monkeypatch):
     monkeypatch.setattr(prices, "update_intraday", lambda *a, **k: appels.append("intraday"))
     mobile.veille(force=True)
     assert appels == []
+
+
+# ---------- séance plus récente que la clôture : cohérence de la valeur et de la variation ----------
+
+def recalculer_valuations(base):
+    from patrimoine import portfolio
+    with con_de(base) as con:
+        df, _ = portfolio.valuations(con)
+        portfolio.store(con, df)
+
+
+def test_variation_1j_avec_valuations_a_la_cloture_d_hier(base):
+    sans_cloture_du_jour(base)
+    recalculer_valuations(base)
+    j = api.bourse()["tous"]["periodes"]["1J"]
+    assert j["intraday"] and j["serie"]
+    assert j["variation_pct"] == pytest.approx(j["variation"] / j["cloture_precedente"], abs=1e-4)
+    assert j["cloture_precedente"] == pytest.approx(j["serie"][-1][1] - j["variation"], abs=0.05)
+
+
+def test_seance_dans_une_autre_unite_est_ignoree(base):
+    sans_cloture_du_jour(base)
+    with con_de(base) as con:
+        con.execute("UPDATE prices_intraday SET close = close * 100 WHERE isin = ?", (ACTION,))
+    j = api.titre(ACTION)["periodes"]["1J"]
+    assert not j["intraday"]
+    assert abs(j["pct"]) < 0.5

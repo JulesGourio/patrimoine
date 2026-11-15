@@ -57,3 +57,50 @@ def test_ecran_depenses_embarque_le_detail(tmp_path):
     assert json.loads(mobile.init(str(tmp_path)))["ok"]
     r = json.loads(mobile.call("depenses_ecran", "{}"))
     assert r["ok"] and r["data"]["flux_detail"]["mois"]
+
+
+def test_taux_moyen_12m_est_pondere(con):
+    d = flux_ecran.donnees(con, 13, AUJOURDHUI)
+    complets = [m for m in d["mois"] if not m["partiel"]][-12:]
+    attendu = sum(m["epargne"] for m in complets) / sum(m["revenus"] for m in complets)
+    assert d["indicateurs"]["taux_moyen_12m"] == pytest.approx(attendu)
+
+
+def test_mois_non_couvert_par_la_base_est_partiel(con):
+    # Base arrêtée au 15 octobre alors qu'on est le 10 novembre : octobre n'est pas fini dans les données.
+    con.execute("DELETE FROM transactions WHERE date > '2026-10-15'")
+    d = flux_ecran.donnees(con, 13, AUJOURDHUI)
+    par_mois = {m["mois"]: m for m in d["mois"]}
+    assert par_mois["2026-10"]["partiel"] and par_mois["2026-10"]["taux"] is None
+    assert not par_mois["2026-09"]["partiel"]
+    assert d["indicateurs"]["mois_comptes"] == 12
+
+
+def test_base_vide(tmp_path):
+    with db.session(tmp_path / "vide.db") as c:
+        db.init(c)
+        d = flux_ecran.donnees(c, 13, AUJOURDHUI)
+    assert all(m["vide"] and m["taux"] is None for m in d["mois"])
+    assert d["indicateurs"]["taux_moyen_12m"] is None
+
+
+def test_investi_jamais_negatif_zero(con):
+    for m in flux_ecran.donnees(con, 13, AUJOURDHUI)["mois"]:
+        assert str(m["investi"]) != "-0.0"
+
+
+def test_remboursement_baisse_les_depenses_sans_etre_un_revenu(con):
+    avant = {m["mois"]: m for m in flux_ecran.donnees(con, 13, AUJOURDHUI)["mois"]}["2026-10"]
+    demo._tx(con, 9001, date(2026, 10, 12), "cmb_courant", "revenu", 50_00, "Virement ami", "Ami", "Remboursements")
+    apres = {m["mois"]: m for m in flux_ecran.donnees(con, 13, AUJOURDHUI)["mois"]}["2026-10"]
+    assert apres["depenses"] == pytest.approx(avant["depenses"] - 50)
+    assert apres["revenus"] == pytest.approx(avant["revenus"])
+    assert apres["remboursements"] == pytest.approx(avant["remboursements"] + 50)
+
+
+def test_virement_interne_exclu(con):
+    avant = {m["mois"]: m for m in flux_ecran.donnees(con, 13, AUJOURDHUI)["mois"]}["2026-10"]
+    demo._tx(con, 9002, date(2026, 10, 12), "cmb_courant", "interne", -300_00, "Virement", "")
+    demo._tx(con, 9003, date(2026, 10, 12), "tr_especes", "interne", 300_00, "Virement", "")
+    apres = {m["mois"]: m for m in flux_ecran.donnees(con, 13, AUJOURDHUI)["mois"]}["2026-10"]
+    assert (apres["revenus"], apres["depenses"]) == (avant["revenus"], avant["depenses"])

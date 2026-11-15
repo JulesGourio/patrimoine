@@ -21,6 +21,7 @@ from . import analytics, db, portfolio, prices as _prices, queries
 PERIODES = ["1J", "1S", "1M", "3M", "YTD", "1A", "MAX"]
 MAX_POINTS = 90
 MAX_POINTS_JOUR = 96
+COHERENCE_SEANCE = 0.5  # écart maximal d'un cours de séance à la clôture précédente
 TOLERANCE_JOUR = 0.02  # écart accepté entre la série du jour et la valeur de la base avant d'y renoncer
 TYPES = {"action": "Actions", "etf": "ETF", "crypto": "Crypto", "obligation": "Obligations", "derive": "Dérivés"}
 
@@ -183,6 +184,7 @@ def _valeurs_jour(ctx: "Contexte", lignes: pd.DataFrame, valeur: float) -> tuple
         return None
     v = np.zeros(len(se.grille))
     base = 0.0
+    gain_seance = 0.0  # mouvement du jour déjà compris dans la séance mais pas dans `valeur` (clôture d'hier)
     for r in lignes.itertuples():
         if r.value is None or math.isnan(r.value):
             continue
@@ -195,7 +197,10 @@ def _valeurs_jour(ctx: "Contexte", lignes: pd.DataFrame, valeur: float) -> tuple
         f = r.price / float(d.iloc[-1]) if d.iloc[-1] else 1.0
         v += r.quantity * f * px
         base += r.quantity * f * se.veille[r.isin]
-    ecart = valeur - float(v[-1])
+        sc = _cours_seance(ctx, r.isin)
+        if sc is not None:
+            gain_seance += r.quantity * f * (float(px[-1]) - se.veille[r.isin])
+    ecart = valeur + gain_seance - float(v[-1])
     if abs(ecart) > TOLERANCE_JOUR * max(valeur, 1.0):
         return None
     return v + ecart, base + ecart
@@ -311,12 +316,15 @@ def _cours_seance(ctx: Contexte, isin: str) -> tuple[float, float] | None:
         return None
     if se.jour <= s.index[-1].date():
         return None
-    return float(se.brut[isin].iloc[-1]), float(se.veille[isin])
+    px, base = float(se.brut[isin].iloc[-1]), float(se.veille[isin])
+    if not base or abs(px / base - 1) >= COHERENCE_SEANCE:  # séance dans une autre unité (GBp/GBP) : on l'ignore
+        return None
+    return px, base
 
 
 def _variation_jour(ctx: Contexte, lignes: pd.DataFrame, valeur: float) -> dict:
     """Dernier cours contre clôture précédente, pondéré par les quantités (euros, et % de la valeur de la veille)."""
-    var, depuis = 0.0, None
+    var, var_seance, depuis = 0.0, 0.0, None
     for r in lignes.itertuples():
         s = ctx.prices.series.get(r.isin)
         if s is None or not len(s) or r.price is None or math.isnan(r.price):
@@ -325,6 +333,7 @@ def _variation_jour(ctx: Contexte, lignes: pd.DataFrame, valeur: float) -> dict:
         sc = _cours_seance(ctx, r.isin)
         if sc is not None:
             var += r.quantity * (sc[0] - sc[1]) * factor
+            var_seance += r.quantity * (sc[0] - sc[1]) * factor
             d0 = s.index[-1]
         elif len(s) >= 2:
             var += r.quantity * (float(s.iloc[-1]) - float(s.iloc[-2])) * factor
@@ -334,7 +343,8 @@ def _variation_jour(ctx: Contexte, lignes: pd.DataFrame, valeur: float) -> dict:
         depuis = d0 if depuis is None else max(depuis, d0)
     if depuis is None:
         return {"variation": None, "variation_pct": None, "depuis": None}
-    veille = valeur - var
+    # `valeur` est à la clôture d'hier pour les lignes avec séance : on n'en retire que la part des autres lignes
+    veille = valeur - (var - var_seance)
     return {"variation": _f(var, 2), "variation_pct": _f(var / veille) if veille > 0 else None,
             "depuis": depuis.date().isoformat()}
 

@@ -87,6 +87,11 @@ def _jour(sc: pd.Series, seance: bourse.Seance | None, isin: str, cours: float |
         # séance plus récente que la dernière clôture quotidienne : `cours` est la clôture de la veille, le dernier
         # cours de séance fait foi (le recaler dessus donnerait une variation nulle)
         plus_recente = len(sc) and seance.jour > sc.index[-1].date()
+        if plus_recente:  # séance incohérente avec sa veille (autre unité) : retomber sur les clôtures
+            b = seance.veille[isin]
+            plus_recente = bool(b) and abs(px[-1] / b - 1) < bourse.COHERENCE_SEANCE
+            if not plus_recente:
+                px = px[:0]
         if len(px) >= 2 and (plus_recente or abs(px[-1] - cours) <= TOLERANCE_JOUR * cours):
             if not plus_recente:
                 px[-1] = cours
