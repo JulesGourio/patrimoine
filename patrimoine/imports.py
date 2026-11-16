@@ -45,8 +45,8 @@ def peg(settings: Settings, files: list[Path] = ()) -> dict:
     with db.session(settings.db_path) as con:
         db.init(con)
         new, updated = sync.import_rows(con, rows, amundi.raw_json)
-        con.execute("UPDATE positions SET quantity = ?, as_of = ?, source = 'amundi' WHERE account_id = 'peg_airbus'",
-                    (summary["total_actions"], summary["as_of"]))
+        con.execute("UPDATE positions SET quantity = ?, as_of = ?, source = 'amundi' WHERE account_id = ?",
+                    (summary["total_actions"], summary["as_of"], amundi.ACCOUNT))
         db.set_meta(con, "peg_summary", summary)
     return {"copies": copied, "releves": len(statements), "nouvelles": new, "mises_a_jour": updated,
             "actions": summary["total_actions"], "au": summary["as_of"], "esop": summary["esop_events"]}
@@ -112,6 +112,16 @@ def csv_generique(settings: Settings, path: Path, profil: str | None = None, reg
         con.commit()
     return {"compte": prof.account, "lignes": len(rows), "nouvelles": new, "doublons": len(rows) - len(fresh),
             "du": min((r.date for r in rows), default=""), "au": max((r.date for r in rows), default="")}
+
+
+def creer_compte(settings: Settings, account: str, nom: str, kind: str, etablissement: str = "") -> dict:
+    """Create an account of the user (``kind``: courant, livret, especes, cto, pea, peg or prepaye), so the generic CSV
+    import and the balances can target it. Raises ValueError if it exists or the type is unknown."""
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        if not db.create_account(con, account, nom, kind, etablissement):
+            raise ValueError(f"Le compte existe déjà : {account}")
+    return {"id": account.strip(), "nom": nom.strip(), "type": kind}
 
 
 def balance(settings: Settings, account: str, euros: str | float, day: str | None = None) -> int:

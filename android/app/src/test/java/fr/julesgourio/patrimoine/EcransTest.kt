@@ -1,6 +1,9 @@
 package fr.julesgourio.patrimoine
 
 import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
@@ -40,6 +43,11 @@ class EcransTest {
     companion object {
         const val ACTION = "DE000DEMO001"
         const val ETF = "IE000DEMO005"
+        // Hauteur (fraction de l'écran) du graphique tactile de chaque écran, pour poser le doigt dessus
+        const val GY_ACCUEIL = 0.4f
+        const val GY_FLUX = 0.3f
+        const val GY_BOURSE = 0.4f
+        const val GY_TITRE = 0.4f
         const val SANS_COUT = "NL0000235190"  // PEG du jeu fictif : cours connus, prix de revient inconnu
     }
 
@@ -92,6 +100,18 @@ class EcransTest {
         rule.waitForIdle()
     }
 
+    /** Touche le premier élément dont le texte commence par [debut] (ex. « Tout voir (n) » dont n dépend du jeu). */
+    private fun toucherDebut(debut: String) {
+        rule.onAllNodes(hasText(debut, substring = true))[0].performScrollTo().performClick()
+        rule.waitForIdle()
+    }
+
+    /** Pose le doigt (sans le lever) à la fraction ([fx], [fy]) du graphique tactile [index] parmi les zones défilantes. */
+    private fun poser(fx: Float, fy: Float) {
+        rule.onRoot().performTouchInput { down(androidx.compose.ui.geometry.Offset(width * fx, height * fy)) }
+        rule.waitForIdle()
+    }
+
     /** Fait défiler l'écran Bourse jusqu'à la carte d'indice [i] (0 en-tête, 1 comptes, 2 bloc sombre, 3 performance…). */
     private fun defiler(i: Int) {
         rule.onNode(hasScrollToIndexAction()).performScrollToIndex(i)
@@ -102,6 +122,15 @@ class EcransTest {
     @Test fun accueilBas() = capture("01-patrimoine-milieu", Routes.ACCUEIL) { defiler(3) }
     @Test fun accueilComptes() = capture("01-patrimoine-comptes", Routes.ACCUEIL) { defiler(5) }
     @Test fun accueil3M() = capture("01-patrimoine-3m", Routes.ACCUEIL) { toucher("3M") }
+    @Test fun accueilDetails() = capture("01-patrimoine-details", Routes.ACCUEIL) { defiler(5); toucherDebut("Afficher") }
+    @Test fun accueilDetailsTuile() = capture("01-patrimoine-details-tuile", Routes.ACCUEIL) { defiler(5); toucherDebut("Afficher"); toucherDebut("Gains d'investissement (brut)") }
+    @Test fun accueilSansPeg() = capture("01-patrimoine-sans-peg", Routes.ACCUEIL) { toucher("Sans le PEG") }
+    @Test fun accueilSansPegDetails() = capture("01-patrimoine-sans-peg-details", Routes.ACCUEIL) { toucher("Sans le PEG"); defiler(5); toucherDebut("Afficher") }
+    @Test fun accueilCompteDeplie() = capture("01-patrimoine-compte-deplie", Routes.ACCUEIL) { defiler(6); toucher("Compte-titres") }
+    @Test fun accueilInfobulle() = capture("01-patrimoine-infobulle", Routes.ACCUEIL) { poser(0.6f, GY_ACCUEIL) }
+    @Test fun fluxInfobulle() = capture("03-flux-infobulle", Routes.DEPENSES) { poser(0.6f, GY_FLUX) }
+    @Test fun bourseInfobulle() = capture("02-bourse-infobulle", Routes.BOURSE) { toucher("1A"); poser(0.6f, GY_BOURSE) }
+    @Test fun titreInfobulle() = capture("13-titre-infobulle", Routes.titre(ACTION)) { toucher("1A"); poser(0.6f, GY_TITRE) }
     @Test fun bourse() = capture("02-bourse-defaut", Routes.BOURSE)
     @Test fun bourseCartes() = capture("02-bourse-positions", Routes.BOURSE) { defiler(4) }
     @Test fun bourseMilieu() = capture("02-bourse-rendements", Routes.BOURSE) { defiler(5) }
@@ -117,15 +146,16 @@ class EcransTest {
     @Test fun titre1J() = capture("13-titre-1j", Routes.titre(ACTION))
     @Test fun titre1A() = capture("13-titre-1a-haut", Routes.titre(ACTION)) { toucher("1A") }
     @Test fun titreBas() = capture("13-titre-bas", Routes.titre(ACTION)) { toucher("1A"); defiler(4) }
-    @Test fun titreToutVoir() = capture("13-titre-operations", Routes.titre(ACTION)) { toucher("1A"); defiler(4); toucher("Tout voir (9)") }
+    @Test fun titreToutVoir() = capture("13-titre-operations", Routes.titre(ACTION)) { toucher("1A"); defiler(4); toucherDebut("Tout voir (") }
     @Test fun titreEtf() = capture("13-titre-etf-3m", Routes.titre(ETF)) { toucher("3M") }
     @Test fun titreSansPrixDeRevient() = capture("13-titre-sans-prix-de-revient", Routes.titre(SANS_COUT)) { toucher("1A") }
     @Test fun titreSansPrixDeRevientBas() = capture("13-titre-sans-prix-de-revient-bas", Routes.titre(SANS_COUT)) { toucher("1A"); defiler(2) }
     @Test fun flux() = capture("03-flux", Routes.DEPENSES)
     @Test fun fluxRevenus() = capture("03-flux-revenus", Routes.DEPENSES) { defiler(2) }
     @Test fun fluxDepenses() = capture("03-flux-depenses", Routes.DEPENSES) { defiler(4) }
-    @Test fun fluxTaux() = capture("03-flux-taux", Routes.DEPENSES) { defiler(5) }
-    @Test fun fluxOperations() = capture("03-flux-operations", Routes.DEPENSES) { defiler(7) }
+    @Test fun fluxParMois() = capture("03-flux-par-mois", Routes.DEPENSES) { defiler(5) }
+    @Test fun fluxTaux() = capture("03-flux-taux", Routes.DEPENSES) { defiler(6) }
+    @Test fun fluxOperations() = capture("03-flux-operations", Routes.DEPENSES) { defiler(8) }
     @Test fun analyses() = capture("04-analyses", Routes.ANALYSES)
     @Test fun plus() = capture("05-plus", Routes.PLUS)
     @Test fun vendeurs() = capture("06-vendeurs", Routes.VENDEURS)

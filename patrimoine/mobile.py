@@ -186,9 +186,6 @@ def etat() -> dict:
     }
 
 
-_SECURITIES_ACCOUNTS = ("tr_cto", "tr_pea")  # same accounts as api.patrimoine's cost basis
-
-
 def _points(s) -> list:
     """Daily series as [[ISO date, value rounded to the cent]]."""
     step = max(1, len(s) // 400)  # a chart cannot show more than a few hundred points: 10 years of days weigh 700 KB
@@ -206,6 +203,8 @@ def accueil(jours: int = 3650) -> dict:
     out: dict[str, Any] = {"patrimoine": api.patrimoine()}
     with db.session(settings().db_path) as con:
         h = queries.history(con)
+        securities = db.accounts_of_kind(con, *db.SECURITIES_KINDS)  # same accounts as api.patrimoine's cost basis
+        out["comptes_titres"] = queries.labels_of_kind(con, *db.SECURITIES_KINDS)
     if not h.empty:
         total = h.groupby("date")["value"].sum()
         total = total[total.index >= total.index.max() - pd.Timedelta(days=jours)]
@@ -213,13 +212,12 @@ def accueil(jours: int = 3650) -> dict:
         out["courbe"] = _points(total)
         w = h[h.date >= since]
         out["courbes_comptes"] = {name: _points(g.set_index("date")["value"]) for name, g in w.groupby("account")}
-        inv = w[w.account_id.isin(_SECURITIES_ACCOUNTS)].groupby("date")[["securities", "cost"]].sum()
+        inv = w[w.account_id.isin(securities)].groupby("date")[["securities", "cost"]].sum()
         out["courbe_titres"] = {"valeur": _points(inv["securities"]), "cout": _points(inv["cost"])}
     else:
         out["courbe"] = []
         out["courbes_comptes"] = {}
         out["courbe_titres"] = {"valeur": [], "cout": []}
-    out["comptes_titres"] = [queries.ACCOUNT_LABELS[a] for a in _SECURITIES_ACCOUNTS]
     out["synthese"] = api.synthese()  # {"erreur": ...} si l'historique est vide
     last = api.analyses(1)
     out["derniere_analyse"] = (last.get("analyses") or [None])[0]
@@ -368,6 +366,13 @@ def export_database(dest: str) -> str:
     from . import imports
 
     return _reply(lambda: {"fichier": str(imports.backup(settings(), Path(dest)))})
+
+
+def create_account(account: str, name: str, kind: str, institution: str = "") -> str:
+    """Create an account of the user (kind: courant, livret, especes, cto, pea, peg, prepaye)."""
+    from . import imports
+
+    return _reply(lambda: imports.creer_compte(settings(), account, name, kind, institution))
 
 
 def set_balance(account: str, amount: str) -> str:

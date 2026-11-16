@@ -435,6 +435,7 @@ private fun CarteDetails(d: JSONObject, sansPeg: Boolean) {
             "Patrimoine total moins l'impôt estimé sur tes gains si tu vendais et retirais tout aujourd'hui : 30 % sur le compte-titres, les dividendes hors PEA " +
                 "et les intérêts ; 17,2 % de prélèvements sociaux sur le PEA et le PEG. Les versements ne sont pas imposés." + note),
     )
+    var aide by rememberSaveable { mutableStateOf<Int?>(null) }
     Carte {
         CarteEntete("Détails" + if (sansPeg) " · hors PEG" else "", droite = {
             Text(if (ouvert) "Masquer" else "Afficher", Modifier.clickable { ouvert = !ouvert }.padding(vertical = 4.dp),
@@ -444,10 +445,18 @@ private fun CarteDetails(d: JSONObject, sansPeg: Boolean) {
             Modifier.clickable { ouvert = true }, fontSize = 12.sp, color = Pt.Mute, lineHeight = 16.sp)
         else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                tuiles.chunked(2).forEach { paire ->
+                tuiles.chunked(2).forEachIndexed { r, paire ->
                     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        paire.forEach { TuileDetail(it, Modifier.weight(1f).fillMaxHeight()) }
+                        paire.forEachIndexed { c, t ->
+                            val i = 2 * r + c
+                            TuileDetail(t, aide == i, { aide = if (aide == i) null else i }, Modifier.weight(1f).fillMaxHeight())
+                        }
                         if (paire.size == 1) Box(Modifier.weight(1f))
+                    }
+                    // L'explication s'affiche sous la ligne de la tuile touchée : les deux tuiles gardent la même hauteur.
+                    tuiles.getOrNull(aide ?: -1)?.takeIf { aide != null && aide!! / 2 == r }?.let { t ->
+                        Text(t.aide, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Pt.Pastille).padding(10.dp),
+                            fontSize = 12.sp, color = Pt.Sub, lineHeight = 16.sp)
                     }
                 }
                 if (note.isNotBlank()) Text(note.trim(), fontSize = 12.sp, color = Pt.Mute, lineHeight = 16.sp)
@@ -458,16 +467,14 @@ private fun CarteDetails(d: JSONObject, sansPeg: Boolean) {
 
 /** Tuile d'indicateur ; un toucher déplie son explication (ⓘ). */
 @Composable
-private fun TuileDetail(t: Tuile, modifier: Modifier = Modifier) {
-    var ouvert by remember { mutableStateOf(false) }
+private fun TuileDetail(t: Tuile, ouvert: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier.clip(RoundedCornerShape(14.dp)).background(Pt.Pastille).clickable { ouvert = !ouvert }.padding(12.dp),
+        modifier.clip(RoundedCornerShape(14.dp)).background(Pt.Pastille).clickable(onClick = onToggle).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Text(t.libelle + " ⓘ", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Pt.Mute, lineHeight = 15.sp)
+        Text(t.libelle + "\u00A0ⓘ", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (ouvert) Pt.Accent else Pt.Mute, lineHeight = 15.sp)
         Text(t.valeur, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (t.ton != null) gainColor(t.ton) else Pt.Encre, maxLines = 1)
         Text(t.sous, fontSize = 12.sp, color = Pt.Mute, lineHeight = 15.sp)
-        if (ouvert) Text(t.aide, Modifier.padding(top = 6.dp), fontSize = 12.sp, color = Pt.Sub, lineHeight = 16.sp)
     }
 }
 

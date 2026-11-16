@@ -33,6 +33,15 @@ def cmd_demo(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_accounts(args: argparse.Namespace, settings: Settings) -> None:
+    if args.ajouter:
+        from . import imports
+
+        try:
+            r = imports.creer_compte(settings, args.ajouter, args.nom or "", args.type or "", args.etablissement or "")
+        except ValueError as e:
+            raise SystemExit(str(e)) from None
+        print(f"Compte créé : {r['id']} ({r['nom']}, {r['type']})")
+        return
     with db.session(settings.db_path) as con:
         for a in con.execute("SELECT id, institution, name, kind, source FROM accounts ORDER BY institution, id"):
             print(f"{a['id']:<18} {a['institution']:<7} {a['name']:<18} {a['kind']:<8} {a['source']}")
@@ -260,7 +269,12 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("demo", help="Remplir une base vide avec un jeu de données fictif")
     p.add_argument("dossier", nargs="?", help="Dossier où écrire le jeu fictif (obligatoire, jamais le dossier de données réel)")
     p.set_defaults(func=cmd_demo)
-    sub.add_parser("comptes", help="Lister les comptes").set_defaults(func=cmd_accounts)
+    p = sub.add_parser("comptes", help="Lister les comptes, ou en créer un avec --ajouter")
+    p.add_argument("--ajouter", metavar="ID", help="Identifiant du compte à créer (ex. banque_courant)")
+    p.add_argument("--nom", help="Nom affiché")
+    p.add_argument("--type", help="courant, livret, especes, cto, pea, peg ou prepaye")
+    p.add_argument("--etablissement", help="Banque ou courtier (facultatif)")
+    p.set_defaults(func=cmd_accounts)
     p = sub.add_parser("secret", help="Gérer les secrets (PIN, jetons)")
     p.add_argument("action", choices=["list", "set", "delete"])
     p.add_argument("name", nargs="?")

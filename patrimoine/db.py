@@ -154,6 +154,11 @@ CREATE TABLE IF NOT EXISTS merchant_names (   -- display name of a merchant; sev
 );
 """
 
+# Comptes du premier utilisateur, semés à l'initialisation (INSERT OR IGNORE : une base qui a d'autres comptes les
+# garde telle quelle). Les identifiants ne sont codés en dur que dans cette liste, dans les connecteurs
+# (`sources/tr_parse.py`, `cmb_parse.py`, `cmb_csv.py`, `amundi.py`, qui produisent ces ids) et dans les libellés
+# d'affichage historiques de `queries.ACCOUNT_LABELS`. Tout le reste du moteur cherche les comptes par type
+# (`accounts_of_kind`), jamais par identifiant.
 ACCOUNTS = [
     ("cmb_courant", "CMB", "Compte courant", "courant", "banque"),
     ("cmb_livret_jeune", "CMB", "Livret Jeune", "livret", "banque"),
@@ -283,6 +288,62 @@ def init(con: sqlite3.Connection) -> None:
     )
     con.commit()
     con.execute(f"PRAGMA user_version = {signature}")
+
+
+CASH_KINDS = ("courant", "livret", "especes", "pea", "prepaye")  # types dont les liquidités comptent dans la valeur
+SECURITIES_KINDS = ("cto", "pea")  # comptes où l'on suit des titres achetés (hors épargne salariale)
+ACCOUNT_KINDS = ("courant", "livret", "especes", "cto", "pea", "peg", "prepaye")
+
+
+def accounts_of_kind(con: sqlite3.Connection, *kinds: str) -> list[str]:
+    """Identifiants des comptes de ces types, dans l'ordre de création ; liste vide si aucun (ou pas de table)."""
+    if not kinds:
+        return []
+    try:
+        rows = con.execute(f"SELECT id FROM accounts WHERE kind IN ({','.join('?' * len(kinds))}) ORDER BY rowid",
+                           kinds).fetchall()
+    except sqlite3.OperationalError:  # base sans la table
+        return []
+    return [r[0] for r in rows]
+
+
+def main_account(con: sqlite3.Connection, kind: str) -> str | None:
+    """Compte principal d'un type : celui qui a le plus d'opérations (les comptes semés par `ACCOUNTS` restent
+    vides chez un autre utilisateur), à égalité le premier créé ; None sans compte de ce type."""
+    found = accounts_of_kind(con, kind)
+    if len(found) < 2:
+        return found[0] if found else None
+    counts = dict(con.execute(
+        f"SELECT acc, COUNT(*) FROM (SELECT account_id AS acc FROM transactions UNION ALL"
+        f" SELECT holding_account_id FROM transactions WHERE holding_account_id IS NOT NULL)"
+        f" WHERE acc IN ({','.join('?' * len(found))}) GROUP BY acc", found).fetchall())
+    return max(found, key=lambda a: (counts.get(a, 0), -found.index(a)))
+
+
+def used_accounts(con: sqlite3.Connection, *kinds: str) -> list[str]:
+    """Comptes de ces types qui ont au moins une opération ou une position (les comptes semés restés vides sont
+    écartés)."""
+    out = []
+    for acc in accounts_of_kind(con, *kinds):
+        if con.execute("SELECT 1 FROM transactions WHERE account_id = ?1 OR holding_account_id = ?1 LIMIT 1",
+                       (acc,)).fetchone() or con.execute("SELECT 1 FROM positions WHERE account_id = ?", (acc,)).fetchone():
+            out.append(acc)
+    return out
+
+
+def create_account(con: sqlite3.Connection, account_id: str, name: str, kind: str, institution: str = "",
+                   source: str = "manuel") -> bool:
+    """Crée un compte de l'utilisateur ; False s'il existe déjà. Lève ValueError si l'id, le nom ou le type est
+    invalide."""
+    account_id = (account_id or "").strip()
+    if not account_id or not name.strip():
+        raise ValueError("identifiant et nom du compte obligatoires")
+    if kind not in ACCOUNT_KINDS:
+        raise ValueError(f"type de compte inconnu : {kind!r} ({', '.join(ACCOUNT_KINDS)})")
+    cur = con.execute("INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, ?, ?, ?, ?)",
+                      (account_id, institution.strip() or "Autre", name.strip(), kind, source))
+    con.commit()
+    return cur.rowcount > 0
 
 
 def get_meta(con: sqlite3.Connection, key: str) -> Any:

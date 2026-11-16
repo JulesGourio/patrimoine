@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -37,8 +38,8 @@ import kotlin.math.min
  * Un mois du graphique des flux : revenus empilés par source (au-dessus de la ligne), dépenses (en dessous) et épargne.
  * [detail] : lignes de l'infobulle quand on touche le mois (titre, revenus par source, dépenses, épargne, taux).
  */
-class BarreFlux(val lettre: String, val sources: List<Pair<Color, Double>>, val depenses: Double, val epargne: Double,
-               val detail: List<LigneInfobulle> = emptyList())
+data class BarreFlux(val lettre: String, val sources: List<Pair<Color, Double>>, val depenses: Double, val epargne: Double,
+                     val detail: List<LigneInfobulle> = emptyList())
 
 val CouleurDepenses = Color(0xFFFF8D83)
 
@@ -56,18 +57,20 @@ fun GraphiqueFlux(barres: List<BarreFlux>, choix: Int, onChoix: (Int) -> Unit, m
     if (n == 0) return
     val mesure = rememberTextMeasurer()
     val police = MaterialTheme.typography.bodySmall.fontFamily
-    var survol by remember(barres) { mutableStateOf<Int?>(null) }
+    // Pas de clé : toucher change le mois (donc `barres`), l'état ne doit pas être réinitialisé pendant le geste.
+    var survol by remember { mutableStateOf<Int?>(null) }
+    val choisir by rememberUpdatedState(onChoix)
     Canvas(
         modifier.fillMaxWidth().height(HAUT_FLUX).pointerInput(n) {
             awaitEachGesture {
                 val down = awaitFirstDown()
                 fun indice(x: Float) = ((x / size.width) * n).toInt().coerceIn(0, n - 1)
-                survol = indice(down.position.x).also(onChoix)
+                survol = indice(down.position.x).also { choisir(it) }
                 do {
                     val ev = awaitPointerEvent()
                     val c = ev.changes.first()
                     val i = indice(c.position.x)
-                    if (i != survol) { survol = i; onChoix(i) }
+                    if (i != survol) { survol = i; choisir(i) }
                     // Glissé horizontal : le graphique le garde ; vertical : la liste défile.
                     if (abs(c.positionChange().x) > abs(c.positionChange().y)) c.consume()
                 } while (c.pressed)
@@ -127,7 +130,7 @@ fun CourbeTaux(valeurs: List<Double?>, dernierMois: String, modifier: Modifier =
     val mesure = rememberTextMeasurer()
     val police = MaterialTheme.typography.bodySmall.fontFamily
     val style = TextStyle(fontSize = 10.sp, fontFamily = police, color = Pt.Mute)
-    var survol by remember(valeurs) { mutableStateOf<Int?>(null) }
+    var survol by remember { mutableStateOf<Int?>(null) }
     val nb = valeurs.size
     Canvas(
         modifier.fillMaxWidth().height(86.dp).pointerInput(valeurs) {
@@ -152,7 +155,7 @@ fun CourbeTaux(valeurs: List<Double?>, dernierMois: String, modifier: Modifier =
         val lo = kotlin.math.floor(pts.minOf { it.second } * 10) / 10
         val hi = kotlin.math.ceil(pts.maxOf { it.second } * 10) / 10
         val etendue = if (hi - lo < 0.1) 0.1 else hi - lo
-        val haut = 8.dp.toPx()
+        val haut = 15.dp.toPx()   // laisse la place de l'étiquette de borne au-dessus de la grille
         val bas = 70.dp.toPx()
         fun y(v: Double) = (bas - ((v - lo) / etendue).toFloat() * (bas - haut))
         listOf(haut, (haut + bas) / 2, bas).forEach { drawLine(Pt.Ligne, Offset(0f, it), Offset(size.width, it), 1.dp.toPx()) }

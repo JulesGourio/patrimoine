@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -632,7 +634,7 @@ fun StackedBarChart(
                 }
             }
             BoxWithConstraints(Modifier.weight(1f)) {
-                val minBar = 36.dp
+                val minBar = 20.dp   // 13 mois tiennent sur un écran de téléphone ; défilement seulement au-delà
                 val contentW = if (minBar * n > maxWidth) minBar * n else maxWidth
                 val scroll = rememberScrollState()
                 LaunchedEffect(n, scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
@@ -693,10 +695,11 @@ fun StackedBarChart(
                             )
                         }
                     }
+                    val etroit = contentW / n < 34.dp   // « mars » ne tient pas : initiale (le mois entier est dans l'infobulle)
                     Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                         groups.forEach { g ->
                             Text(
-                                g.label,
+                                if (etroit) g.label.take(1).uppercase() else g.label,
                                 Modifier.weight(1f),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                 color = scheme.onSurfaceVariant,
@@ -711,7 +714,8 @@ fun StackedBarChart(
         }
         if (limitLine != null) Muted("Ligne pointillée : ${valueFormat(limitLine)}")
         if (cats.size > 1) {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 cats.forEachIndexed { i, c -> LegendItem(c, palette[i]) }
             }
         }
@@ -1080,7 +1084,8 @@ private val HAUT_PATRIMOINE = 170.dp
 fun GraphiquePatrimoine(dates: List<String>, couches: List<CoucheEmpilee>, anneeAxe: Boolean, modifier: Modifier = Modifier) {
     val n = dates.size
     if (n < 2 || couches.isEmpty()) return
-    var survol by remember(dates, couches) { mutableStateOf<Int?>(null) }
+    // Pas de clé : `dates`/`couches` sont reconstruits à chaque recomposition (listes non mémorisées).
+    var survol by remember { mutableStateOf<Int?>(null) }
     val mesure = rememberTextMeasurer()
     val axe = TextStyle(fontSize = 10.sp, color = Pt.NuitSub)
     val totaux = remember(dates, couches) { DoubleArray(n) { i -> couches.sumOf { it.valeurs.getOrElse(i) { 0.0 } } } }
@@ -1119,13 +1124,13 @@ fun GraphiquePatrimoine(dates: List<String>, couches: List<CoucheEmpilee>, annee
         val fin = Offset(l, y(totaux.last()))
         drawCircle(Pt.Nuit, 6.dp.toPx(), fin)
         drawCircle(couleur, 4.dp.toPx(), fin)
-        drawText(mesure, eurosK(hi), Offset(6.dp.toPx(), haut + 1.dp.toPx()), axe)
-        drawText(mesure, eurosK(lo), Offset(6.dp.toPx(), bas - 14.dp.toPx()), axe)
+        etiquetteAxe(mesure, eurosK(hi), Offset(6.dp.toPx(), haut + 1.dp.toPx()), axe)
+        etiquetteAxe(mesure, eurosK(lo), Offset(6.dp.toPx(), bas - 14.dp.toPx()), axe)
         val pied = bas + 5.dp.toPx()
         val premier = dateCourte(dates.first(), anneeAxe)
         val dernier = dateCourte(dates.last(), anneeAxe)
-        drawText(mesure, premier, Offset(6.dp.toPx(), pied), axe)
-        drawText(mesure, dernier, Offset(size.width - 6.dp.toPx() - mesure.measure(dernier, axe).size.width, pied), axe)
+        etiquetteAxe(mesure, premier, Offset(6.dp.toPx(), pied), axe)
+        etiquetteAxe(mesure, dernier, Offset(size.width - 6.dp.toPx() - mesure.measure(dernier, axe).size.width, pied), axe)
 
         survol?.let { i ->
             val p = Offset(x(i), y(totaux[i]))
@@ -1145,6 +1150,14 @@ fun GraphiquePatrimoine(dates: List<String>, couches: List<CoucheEmpilee>, annee
             infobulleDetaillee(mesure, lignes, p.x, haut, InfobulleClaire)
         }
     }
+}
+
+/** Étiquette d'axe sur fond du bloc sombre : reste lisible quand la courbe ou l'aire passe dessous. */
+fun DrawScope.etiquetteAxe(mesure: TextMeasurer, texte: String, pos: Offset, style: TextStyle) {
+    val m = mesure.measure(texte, style)
+    val px = 3.dp.toPx()
+    drawRoundRect(Pt.Nuit.copy(alpha = 0.82f), Offset(pos.x - px, pos.y - 1.dp.toPx()), Size(m.size.width + 2 * px, m.size.height + 2.dp.toPx()), CornerRadius(3.dp.toPx()))
+    drawText(m, topLeft = pos)
 }
 
 /** Marge de l'échelle verticale autour du plus bas et du plus haut de la période affichée. */

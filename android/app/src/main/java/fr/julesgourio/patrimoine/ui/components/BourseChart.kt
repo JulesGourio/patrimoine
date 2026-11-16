@@ -173,15 +173,15 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
 
         // Axes : bornes à gauche, première et dernière dates en pied.
         val fmt = formatAxe(modele, lo, hi)
-        drawText(mesure, fmt(hi), Offset(6.dp.toPx(), haut + 1.dp.toPx()), axe)
-        drawText(mesure, fmt((lo + hi) / 2), Offset(6.dp.toPx(), (haut + bas) / 2 + 1.dp.toPx()), axe)
-        drawText(mesure, fmt(lo), Offset(6.dp.toPx(), bas - 14.dp.toPx()), axe)
+        etiquetteAxe(mesure, fmt(hi), Offset(6.dp.toPx(), haut + 1.dp.toPx()), axe)
+        etiquetteAxe(mesure, fmt((lo + hi) / 2), Offset(6.dp.toPx(), (haut + bas) / 2 + 1.dp.toPx()), axe)
+        etiquetteAxe(mesure, fmt(lo), Offset(6.dp.toPx(), bas - 14.dp.toPx()), axe)
         val pied = TOTAL.toPx() - 15.dp.toPx()
         val premier = libelleAxe(modele.dates.first(), modele.anneeAxe)
         val dernier = libelleAxe(modele.dates.last(), modele.anneeAxe)
-        drawText(mesure, premier, Offset(6.dp.toPx(), pied), axe)
+        etiquetteAxe(mesure, premier, Offset(6.dp.toPx(), pied), axe)
         val fin = mesure.measure(dernier, axe)
-        drawText(mesure, dernier, Offset(size.width - 6.dp.toPx() - fin.size.width, pied), axe)
+        etiquetteAxe(mesure, dernier, Offset(size.width - 6.dp.toPx() - fin.size.width, pied), axe)
 
         pointSurvol?.let { p ->
             drawLine(Color.White.copy(alpha = 0.5f), Offset(p.x, haut), Offset(p.x, bas), 1.dp.toPx())

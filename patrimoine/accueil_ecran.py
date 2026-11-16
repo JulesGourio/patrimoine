@@ -12,7 +12,7 @@ import sqlite3
 
 import pandas as pd
 
-from . import analytics, bourse, portfolio, queries
+from . import analytics, bourse, db, portfolio, queries
 
 PERIODES = ["1S", "1M", "3M", "YTD", "1A", "MAX"]
 MAX_POINTS = 120
@@ -22,7 +22,6 @@ JOURS_COMPTE = 30
 # Regroupement de l'écran : (id, libellé) ; les groupes de `queries.account_groups` y sont rattachés.
 TYPES = [("placements", "Placements"), ("courants", "Comptes courants"), ("livrets", "Livrets")]
 TYPE_DU_GROUPE = {"Bourse": "placements", "Épargne salariale": "placements", "Livrets": "livrets", "Liquidités": "courants"}
-PEG = "peg_airbus"
 LIQUIDES = ("courants", "livrets")  # disponible sous 48 h
 
 
@@ -162,7 +161,7 @@ def donnees(con: sqlite3.Connection, synthese: dict | None = None, synthese_sans
     nom_type = dict(TYPES)
 
     # Comptes : valeur du jour, variation sur 30 jours et petite courbe.
-    securities = {r[0] for r in con.execute("SELECT DISTINCT account_id FROM positions WHERE quantity > 0")} | {"tr_cto", "tr_pea"}
+    securities = {r[0] for r in con.execute("SELECT DISTINCT account_id FROM positions WHERE quantity > 0")} | set(db.accounts_of_kind(con, *db.SECURITIES_KINDS))
     libelles = h.drop_duplicates("account_id").set_index("account_id")["account"]
     comptes = []
     d30 = fin - pd.Timedelta(days=JOURS_COMPTE)
@@ -185,13 +184,15 @@ def donnees(con: sqlite3.Connection, synthese: dict | None = None, synthese_sans
         })
     comptes.sort(key=lambda c: (ids.index(c["type"]) if c["type"] in ids else 9, -c["valeur"]))
 
-    prepayes = {r[0] for r in con.execute("SELECT id FROM accounts WHERE kind = 'prepaye'")}  # cartes : pas de l'épargne
+    prepayes = set(db.accounts_of_kind(con, "prepaye"))  # cartes : pas de l'épargne
     disponible = float(sum(par_compte[a].iloc[-1] for a in par_compte.columns
                            if type_de[a] in LIQUIDES and a not in prepayes))
     # Variante sans le PEG : mêmes périodes et mêmes types, sans le compte d'épargne salariale Airbus.
     sans_peg = None
-    if PEG in par_compte.columns and abs(float(par_compte[PEG].iloc[-1])) > 0.005 and (h.account_id != PEG).any():
-        v = _vue(con, h[h.account_id != PEG], type_de)
+    pegs = db.accounts_of_kind(con, "peg")
+    avec_peg = [a for a in pegs if a in par_compte.columns and abs(float(par_compte[a].iloc[-1])) > 0.005]
+    if avec_peg and (~h.account_id.isin(pegs)).any():
+        v = _vue(con, h[~h.account_id.isin(pegs)], type_de)
         sans_peg = {"total": _f(v["total"]), "types": v["types"], "periodes": v["periodes"],
                     "details": _details(synthese_sans_peg)}
     return {

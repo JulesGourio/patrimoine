@@ -3,15 +3,20 @@
 L'outil a été écrit pour une seule personne. Ce document liste ce qui reste à rendre configurable, du plus utile
 au moins urgent. Chaque point est un bon sujet de PR ; ouvre une issue avant de te lancer.
 
-## 1. Comptes et établissements (le plus important)
+## 1. Comptes et établissements
 
-Les comptes sont codés en dur (`patrimoine/db.py`, liste `ACCOUNTS` : `cmb_courant`, `cmb_livret_a`, `tr_cto`,
-`tr_pea`, `peg_airbus`…) et ces identifiants sont référencés dans `sync.py`, `portfolio.py`, `queries.py`, `api.py`,
-`analytics.py` et `imports.py`.
+Fait : le moteur cherche les comptes par type (`kind` de la table `accounts` : `courant`, `livret`, `especes`, `cto`,
+`pea`, `peg`, `prepaye`) avec `db.accounts_of_kind`, `db.main_account` (le compte du type qui a le plus d'opérations)
+et `db.used_accounts` ; plus aucun identifiant en dur dans `portfolio`, `queries`, `analytics`, `api`,
+`accueil_ecran`, `mobile`. Les libellés d'affichage viennent de `queries.account_labels` (libellés historiques pour
+les ids du premier utilisateur, sinon le nom du compte) et les groupes de l'accueil du type (`queries.KIND_GROUPS`).
+Un compte se crée avec `uv run patrimoine comptes --ajouter ID --nom NOM --type courant [--etablissement X]`
+(`imports.creer_compte`, `mobile.create_account`), puis l'import CSV générique peut le cibler.
 
-À faire : une configuration des comptes de l'utilisateur (table ou fichier `data/comptes.toml` créé par
-`patrimoine init`), plutôt qu'une liste fixe ; remplacer chaque identifiant en dur par une recherche par type
-(`courant`, `livret`, `cto`, `pea`, `peg`…).
+Reste : `db.ACCOUNTS` sème encore les sept comptes du premier utilisateur dans toute base neuve (ils restent vides
+et sont ignorés par `main_account` / `used_accounts`), et les connecteurs (`sources/tr_parse.py`, `cmb_parse.py`,
+`cmb_csv.py`, `amundi.py`, `sync.py` pour leurs imports) produisent ces identifiants. Semer seulement les comptes des
+connecteurs que l'utilisateur active, et nommer les comptes du connecteur dans un réglage, reste à faire.
 
 ## 2. Interface de connecteurs
 
