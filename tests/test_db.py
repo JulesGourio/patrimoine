@@ -11,12 +11,36 @@ def test_init_seeds_accounts_and_peg():
     con = fresh()
     ids = {r["id"] for r in con.execute("SELECT id FROM accounts")}
     assert {"cmb_courant", "cmb_livret_jeune", "cmb_livret_a", "tr_especes", "tr_cto", "tr_pea", "peg_airbus"} == ids
-    peg = con.execute("SELECT quantity, source FROM positions WHERE account_id = 'peg_airbus'").fetchone()
-    assert peg["quantity"] == 109.4 and peg["source"] == "manuel"
+    assert con.execute("SELECT COUNT(*) FROM positions").fetchone()[0] == 0  # plus de PEG fantôme chez un nouvel utilisateur
+
+
+def test_base_existante_garde_la_ligne_peg():
+    """Une base d'avant (comptes déjà là, signature périmée) garde sa ligne PEG, et elle se recrée si elle manque."""
+    con = fresh()
+    con.execute("INSERT INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
+                " VALUES ('peg_airbus', ?, 109.4, NULL, '2026-01-01', 'manuel')", (db.AIRBUS[0],))
+    con.execute("PRAGMA user_version = 0")
+    db.init(con)
+    assert con.execute("SELECT quantity FROM positions WHERE account_id = 'peg_airbus'").fetchone()[0] == 109.4
+    con.execute("DELETE FROM positions")
+    con.execute("PRAGMA user_version = 0")
+    db.init(con)
+    assert con.execute("SELECT quantity FROM positions WHERE account_id = 'peg_airbus'").fetchone()[0] == 109.4
+
+
+def test_libelles_internes_ignorent_les_noms_d_etablissement():
+    con = fresh()
+    db.create_account(con, "rev", "Revolut", "courant")
+    db.create_account(con, "cc2", "Banque Verte Courant", "courant")
+    db.set_meta(con, "libelles_internes", ["COFFRE ZETA"])
+    labels = db.internal_labels(con)
+    assert "Revolut" not in labels and "Banque Verte Courant" in labels and "COFFRE ZETA" in labels
 
 
 def test_init_is_idempotent_and_keeps_manual_edits():
     con = fresh()
+    con.execute("INSERT INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
+                " VALUES ('peg_airbus', ?, 109.4, NULL, '2026-01-01', 'manuel')", (db.AIRBUS[0],))
     con.execute("UPDATE positions SET quantity = 120 WHERE account_id = 'peg_airbus'")
     db.set_rule(con, "carrefour", "Divers")
     db.init(con)

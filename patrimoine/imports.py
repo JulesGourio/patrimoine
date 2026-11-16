@@ -98,8 +98,14 @@ def csv_generique(settings: Settings, path: Path, profil: str | None = None, reg
                 raise ValueError(f"profil inconnu : {profil}")
             reglages = saved[profil]
         prof = gen.Profile.from_dict(dict(reglages))
-        if not con.execute("SELECT 1 FROM accounts WHERE id = ?", (prof.account,)).fetchone():
+        kind = con.execute("SELECT kind FROM accounts WHERE id = ?", (prof.account,)).fetchone()
+        if not kind:
             raise ValueError(f"Compte inconnu : {prof.account}")
+        if kind[0] in ("cto", "peg"):
+            raise ValueError(
+                f"L'import CSV générique ne gère que les comptes d'argent (courant, livret, espèces) : un compte "
+                f"{'titres' if kind[0] == 'cto' else 'PEG'} ({prof.account}) a besoin des titres et quantités, que le "
+                "fichier ne donne pas. Importer sur le compte espèces du courtier.")
         name = db.get_meta(con, "owner") or {}
         owner = set(words(name.get("last")) + words(name.get("first"))[:1])
         rows = gen.parse(gen.load(Path(path)), prof, owner, db.internal_labels(con))
@@ -115,7 +121,7 @@ def csv_generique(settings: Settings, path: Path, profil: str | None = None, reg
 
 
 def creer_compte(settings: Settings, account: str, nom: str, kind: str, etablissement: str = "") -> dict:
-    """Create an account of the user (``kind``: courant, livret, especes, cto, pea, peg or prepaye), so the generic CSV
+    """Create an account of the user (``kind``: courant, livret, especes, cto, pea or peg; a prepaid card is made with the card tool), so the generic CSV
     import and the balances can target it. Raises ValueError if it exists or the type is unknown."""
     with db.session(settings.db_path) as con:
         db.init(con)
@@ -131,7 +137,7 @@ def balance(settings: Settings, account: str, euros: str | float, day: str | Non
         db.init(con)
         if not con.execute("SELECT 1 FROM accounts WHERE id = ?", (account,)).fetchone():
             raise ValueError(f"Compte inconnu : {account}")
-        if account.startswith("prepaye_"):
+        if con.execute("SELECT 1 FROM accounts WHERE id = ? AND kind = 'prepaye'", (account,)).fetchone():
             raise ValueError("Carte prépayée : utiliser l'outil carte_solde (ajustement), pas un solde de référence")
         db.set_balance(con, account, day or date.today().isoformat(), cents)
     return cents

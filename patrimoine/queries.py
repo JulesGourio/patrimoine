@@ -114,7 +114,8 @@ def realised(con: sqlite3.Connection, replayed: tuple | None = None) -> pd.DataF
     book, _ = replayed or portfolio.replay(con)
     labels = account_labels(con)
     df = pd.DataFrame([{
-        "date": pd.Timestamp(r.date), "account": labels.get(r.account_id, r.account_id), "name": r.name,
+        "date": pd.Timestamp(r.date), "account": labels.get(r.account_id, r.account_id), "account_id": r.account_id,
+        "name": r.name,
         "isin": r.isin, "quantity": r.quantity, "proceeds": r.proceeds, "cost": r.cost, "gain": r.gain,
     } for r in book.realised])
     return df.sort_values("date", ascending=False) if not df.empty else df
@@ -227,7 +228,7 @@ def investment_income(con: sqlite3.Connection) -> pd.DataFrame:
     """Interest and dividends actually received, by flow and account, EUR."""
     df = pd.read_sql_query(
         "SELECT flow, COALESCE(holding_account_id, account_id) AS account_id, SUM(amount_cents) AS cents"
-        " FROM transactions WHERE flow IN ('interets', 'dividende') GROUP BY flow, account_id", con)
+        " FROM transactions WHERE flow IN ('interets', 'dividende') GROUP BY 1, 2", con)
     df["amount"] = df.pop("cents") / 100
     df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     return df

@@ -272,7 +272,7 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("comptes", help="Lister les comptes, ou en créer un avec --ajouter")
     p.add_argument("--ajouter", metavar="ID", help="Identifiant du compte à créer (ex. banque_courant)")
     p.add_argument("--nom", help="Nom affiché")
-    p.add_argument("--type", help="courant, livret, especes, cto, pea, peg ou prepaye")
+    p.add_argument("--type", help="courant, livret, especes, cto, pea ou peg (une carte prépayée : outil carte)")
     p.add_argument("--etablissement", help="Banque ou courtier (facultatif)")
     p.set_defaults(func=cmd_accounts)
     p = sub.add_parser("secret", help="Gérer les secrets (PIN, jetons)")

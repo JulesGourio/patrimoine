@@ -82,6 +82,10 @@ def build(db_path: Path | str, seed: int = 7, today: date | None = None) -> dict
         db.init(con)
         if con.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]:
             raise SystemExit(f"{db_path} contient déjà des opérations : le jeu fictif ne s'écrit que dans une base vide.")
+        # PEG fictif : une base neuve n'a plus de ligne PEG semée (db.init), le jeu fictif la saisit lui-même.
+        con.execute("INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
+                    " VALUES ('peg_airbus', ?, ?, NULL, ?, 'manuel')",
+                    (db.AIRBUS[0], db.PEG_AIRBUS_SHARES, date.today().isoformat()))
         n = 0
 
         def nxt() -> int:

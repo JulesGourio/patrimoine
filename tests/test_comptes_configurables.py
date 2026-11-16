@@ -134,3 +134,92 @@ def test_creer_un_compte_puis_importer_un_csv(tmp_path):
     assert out["compte"] == "ma_banque_cc" and out["nouvelles"] == 2
     with db.session(s.db_path) as con:
         assert db.main_account(con, "courant") == "ma_banque_cc"
+
+
+def _base_fictive(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATRIMOINE_DATA_DIR", str(tmp_path))
+    path = Settings().db_path
+    demo.build(path, today=AUJOURDHUI)
+    with db.session(path) as con:
+        df, _ = portfolio.valuations(con, AUJOURDHUI)
+        portfolio.store(con, df)
+    return path
+
+
+def test_performance_base_d_origine(tmp_path, monkeypatch):
+    _base_fictive(tmp_path, monkeypatch)
+    for compte in ("tr_cto", "tr_pea", "cto", "pea", ""):
+        r = api.performance(compte)
+        assert "erreur" not in r, r
+    assert api.performance("tr_cto")["comptes"] == ["tr_cto"]
+    assert api.performance("tr_pea")["comptes"] == ["tr_pea"]
+
+
+def test_gains_synthese_identiques_apres_renommage(tmp_path, monkeypatch):
+    path = _base_fictive(tmp_path, monkeypatch)
+    cles = ("gains_bruts", "gains_nets", "impots_latents", "interets_et_dividendes")
+    avant = api.synthese()
+    assert avant["gains_bruts"]
+    with db.session(path) as con:
+        _renommer(con)
+    apres = api.synthese()
+    for k in cles:
+        assert apres[k] == pytest.approx(avant[k]), k
+
+
+def test_compte_homonyme_refuse(tmp_path):
+    s = Settings(data_dir=tmp_path / "data")
+    imports.creer_compte(s, "ma_banque_cc", "Mon courant", "courant")
+    with pytest.raises(ValueError, match="déjà celui d'un autre compte"):
+        imports.creer_compte(s, "autre_cc", "mon COURANT", "courant")
+    with pytest.raises(ValueError, match="déjà celui d'un autre compte"):
+        imports.creer_compte(s, "mon_pea", "PEA", "pea")  # libellé historique de tr_pea
+
+
+def test_compte_prepaye_refuse_et_solde_selon_le_type(tmp_path):
+    s = Settings(data_dir=tmp_path / "data")
+    with pytest.raises(ValueError, match="creer_carte"):
+        imports.creer_compte(s, "prepaye_x", "Ma carte", "prepaye")
+    with db.session(s.db_path) as con:
+        db.init(con)
+        con.execute("INSERT INTO accounts (id, institution, name, kind, source) VALUES ('ma_carte', 'X', 'Ma carte', 'prepaye', 'manuel')")
+    with pytest.raises(ValueError, match="Carte prépayée"):
+        imports.balance(s, "ma_carte", "10")  # refusé d'après le type, pas le préfixe de l'id
+    imports.creer_compte(s, "prepaye_livret", "Livret perso", "livret")
+    assert imports.balance(s, "prepaye_livret", "10") == 1000  # un livret à l'id trompeur reste saisissable
+
+
+def test_csv_generique_refuse_cto_et_peg(tmp_path):
+    s = Settings(data_dir=tmp_path / "data")
+    imports.creer_compte(s, "mon_cto", "Mon titres", "cto")
+    imports.creer_compte(s, "mon_peg", "Mon plan", "peg")
+    p = tmp_path / "r.csv"
+    p.write_text("Date;Libellé;Montant\n02/10/2026;ACHAT;-4,50\n", encoding="utf-8")
+    for acc in ("mon_cto", "mon_peg"):
+        with pytest.raises(ValueError, match="compte espèces du courtier|Importer sur le compte espèces"):
+            imports.csv_generique(s, p, reglages={"account": acc, "amount": "Montant"})
+
+
+def test_main_account_deux_comptes_avec_operations(tmp_path):
+    s = Settings(data_dir=tmp_path / "data")
+    imports.creer_compte(s, "cc_a", "Courant A", "courant")
+    imports.creer_compte(s, "cc_b", "Courant B", "courant")
+    with db.session(s.db_path) as con:
+        ins = "INSERT INTO transactions (id, account_id, date, amount_cents, label, flow) VALUES (?, ?, '2026-01-02', -100, 'x', 'depense')"
+        for i, acc in enumerate(["cc_a"] * 2 + ["cc_b"] * 3):
+            con.execute(ins, (f"t{i}", acc))
+        # cmb_courant (semé) est vide ; le plus d'opérations l'emporte
+        assert db.main_account(con, "courant") == "cc_b"
+        con.execute(ins, ("t9", "cc_a"))
+        con.execute(ins, ("t10", "cc_a"))
+        assert db.main_account(con, "courant") == "cc_a"
+        con.execute("DELETE FROM transactions WHERE id = 't9'")
+        assert db.main_account(con, "courant") == "cc_a"  # 3 contre 3 : le premier créé l'emporte
+
+
+def test_preparer_ordre_compte_explicite(tmp_path, monkeypatch):
+    _base_fictive(tmp_path, monkeypatch)
+    r = api.preparer_ordre("achat", "Titre", "raison", "risque", compte="tr_pea", quantite=1, notifier=False)
+    assert r["ok"]
+    with db.session(Settings().db_path) as con:
+        assert con.execute("SELECT account_id FROM order_ideas ORDER BY id DESC").fetchone()[0] == "tr_pea"

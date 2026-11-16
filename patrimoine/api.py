@@ -588,12 +588,14 @@ def synthese(avec_peg: bool = True) -> dict:
     real = queries.realised(con, replayed)
     income = queries.investment_income(con)
     ps, pfu = 0.172, 0.30
-    wrapper = (pos.groupby("account").gain.sum() if not pos.empty else pd.Series(dtype=float)).add(
-        real.groupby("account").gain.sum() if not real.empty else pd.Series(dtype=float), fill_value=0.0)
-    gain_cto, gain_pea, gain_peg = (float(sum(wrapper.get(a, 0.0) for a in queries.labels_of_kind(con, kind))) for kind in ("cto", "pea", "peg"))
-    pea_labels = queries.labels_of_kind(con, "pea")
-    div_pea = float(income[(income.flow == "dividende") & income.account.isin(pea_labels)].amount.sum()) if len(income) else 0.0
-    div_other = float(income[(income.flow == "dividende") & ~income.account.isin(pea_labels)].amount.sum()) if len(income) else 0.0
+    # par identifiant de compte, jamais par libellé : deux comptes de même libellé ne se comptent pas deux fois
+    wrapper = (pos.groupby("account_id").gain.sum() if not pos.empty else pd.Series(dtype=float)).add(
+        real.groupby("account_id").gain.sum() if not real.empty else pd.Series(dtype=float), fill_value=0.0)
+    gain_cto, gain_pea, gain_peg = (float(wrapper.reindex(db.accounts_of_kind(con, kind)).fillna(0.0).sum())
+                                    for kind in ("cto", "pea", "peg"))
+    pea_ids = db.accounts_of_kind(con, "pea")
+    div_pea = float(income[(income.flow == "dividende") & income.account_id.isin(pea_ids)].amount.sum()) if len(income) else 0.0
+    div_other = float(income[(income.flow == "dividende") & ~income.account_id.isin(pea_ids)].amount.sum()) if len(income) else 0.0
     interest = float(income[income.flow == "interets"].amount.sum()) if len(income) else 0.0
     if not avec_peg:
         gain_peg = 0.0

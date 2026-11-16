@@ -250,10 +250,12 @@ def _seed_internal_labels(con: sqlite3.Connection) -> None:
 
 def internal_labels(con: sqlite3.Connection) -> list[str]:
     """Labels of transfers between the user's own accounts, beyond the generic ones: his own list
-    (meta ``libelles_internes``) and the names of his accounts."""
+    (meta ``libelles_internes``) and the names of his accounts that are precise (at least two words and six
+    characters). A one-word name, often the name of an institution ("Revolut"), is not taken: it would also match
+    ordinary payments to that merchant; the user adds it explicitly to ``libelles_internes`` if it is a transfer."""
     extra = [str(x) for x in (get_meta(con, "libelles_internes") or [])]
     names = [r[0] for r in con.execute("SELECT name FROM accounts WHERE name IS NOT NULL")]
-    return extra + [n for n in names if len(n) >= 6]
+    return extra + [n for n in names if len(n) >= 6 and len(n.split()) >= 2]
 
 
 def init(con: sqlite3.Connection) -> None:
@@ -267,17 +269,24 @@ def init(con: sqlite3.Connection) -> None:
         return  # déjà à jour : aucune écriture, donc aucune attente derrière une synchro en cours
     con.executescript(SCHEMA)
     migrate(con)
+    try:
+        neuve = con.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == 0
+    except sqlite3.OperationalError:
+        neuve = True
     con.executemany(
         "INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, ?, ?, ?, ?)",
         ACCOUNTS,
     )
     con.execute("UPDATE accounts SET name = 'Livret CMB' WHERE id = 'cmb_livret_a'")
     con.execute("INSERT OR IGNORE INTO instruments VALUES (?, ?, ?, ?, ?)", AIRBUS)
-    con.execute(
-        "INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
-        " VALUES ('peg_airbus', ?, ?, NULL, ?, 'manuel')",
-        (AIRBUS[0], PEG_AIRBUS_SHARES, now_iso()[:10]),
-    )
+    if not neuve:
+        # Base d'avant : la ligne PEG saisie à la main reste (et se recrée si elle manque) ; une base neuve n'en
+        # reçoit plus, la quantité étant celle du premier utilisateur.
+        con.execute(
+            "INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
+            " VALUES ('peg_airbus', ?, ?, NULL, ?, 'manuel')",
+            (AIRBUS[0], PEG_AIRBUS_SHARES, now_iso()[:10]),
+        )
     _keep_obsolete_rules(con)
     _seed_internal_labels(con)
     con.executemany(
@@ -334,12 +343,23 @@ def used_accounts(con: sqlite3.Connection, *kinds: str) -> list[str]:
 def create_account(con: sqlite3.Connection, account_id: str, name: str, kind: str, institution: str = "",
                    source: str = "manuel") -> bool:
     """Crée un compte de l'utilisateur ; False s'il existe déjà. Lève ValueError si l'id, le nom ou le type est
-    invalide."""
+    invalide, si le type est `prepaye` (une carte se crée avec l'outil `creer_carte`) ou si le nom est déjà celui
+    d'un autre compte (les écrans désignent les comptes par leur nom)."""
     account_id = (account_id or "").strip()
     if not account_id or not name.strip():
         raise ValueError("identifiant et nom du compte obligatoires")
     if kind not in ACCOUNT_KINDS:
         raise ValueError(f"type de compte inconnu : {kind!r} ({', '.join(ACCOUNT_KINDS)})")
+    if kind == "prepaye":
+        raise ValueError("une carte prépayée se crée avec l'outil carte (creer_carte), pas comme un compte")
+    if con.execute("SELECT 1 FROM accounts WHERE id = ?", (account_id,)).fetchone():
+        return False
+    from .queries import ACCOUNT_LABELS
+
+    taken = {r[0].strip().lower() for r in con.execute("SELECT name FROM accounts WHERE name IS NOT NULL")}
+    taken |= {v.strip().lower() for v in ACCOUNT_LABELS.values()}
+    if name.strip().lower() in taken:
+        raise ValueError(f"le nom « {name.strip()} » est déjà celui d'un autre compte")
     cur = con.execute("INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, ?, ?, ?, ?)",
                       (account_id, institution.strip() or "Autre", name.strip(), kind, source))
     con.commit()

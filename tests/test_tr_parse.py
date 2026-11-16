@@ -137,4 +137,4 @@ def test_import_is_idempotent_and_keeps_manual_category():
     row = con.execute("SELECT category, category_override FROM transactions WHERE id = 'card'").fetchone()
     assert tuple(row) == ("Courses", "Sport et loisirs")
     assert con.execute("SELECT quantity FROM positions WHERE account_id = 'tr_cto'").fetchone()[0] == 1.050751
-    assert con.execute("SELECT quantity FROM positions WHERE account_id = 'peg_airbus'").fetchone()[0] == 109.4
+    assert con.execute("SELECT 1 FROM positions WHERE account_id = 'peg_airbus'").fetchone() is None  # base neuve

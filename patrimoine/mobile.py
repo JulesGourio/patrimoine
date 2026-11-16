@@ -204,7 +204,7 @@ def accueil(jours: int = 3650) -> dict:
     with db.session(settings().db_path) as con:
         h = queries.history(con)
         securities = db.accounts_of_kind(con, *db.SECURITIES_KINDS)  # same accounts as api.patrimoine's cost basis
-        out["comptes_titres"] = queries.labels_of_kind(con, *db.SECURITIES_KINDS)
+        out["comptes_titres"] = list(dict.fromkeys(queries.labels_of_kind(con, *db.SECURITIES_KINDS)))
     if not h.empty:
         total = h.groupby("date")["value"].sum()
         total = total[total.index >= total.index.max() - pd.Timedelta(days=jours)]
@@ -369,7 +369,7 @@ def export_database(dest: str) -> str:
 
 
 def create_account(account: str, name: str, kind: str, institution: str = "") -> str:
-    """Create an account of the user (kind: courant, livret, especes, cto, pea, peg, prepaye)."""
+    """Create an account of the user (kind: courant, livret, especes, cto, pea, peg ; une carte prépayée se crée avec l'outil carte)."""
     from . import imports
 
     return _reply(lambda: imports.creer_compte(settings(), account, name, kind, institution))
