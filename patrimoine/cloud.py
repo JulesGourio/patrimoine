@@ -32,6 +32,9 @@ ANALYSES_BRANCH = "claude/analyses"
 ANALYSES_DIR = "cloud/analyses"
 DRAFT_DAYS = 7                          # unpublished drafts older than this are dropped
 _pull_lock = threading.Lock()  # the phone's sync and its hourly worker may both pull
+# Repository of the cloud exchange (branches `donnees`, `claude/analyses`). Set PATRIMOINE_GITHUB_REPO to
+# "owner/name" for another install; the fallback is the original author's repository, kept so that his existing
+# setup keeps working without any configuration.
 REPO = os.getenv("PATRIMOINE_GITHUB_REPO") or "JulesGourio/patrimoine"
 API = "https://api.github.com"
 

@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS valuations (      -- rebuilt from the transactions (p
     securities_cents INTEGER NOT NULL,  -- market value
     cost_cents INTEGER NOT NULL,        -- cost basis of what is still held
     realised_cents INTEGER NOT NULL,    -- cumulative realised gains
-    deposits_cents INTEGER NOT NULL,    -- cumulative money moved in from Jules's other accounts
+    deposits_cents INTEGER NOT NULL,    -- cumulative money moved in from the user's other accounts
     PRIMARY KEY (date, account_id)
 );
 CREATE TABLE IF NOT EXISTS category_rules (
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS reports (
     title TEXT,
     body_md TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS order_ideas (      -- orders Claude prepares; Jules places them himself
+CREATE TABLE IF NOT EXISTS order_ideas (      -- orders Claude prepares; the user places them himself
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
     account_id TEXT REFERENCES accounts(id),
@@ -214,6 +214,43 @@ def _signature() -> int:
     return zlib.crc32(texte.encode()) & 0x7FFFFFFF
 
 
+def _keep_obsolete_rules(con: sqlite3.Connection) -> None:
+    """A default rule that left the code (rules personal to the first user were moved out of it) becomes the
+    user's own, so it stays in his database. Nothing in the code ever deletes a rule."""
+    gone = [(r[0],) for r in con.execute("SELECT pattern FROM category_rules WHERE origin = 'defaut'")
+            if r[0] not in DEFAULT_RULES]
+    con.executemany("UPDATE category_rules SET origin = 'utilisateur' WHERE pattern = ?", gone)
+
+
+def _seed_internal_labels(con: sqlite3.Connection) -> None:
+    """Once: fill ``libelles_internes`` with what the user's own history already says. The counterparties of
+    the bank lines classified ``interne`` that the generic labels and his name no longer recognise are kept as
+    labels, so the next syncs keep classifying them the same way (no personal label lives in the code)."""
+    if con.execute("SELECT 1 FROM meta WHERE key = 'libelles_internes'").fetchone():
+        return
+    from .sources.cmb_parse import INTERNAL
+    from .sources.tr_parse import words
+
+    name = get_meta(con, "owner") or {}
+    owner = set(words(name.get("last")) + words(name.get("first"))[:1])
+    found: dict[str, None] = {}
+    for (who,) in con.execute("SELECT DISTINCT counterparty FROM transactions WHERE flow = 'interne'"
+                              " AND counterparty IS NOT NULL AND account_id LIKE 'cmb%'"):
+        who = who.strip()
+        if len(who) < 4 or INTERNAL.search(who) or (owner and owner <= set(words(who))):
+            continue
+        found[who.upper()] = None
+    set_meta(con, "libelles_internes", list(found))
+
+
+def internal_labels(con: sqlite3.Connection) -> list[str]:
+    """Labels of transfers between the user's own accounts, beyond the generic ones: his own list
+    (meta ``libelles_internes``) and the names of his accounts."""
+    extra = [str(x) for x in (get_meta(con, "libelles_internes") or [])]
+    names = [r[0] for r in con.execute("SELECT name FROM accounts WHERE name IS NOT NULL")]
+    return extra + [n for n in names if len(n) >= 6]
+
+
 def init(con: sqlite3.Connection) -> None:
     """Create the schema and seed the fixed accounts, the PEG holding and the default rules.
 
@@ -236,8 +273,10 @@ def init(con: sqlite3.Connection) -> None:
         " VALUES ('peg_airbus', ?, ?, NULL, ?, 'manuel')",
         (AIRBUS[0], PEG_AIRBUS_SHARES, now_iso()[:10]),
     )
+    _keep_obsolete_rules(con)
+    _seed_internal_labels(con)
     con.executemany(
-        # Default rules follow the code; rules Jules set himself are never touched.
+        # Default rules follow the code; rules the user set himself are never touched.
         "INSERT INTO category_rules (pattern, category, origin) VALUES (?, ?, 'defaut')"
         " ON CONFLICT(pattern) DO UPDATE SET category = excluded.category WHERE origin = 'defaut'",
         DEFAULT_RULES.items(),

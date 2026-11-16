@@ -125,3 +125,19 @@ def test_dividendes_des_seuls_comptes_presents(base):
 def test_pea_cinq_ans(base):
     i = api.accueil_ecran()["indicateurs"]
     assert i["pea_ouverture"] and i["pea_5_ans_date"][:4] == str(int(i["pea_ouverture"][:4]) + 5)
+
+
+def test_details_et_variante_sans_peg(base):
+    r = api.accueil_ecran()
+    d = r["details"]
+    assert d["gains_bruts"] is not None and d["gains_nets"] <= d["gains_bruts"]
+    assert d["apres_impots"] == pytest.approx(r["total"] - d["impots_latents"], abs=0.05)
+    s = r["sans_peg"]
+    if s is None:  # le jeu fictif n'a pas de PEG valorisé : rien à comparer
+        return
+    peg = sum(c["valeur"] for c in r["comptes"] if c["id"] == "peg_airbus")
+    assert s["total"] == pytest.approx(r["total"] - peg, abs=0.05)
+    assert set(s["periodes"]) == set(r["periodes"])
+    for p in s["periodes"].values():
+        assert p["serie"][-1][1] == pytest.approx(s["total"], abs=0.01)
+    assert s["details"]["gains_bruts"] is not None

@@ -19,11 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,11 +57,15 @@ import fr.julesgourio.patrimoine.ui.Routes
 import fr.julesgourio.patrimoine.ui.components.CallScreen
 import fr.julesgourio.patrimoine.ui.components.Carte
 import fr.julesgourio.patrimoine.ui.components.CarteEntete
-import fr.julesgourio.patrimoine.ui.components.GraphiqueBourse
+import fr.julesgourio.patrimoine.ui.components.CoucheEmpilee
+import fr.julesgourio.patrimoine.ui.components.DonutChart
+import fr.julesgourio.patrimoine.ui.components.GraphiquePatrimoine
+import fr.julesgourio.patrimoine.ui.components.Slice
+import fr.julesgourio.patrimoine.ui.components.Segmente
+import fr.julesgourio.patrimoine.ui.components.gainColor
 import fr.julesgourio.patrimoine.ui.components.GrilleIndicateurs
 import fr.julesgourio.patrimoine.ui.components.Indicateur
 import fr.julesgourio.patrimoine.ui.components.LocalSync
-import fr.julesgourio.patrimoine.ui.components.ModeleBourse
 import fr.julesgourio.patrimoine.ui.components.PastilleVariation
 import fr.julesgourio.patrimoine.ui.components.SectionCard
 import fr.julesgourio.patrimoine.ui.components.SelecteurPeriode
@@ -118,21 +125,27 @@ fun AccueilScreen(nav: NavController) {
     val sync = LocalSync.current
     val state = rememberCall("accueil_ecran")
     var periode by rememberSaveable { mutableStateOf("1A") }
+    var sansPeg by rememberSaveable { mutableStateOf(false) }
 
     CallScreen(state, PaddingValues(0.dp), horizontal = 0.dp) { data ->
-        item { EnTete(onReglages = { nav.navigate(Routes.REGLAGES) }, onAjouter = { nav.navigate(Routes.AJOUTER) }) }
-        val total = data.num("total")
-        if (data.str("erreur") != null || total == null) {
+        item { EnTete(sync.running, onSync = sync.start, onReglages = { nav.navigate(Routes.REGLAGES) }, onAjouter = { nav.navigate(Routes.AJOUTER) }) }
+        if (data.str("erreur") != null || data.num("total") == null) {
             item { Marge { Bienvenue(onSettings = { nav.navigate(Routes.REGLAGES) }, onSync = sync.start) } }
             return@CallScreen
         }
-        val periodes = data.objOrNull("periodes")
+        // Mode « Sans le PEG » : mêmes périodes et mêmes types, calculés sans le compte d'épargne salariale Airbus.
+        val variante = data.objOrNull("sans_peg")
+        val sans = sansPeg && variante != null
+        val vue = if (sans) variante!! else data
+        val total = vue.num("total") ?: return@CallScreen
+        val periodes = vue.objOrNull("periodes")
         val choix = if (periodes?.has(periode) == true) periode else "1A"
         val p = periodes?.objOrNull(choix)
-        item { Marge { BlocPrincipal(data, p, choix, total) { periode = it } } }
+        item { Marge { BlocPrincipal(vue, p, choix, total, data.int("nb_comptes") ?: 0, sans, variante != null, { periode = it }, { sansPeg = it }) } }
         p?.objOrNull("cascade")?.let { c -> item { Marge { CarteVariation(c, p, choix) } } }
-        if (data.list("types").isNotEmpty()) item { Marge { CarteRepartition(data) } }
+        if (vue.list("types").isNotEmpty()) item { Marge { CarteRepartition(vue) } }
         data.objOrNull("indicateurs")?.let { i -> item { Marge { CarteIndicateurs(i) } } }
+        (if (sans) variante?.objOrNull("details") else data.objOrNull("details"))?.let { d -> item { Marge { CarteDetails(d, sans) } } }
         item { Marge { CarteComptes(data, nav) } }
         data.objOrNull("derniere_analyse")?.let { a -> item { Marge { CarteAnalyse(a, nav) } } }
         item { Marge { CarteSuite(data, nav) } }
@@ -142,13 +155,16 @@ fun AccueilScreen(nav: NavController) {
 // ---------- en-tête ----------
 
 @Composable
-private fun EnTete(onReglages: () -> Unit, onAjouter: () -> Unit) {
+private fun EnTete(synchro: Boolean, onSync: () -> Unit, onReglages: () -> Unit, onAjouter: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 16.dp).height(44.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("Patrimoine", Modifier.weight(1f), fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp, color = Pt.Encre)
-        Box(Modifier.size(40.dp).clip(CircleShape).background(Pt.Carte).clickable(onClick = onReglages), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(40.dp).clip(CircleShape).background(Pt.Carte).clickable(enabled = !synchro, onClick = onSync), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Sync, contentDescription = "Synchroniser", Modifier.size(20.dp), tint = if (synchro) Pt.Mute else Pt.Encre)
+        }
+        Box(Modifier.padding(start = 6.dp).size(40.dp).clip(CircleShape).background(Pt.Carte).clickable(onClick = onReglages), contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.Settings, contentDescription = "Réglages", Modifier.size(20.dp), tint = Pt.Encre)
         }
         Box(Modifier.padding(start = 6.dp).size(40.dp).clip(CircleShape).background(Pt.Encre).clickable(onClick = onAjouter), contentAlignment = Alignment.Center) {
@@ -161,28 +177,31 @@ private fun EnTete(onReglages: () -> Unit, onAjouter: () -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BlocPrincipal(data: JSONObject, p: JSONObject?, periode: String, total: Double, onPeriode: (String) -> Unit) {
+private fun BlocPrincipal(
+    vue: JSONObject, p: JSONObject?, periode: String, total: Double, nbComptes: Int, sansPeg: Boolean, peutSansPeg: Boolean,
+    onPeriode: (String) -> Unit, onSansPeg: (Boolean) -> Unit,
+) {
     val money = LocalMoney.current
     val variation = p?.num("variation")
     val variationPct = p?.num("variation_pct")
     val ton = if ((variation ?: 0.0) < 0) money.lossNight else money.gainNight
-    val types = data.list("types")
-    val modele = remember(data, periode) {
+    val types = vue.list("types")
+    // Aires empilées par type ; l'échelle verticale se cale sur la période choisie (voir GraphiquePatrimoine).
+    val modele = remember(vue, periode) {
         val serie = serie(p?.optJSONArray("serie"))
-        val piles = types.mapNotNull { t ->
+        val couches = types.mapNotNull { t ->
             val id = t.str("id") ?: return@mapNotNull null
             val v = serie(p?.objOrNull("types")?.optJSONArray(id)).second
-            if (v.size == serie.first.size) (COULEUR_TYPE[id] ?: Pt.Series[5]) to v else null
+            if (v.size == serie.first.size) CoucheEmpilee(t.str("nom") ?: id, COULEUR_TYPE[id] ?: Pt.Series[5], v) else null
         }
-        if (serie.first.size < 2 || piles.isEmpty()) null else ModeleBourse.Comptes(serie.first, piles, periode in listOf("1A", "MAX"))
+        if (serie.first.size < 2 || couches.isEmpty()) null else serie.first to couches
     }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Pt.Nuit).padding(top = 18.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
-            val n = data.int("nb_comptes") ?: 0
-            Text("$n compte${if (n > 1) "s" else ""} · net", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Pt.NuitSub)
+            Text("$nbComptes compte${if (nbComptes > 1) "s" else ""} · net" + if (sansPeg) " · hors PEG" else "", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Pt.NuitSub)
             Text(euros(total, cents = false), fontSize = 38.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.1).sp,
                 color = Color.White, maxLines = 1, lineHeight = 42.sp)
         }
@@ -197,7 +216,7 @@ private fun BlocPrincipal(data: JSONObject, p: JSONObject?, periode: String, tot
             Text("$depuis · versements inclus", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Pt.NuitSub)
         }
         if (modele != null) {
-            GraphiqueBourse(modele)
+            GraphiquePatrimoine(modele.first, modele.second, periode in listOf("1A", "MAX"))
             FlowRow(
                 Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -215,6 +234,12 @@ private fun BlocPrincipal(data: JSONObject, p: JSONObject?, periode: String, tot
             }
         }
         SelecteurPeriode(PERIODES, periode, onPeriode)
+        if (peutSansPeg) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                Segmente(listOf("avec" to "Avec le PEG", "sans" to "Sans le PEG"), if (sansPeg) "sans" else "avec", { onSansPeg(it == "sans") },
+                    sombre = true, remplir = true)
+            }
+        }
     }
 }
 
@@ -245,16 +270,26 @@ private fun CarteVariation(c: JSONObject, p: JSONObject, periode: String) {
     val bas = max(0.0, mn - 0.25 * etendue)
     val haut = mx + 0.1 * etendue
     val money = LocalMoney.current
+    var choix by remember(c, periode) { mutableStateOf<Int?>(null) }
+    // Cumul après chaque étape, pour le détail au toucher.
+    val cumuls = ArrayList<Double>()
+    var acc = debut
+    lignes.forEach { (_, v, total) -> if (total) acc = v else acc += v; cumuls += acc }
     Carte {
         CarteEntete("D'où vient la variation", LEGENDE_PERIODE[periode])
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             var run = debut
-            lignes.forEach { (titre, v, total) ->
+            lignes.forEachIndexed { idx, (titre, v, total) ->
                 val a: Double
                 val b: Double
                 if (total) { a = bas; b = v; run = v } else { a = run; b = run + v; run += v }
                 val couleur = if (total) Pt.Encre else if (v < 0) money.loss else money.gain
-                Row(Modifier.fillMaxWidth().height(32.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().height(32.dp).clip(RoundedCornerShape(8.dp))
+                        .background(if (choix == idx) Pt.Pastille else Color.Transparent)
+                        .clickable { choix = if (choix == idx) null else idx },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(titre, Modifier.width(122.dp), fontSize = 12.sp, fontWeight = if (total) FontWeight.SemiBold else FontWeight.Medium,
                         color = if (total) Pt.Encre else Pt.Sub, maxLines = 2, lineHeight = 15.sp, overflow = TextOverflow.Ellipsis)
                     Box(
@@ -270,6 +305,27 @@ private fun CarteVariation(c: JSONObject, p: JSONObject, periode: String) {
                 }
             }
         }
+        choix?.let { k ->
+            val (titre, v, total) = lignes[k]
+            val explication = when (k) {
+                1 -> "Ce que tu as mis de côté ou retiré : salaire épargné, virements, retraits. Ce n'est pas de la performance."
+                2 -> "Plus-values latentes et réalisées de tes titres sur la période (hors titres dont le prix de revient est inconnu)."
+                3 -> "Dividendes et intérêts encaissés sur la période."
+                0 -> "Valeur de ton patrimoine net au début de la période."
+                else -> "Valeur actuelle de ton patrimoine net."
+            }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Pt.Nuit).padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(titre, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                if (total) Text(euros(v, cents = false), fontSize = 13.sp, color = Pt.NuitSub)
+                else {
+                    val ton = if (v >= 0) money.gainNight else money.lossNight
+                    Text(euros(v, sign = true, cents = false) + if (debut > 0) " · " + pct(v / debut, digits = 1) + " du patrimoine de départ" else "",
+                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ton)
+                    Text("Patrimoine après cette étape : " + euros(cumuls[k], cents = false), fontSize = 12.sp, color = Pt.NuitSub)
+                }
+                Text(explication, fontSize = 12.sp, color = Pt.NuitSub, lineHeight = 16.sp)
+            }
+        } ?: Text("Touche une ligne pour le détail.", fontSize = 12.sp, color = Pt.Mute)
     }
 }
 
@@ -279,32 +335,30 @@ private fun CarteVariation(c: JSONObject, p: JSONObject, periode: String) {
 private fun CarteRepartition(data: JSONObject) {
     val types = data.list("types")
     val investi = types.firstOrNull { it.str("id") == "placements" }?.num("part")
+    var choix by remember(data) { mutableStateOf<String?>(null) }
+    val total = types.sumOf { it.num("valeur") ?: 0.0 }
     Carte {
         CarteEntete("Répartition")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.size(120.dp)) {
-                    val trait = 16.dp.toPx()
-                    val d = size.width - trait
-                    val ecart = if (types.size > 1) 2.5f else 0f
-                    var debut = -90f
-                    types.forEach { t ->
-                        val f = (t.num("part") ?: 0.0).toFloat().coerceAtLeast(0f)
-                        val sweep = f * 360f
-                        drawArc(COULEUR_TYPE[t.str("id")] ?: Pt.Series[5], debut, max(sweep - ecart, 0.5f), false,
-                            Offset(trait / 2, trait / 2), Size(d, d), style = Stroke(trait))
-                        debut += sweep
-                    }
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Investi", fontSize = 11.sp, color = Pt.Mute)
-                    Text(pct(investi, sign = false, digits = 0), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Pt.Encre)
-                }
-            }
+            // Anneau commun (Charts.kt) : toucher une part l'épaissit et affiche son nom et son montant au centre.
+            DonutChart(
+                slices = types.mapNotNull { t ->
+                    val id = t.str("id") ?: return@mapNotNull null
+                    Slice(t.str("nom") ?: id, t.num("valeur") ?: 0.0, key = id, color = COULEUR_TYPE[id] ?: Pt.Series[5])
+                },
+                centerTitle = "Investi", centerValue = pct(investi, sign = false, digits = 0),
+                modifier = Modifier.width(132.dp), size = 132.dp, valueFormat = { euros(it, cents = false) },
+                onSliceClick = { choix = it.key }, showLegend = false,
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                 types.forEach { t ->
-                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.padding(top = 5.dp).size(8.dp).clip(RoundedCornerShape(3.dp)).background(COULEUR_TYPE[t.str("id")] ?: Pt.Series[5]))
+                    val id = t.str("id")
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (choix == id) Pt.Pastille else Color.Transparent)
+                            .clickable { choix = if (choix == id) null else id }.padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(Modifier.padding(top = 5.dp).size(8.dp).clip(RoundedCornerShape(3.dp)).background(COULEUR_TYPE[id] ?: Pt.Series[5]))
                         Column(Modifier.weight(1f)) {
                             Text(t.str("nom") ?: "—", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Pt.Encre, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(euros(t.num("valeur"), cents = false), fontSize = 12.sp, color = Pt.Mute, maxLines = 1)
@@ -313,6 +367,13 @@ private fun CarteRepartition(data: JSONObject) {
                     }
                 }
             }
+        }
+        types.firstOrNull { it.str("id") == choix }?.let { t ->
+            Text(
+                (t.str("nom") ?: "") + " : " + euros(t.num("valeur"), cents = false) + " sur " + euros(total, cents = false) + " (" +
+                    pct(t.num("part"), sign = false, digits = 1) + " du patrimoine)",
+                fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Pt.Sub, lineHeight = 16.sp,
+            )
         }
     }
 }
@@ -338,11 +399,84 @@ private fun CarteIndicateurs(i: JSONObject) {
     }
 }
 
+// ---------- détails (tuiles d'explication, gains d'investissement, PEA) ----------
+
+private const val MOINS = "−"
+
+private class Tuile(val libelle: String, val valeur: String, val sous: String, val ton: Double?, val aide: String)
+
+@Composable
+private fun CarteDetails(d: JSONObject, sansPeg: Boolean) {
+    var ouvert by rememberSaveable { mutableStateOf(false) }
+    val note = d.str("pea_ouverture")?.takeIf { it.isNotBlank() && d.has("pea_5_ans") }?.let {
+        " Le PEA a été ouvert le ${day(it)} : " + if (d.optBoolean("pea_5_ans")) "plus de 5 ans, régime plein."
+        else "moins de 5 ans, un retrait aujourd'hui serait en fait taxé à 30 % comme le compte-titres."
+    }.orEmpty()
+    val tuiles = listOf(
+        Tuile("Depuis le 1er janvier", euros(d.num("depuis_1er_janvier"), sign = true, cents = false),
+            pct(d.num("depuis_1er_janvier_pct")) + " · inclut ce que tu as épargné", d.num("depuis_1er_janvier"),
+            "Variation de ton patrimoine total : elle mélange les gains de marché et l'argent que tu as versé ou reçu (salaire épargné, héritage…). " +
+                "Pour les gains purs, voir « Gains d'investissement »."),
+        Tuile("Sur 1 an", euros(d.num("sur_1_an"), sign = true, cents = false), "même remarque : inclut l'épargne", d.num("sur_1_an"),
+            "Même calcul sur 12 mois glissants."),
+        Tuile("Épargne moyenne", euros(d.num("epargne_moyenne"), cents = false) + " / mois",
+            pct(d.num("epargne_pct_revenus"), sign = false, digits = 0) + " des revenus", null,
+            "Revenus moins dépenses, moyenne des 12 derniers mois complets. Héritages et donations exclus : ils comptent dans le patrimoine, pas dans l'épargne."),
+        Tuile("Part investie en actions", pct(d.num("part_investie"), sign = false, digits = 0), euros(d.num("investi"), cents = false), null,
+            "Compte-titres, PEA et PEG Airbus, en part du patrimoine total."),
+        Tuile("Gains d'investissement (brut)", euros(d.num("gains_bruts"), sign = true, cents = false),
+            "dont ${euros(d.num("interets_et_dividendes"), cents = false)} d'intérêts et dividendes", d.num("gains_bruts"),
+            "Avant impôt. Plus-values latentes et réalisées sur les actions (compte-titres, PEA, PEG Airbus) et intérêts et dividendes perçus, depuis le début."),
+        Tuile("Gains d'investissement (net d'impôt estimé)", euros(d.num("gains_nets"), sign = true, cents = false),
+            "$MOINS${euros(d.num("impots_latents"), cents = false)} de fiscalité", d.num("gains_nets"),
+            "Estimation à la sortie, au régime de chaque enveloppe (PFU 30 % ou prélèvements sociaux 17,2 %)." + note),
+        Tuile("Après impôts si tout était vendu", euros(d.num("apres_impots"), cents = false),
+            "$MOINS${euros(d.num("impots_latents"), cents = false)} d'impôts latents", null,
+            "Patrimoine total moins l'impôt estimé sur tes gains si tu vendais et retirais tout aujourd'hui : 30 % sur le compte-titres, les dividendes hors PEA " +
+                "et les intérêts ; 17,2 % de prélèvements sociaux sur le PEA et le PEG. Les versements ne sont pas imposés." + note),
+    )
+    Carte {
+        CarteEntete("Détails" + if (sansPeg) " · hors PEG" else "", droite = {
+            Text(if (ouvert) "Masquer" else "Afficher", Modifier.clickable { ouvert = !ouvert }.padding(vertical = 4.dp),
+                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Pt.Accent)
+        })
+        if (!ouvert) Text("Gains d'investissement bruts et nets d'impôt, variation depuis le 1er janvier, épargne moyenne. Touche une tuile (ⓘ) pour son explication.",
+            Modifier.clickable { ouvert = true }, fontSize = 12.sp, color = Pt.Mute, lineHeight = 16.sp)
+        else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                tuiles.chunked(2).forEach { paire ->
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        paire.forEach { TuileDetail(it, Modifier.weight(1f).fillMaxHeight()) }
+                        if (paire.size == 1) Box(Modifier.weight(1f))
+                    }
+                }
+                if (note.isNotBlank()) Text(note.trim(), fontSize = 12.sp, color = Pt.Mute, lineHeight = 16.sp)
+            }
+        }
+    }
+}
+
+/** Tuile d'indicateur ; un toucher déplie son explication (ⓘ). */
+@Composable
+private fun TuileDetail(t: Tuile, modifier: Modifier = Modifier) {
+    var ouvert by remember { mutableStateOf(false) }
+    Column(
+        modifier.clip(RoundedCornerShape(14.dp)).background(Pt.Pastille).clickable { ouvert = !ouvert }.padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text(t.libelle + " ⓘ", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Pt.Mute, lineHeight = 15.sp)
+        Text(t.valeur, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (t.ton != null) gainColor(t.ton) else Pt.Encre, maxLines = 1)
+        Text(t.sous, fontSize = 12.sp, color = Pt.Mute, lineHeight = 15.sp)
+        if (ouvert) Text(t.aide, Modifier.padding(top = 6.dp), fontSize = 12.sp, color = Pt.Sub, lineHeight = 16.sp)
+    }
+}
+
 // ---------- comptes ----------
 
 @Composable
 private fun CarteComptes(data: JSONObject, nav: NavController) {
     val comptes = data.list("comptes")
+    var ouvert by remember(data) { mutableStateOf<String?>(null) }
     Carte {
         CarteEntete("Comptes", "30 jours")
         Column {
@@ -354,20 +488,22 @@ private fun CarteComptes(data: JSONObject, nav: NavController) {
                     "livrets" -> VIGNETTE_LIVRET
                     else -> VIGNETTE_COURANT
                 }
-                LigneCompte(c, couleur, separateur = i > 0, onClick = if (c.optBoolean("titres")) ({ nav.navigate(Routes.BOURSE) }) else null)
+                val id = c.str("id")
+                LigneCompte(c, couleur, separateur = i > 0, ouvert = ouvert == id, onToggle = { ouvert = if (ouvert == id) null else id },
+                    onPortefeuille = if (c.optBoolean("titres")) ({ nav.navigate(Routes.BOURSE) }) else null)
             }
         }
     }
 }
 
 @Composable
-private fun LigneCompte(c: JSONObject, couleur: Color, separateur: Boolean, onClick: (() -> Unit)?) {
+private fun LigneCompte(c: JSONObject, couleur: Color, separateur: Boolean, ouvert: Boolean, onToggle: () -> Unit, onPortefeuille: (() -> Unit)?) {
     val money = LocalMoney.current
     val pc = c.num("var_30j_pct")
     val stable = pc != null && kotlin.math.abs(pc) < 0.0005
     val trait = if (pc == null || stable) Pt.Mute.copy(alpha = 0.6f) else if (pc > 0) money.gain else money.loss
     val valeurs = c.optJSONArray("serie_30j")?.let { a -> (0 until a.length()).mapNotNull { a.optDouble(it).takeIf { v -> !v.isNaN() } } }.orEmpty()
-    Column(Modifier.fillMaxWidth().let { if (onClick != null) it.clickable(onClick = onClick) else it }) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onToggle)) {
         if (separateur) Box(Modifier.fillMaxWidth().height(1.dp).background(Pt.Ligne))
         Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(couleur), contentAlignment = Alignment.Center) {
@@ -384,6 +520,34 @@ private fun LigneCompte(c: JSONObject, couleur: Color, separateur: Boolean, onCl
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, color = if (stable || pc == null) Pt.Mute else trait)
             }
         }
+        // Détail au toucher : part du patrimoine, variation sur 30 jours, plus haut et plus bas.
+        if (ouvert) {
+            Column(
+                Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(12.dp)).background(Pt.Pastille).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                DetailLigne("Valeur", euros(c.num("valeur"), cents = true))
+                c.num("part")?.let { DetailLigne("Part du patrimoine", pct(it, sign = false, digits = 1)) }
+                if (c.num("var_30j") != null) DetailLigne("Variation sur 30 jours",
+                    euros(c.num("var_30j"), sign = true, cents = false) + if (pc != null) " (" + pct(pc, digits = 1) + ")" else "",
+                    if (stable) Pt.Mute else if ((c.num("var_30j") ?: 0.0) >= 0) money.gain else money.loss)
+                else DetailLigne("Variation sur 30 jours", "compte trop récent")
+                if (valeurs.size >= 2) {
+                    DetailLigne("Plus haut sur 30 jours", euros(valeurs.max(), cents = false))
+                    DetailLigne("Plus bas sur 30 jours", euros(valeurs.min(), cents = false))
+                }
+                if (onPortefeuille != null) Text("Voir le portefeuille ›", Modifier.clickable(onClick = onPortefeuille).padding(top = 4.dp),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Pt.Accent)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailLigne(libelle: String, valeur: String, couleur: Color = Pt.Encre) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(libelle, Modifier.weight(1f), fontSize = 12.sp, color = Pt.Sub)
+        Text(valeur, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = couleur, maxLines = 1)
     }
 }
 

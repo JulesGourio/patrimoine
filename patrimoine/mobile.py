@@ -334,9 +334,9 @@ def pull_analyses() -> str:
 # --- Actions that need the phone ------------------------------------------------------------------------------
 
 
-def import_file(kind: str, path: str) -> str:
-    """A file Jules picked, copied by the app into its cache: ``peg`` (Amundi AVO*.pdf), ``cmb_csv``
-    (RELEVE_*.csv), ``base`` (a whole patrimoine.db, from the PC) or ``cle_cmb`` (Enable Banking .pem)."""
+def import_file(kind: str, path: str, profil: str | None = None, reglages: dict | None = None) -> str:
+    """A file the user picked, copied by the app into its cache: ``peg`` (Amundi AVO*.pdf), ``cmb_csv``
+    (RELEVE_*.csv), ``csv_generique`` (any bank CSV: ``profil`` saved name and/or ``reglages``), ``base`` (a whole patrimoine.db, from the PC) or ``cle_cmb`` (Enable Banking .pem)."""
     def run() -> Any:
         from . import imports
 
@@ -345,6 +345,8 @@ def import_file(kind: str, path: str) -> str:
             return imports.peg(settings(), [p])
         if kind == "cmb_csv":
             return imports.cmb_csv(settings(), [p])
+        if kind == "csv_generique":
+            return imports.csv_generique(settings(), p, profil, reglages, enregistrer=bool(profil and reglages))
         if kind == "base":
             if not _sync_lock.acquire(blocking=False):
                 raise RuntimeError("synchronisation en cours : réessaie quand elle est finie")
@@ -389,7 +391,7 @@ def set_secret(name: str, value: str) -> str:
 
 
 def tr_login() -> str:
-    """Log in to Trade Republic: blocks until Jules confirms in the Trade Republic app (2 minutes at most)."""
+    """Log in to Trade Republic: blocks until the user confirms in the Trade Republic app (2 minutes at most)."""
     def run() -> dict:
         from .sources import trade_republic
 
@@ -404,7 +406,7 @@ def tr_login() -> str:
 
 
 def cmb_consent_url() -> str:
-    """Where Jules signs in to the CMB; the app opens it and watches for the redirect (`enable_banking`)."""
+    """Where the user signs in to the CMB; the app opens it and watches for the redirect (`enable_banking`)."""
     from .sources import enable_banking as eb
 
     return _reply(lambda: {"url": eb.start_consent(settings()), "retour": eb.REDIRECT_URL})

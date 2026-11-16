@@ -1,11 +1,16 @@
 package fr.julesgourio.patrimoine.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -16,6 +21,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -23,11 +29,16 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.julesgourio.patrimoine.ui.theme.Pt
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-/** Un mois du graphique des flux : revenus empilés par source (au-dessus de la ligne), dépenses (en dessous) et épargne. */
-class BarreFlux(val lettre: String, val sources: List<Pair<Color, Double>>, val depenses: Double, val epargne: Double)
+/**
+ * Un mois du graphique des flux : revenus empilés par source (au-dessus de la ligne), dépenses (en dessous) et épargne.
+ * [detail] : lignes de l'infobulle quand on touche le mois (titre, revenus par source, dépenses, épargne, taux).
+ */
+class BarreFlux(val lettre: String, val sources: List<Pair<Color, Double>>, val depenses: Double, val epargne: Double,
+               val detail: List<LigneInfobulle> = emptyList())
 
 val CouleurDepenses = Color(0xFFFF8D83)
 
@@ -36,7 +47,8 @@ private val LIGNE_FLUX = 118.dp
 
 /**
  * Graphique du bloc sombre de l'écran Flux (maquette) : un mois par colonne, revenus empilés au-dessus de la ligne de
- * base, dépenses en dessous, épargne nette en courbe blanche. [choix] est le mois mis en avant ; un toucher le change.
+ * base, dépenses en dessous, épargne nette en courbe blanche. [choix] est le mois mis en avant ; toucher ou glisser
+ * le change et affiche l'infobulle détaillée du mois touché.
  */
 @Composable
 fun GraphiqueFlux(barres: List<BarreFlux>, choix: Int, onChoix: (Int) -> Unit, modifier: Modifier = Modifier) {
@@ -44,9 +56,23 @@ fun GraphiqueFlux(barres: List<BarreFlux>, choix: Int, onChoix: (Int) -> Unit, m
     if (n == 0) return
     val mesure = rememberTextMeasurer()
     val police = MaterialTheme.typography.bodySmall.fontFamily
+    var survol by remember(barres) { mutableStateOf<Int?>(null) }
     Canvas(
         modifier.fillMaxWidth().height(HAUT_FLUX).pointerInput(n) {
-            detectTapGestures { p -> onChoix(((p.x / size.width) * n).toInt().coerceIn(0, n - 1)) }
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                fun indice(x: Float) = ((x / size.width) * n).toInt().coerceIn(0, n - 1)
+                survol = indice(down.position.x).also(onChoix)
+                do {
+                    val ev = awaitPointerEvent()
+                    val c = ev.changes.first()
+                    val i = indice(c.position.x)
+                    if (i != survol) { survol = i; onChoix(i) }
+                    // Glissé horizontal : le graphique le garde ; vertical : la liste défile.
+                    if (abs(c.positionChange().x) > abs(c.positionChange().y)) c.consume()
+                } while (c.pressed)
+                survol = null
+            }
         },
     ) {
         val z = LIGNE_FLUX.toPx()
@@ -82,21 +108,47 @@ fun GraphiqueFlux(barres: List<BarreFlux>, choix: Int, onChoix: (Int) -> Unit, m
             drawCircle(Pt.Nuit, 3.8.dp.toPx(), p)
             drawCircle(Color.White, 2.6.dp.toPx(), p)
         }
+        survol?.let { i ->
+            val b = barres[i]
+            if (b.detail.isNotEmpty()) infobulleDetaillee(mesure, b.detail, i * pas + pas / 2, 0f, InfobulleClaire)
+        }
     }
 }
 
 /**
  * Courbe du taux d'épargne (fractions), sur fond clair ; les mois sans valeur (null) sont sautés. Bornes arrondies à
- * 10 points, étiquettes de bornes et du dernier mois comme dans la maquette.
+ * 10 points, étiquettes de bornes et du dernier mois comme dans la maquette. Toucher ou glisser donne le détail du
+ * mois ([detail] : lignes de l'infobulle du mois d'indice donné).
  */
 @Composable
-fun CourbeTaux(valeurs: List<Double?>, dernierMois: String, modifier: Modifier = Modifier) {
+fun CourbeTaux(valeurs: List<Double?>, dernierMois: String, modifier: Modifier = Modifier, detail: (Int) -> List<LigneInfobulle> = { emptyList() }) {
     val pts = valeurs.mapIndexedNotNull { i, v -> if (v == null) null else i to v }
     if (pts.size < 2) return
     val mesure = rememberTextMeasurer()
     val police = MaterialTheme.typography.bodySmall.fontFamily
     val style = TextStyle(fontSize = 10.sp, fontFamily = police, color = Pt.Mute)
-    Canvas(modifier.fillMaxWidth().height(86.dp)) {
+    var survol by remember(valeurs) { mutableStateOf<Int?>(null) }
+    val nb = valeurs.size
+    Canvas(
+        modifier.fillMaxWidth().height(86.dp).pointerInput(valeurs) {
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                val marge = 8.dp.toPx()
+                fun proche(x: Float): Int {
+                    val brut = ((x - marge) / (size.width - 2 * marge) * max(nb - 1, 1)).let { Math.round(it) }
+                    return pts.minBy { abs(it.first - brut) }.first
+                }
+                survol = proche(down.position.x)
+                do {
+                    val ev = awaitPointerEvent()
+                    val c = ev.changes.first()
+                    survol = proche(c.position.x)
+                    if (abs(c.positionChange().x) > abs(c.positionChange().y)) c.consume()
+                } while (c.pressed)
+                survol = null
+            }
+        },
+    ) {
         val lo = kotlin.math.floor(pts.minOf { it.second } * 10) / 10
         val hi = kotlin.math.ceil(pts.maxOf { it.second } * 10) / 10
         val etendue = if (hi - lo < 0.1) 0.1 else hi - lo
@@ -115,5 +167,12 @@ fun CourbeTaux(valeurs: List<Double?>, dernierMois: String, modifier: Modifier =
         drawText(mesure, haute, Offset(size.width - mesure.measure(haute, style).size.width, 0f), style)
         drawText(mesure, pct(lo, sign = false, digits = 0), Offset(0f, 72.dp.toPx()), style)
         drawText(mesure, dernierMois, Offset(size.width - mesure.measure(dernierMois, style).size.width, 72.dp.toPx()), style)
+        survol?.let { k ->
+            val p = Offset(x(k), y(valeurs[k] ?: return@let))
+            drawLine(Pt.Mute.copy(alpha = 0.5f), Offset(p.x, haut), Offset(p.x, bas), 1.dp.toPx())
+            drawCircle(Color.White, 6.dp.toPx(), p)
+            drawCircle(Pt.Hausse, 4.dp.toPx(), p)
+            infobulleDetaillee(mesure, detail(k), p.x, 0f, InfobulleSombre)
+        }
     }
 }

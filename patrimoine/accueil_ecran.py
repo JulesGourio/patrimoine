@@ -22,6 +22,7 @@ JOURS_COMPTE = 30
 # Regroupement de l'écran : (id, libellé) ; les groupes de `queries.account_groups` y sont rattachés.
 TYPES = [("placements", "Placements"), ("courants", "Comptes courants"), ("livrets", "Livrets")]
 TYPE_DU_GROUPE = {"Bourse": "placements", "Épargne salariale": "placements", "Livrets": "livrets", "Liquidités": "courants"}
+PEG = "peg_airbus"
 LIQUIDES = ("courants", "livrets")  # disponible sous 48 h
 
 
@@ -104,17 +105,19 @@ def _indicateurs(con: sqlite3.Connection, disponible: float, total: float, synth
     }
 
 
-def donnees(con: sqlite3.Connection, synthese: dict | None = None) -> dict:
-    """Tout l'écran. `synthese` : réponse de l'outil `synthese` (taux d'épargne, impôts latents), `None` ou avec
-    `erreur` quand elle manque."""
-    h = queries.history(con)
-    if h.empty:
-        return {"erreur": "historique vide : lancer synchroniser"}
-    if synthese is not None and synthese.get("erreur"):
-        synthese = None
-    groupes = queries.account_groups(con)
-    type_de = {a: TYPE_DU_GROUPE.get(groupes.get(lbl), "courants") for a, lbl in h.drop_duplicates("account_id")[["account_id", "account"]].itertuples(index=False)}
-    h = h.assign(type=h.account_id.map(type_de))
+def _details(s: dict | None) -> dict | None:
+    """Chiffres des tuiles de détail (réponse de `synthese`) : gains d'investissement bruts et nets d'impôt estimé,
+    variations depuis le 1er janvier et sur 1 an, épargne moyenne, part investie."""
+    if not s:
+        return None
+    cles = ("depuis_1er_janvier", "depuis_1er_janvier_pct", "sur_1_an", "epargne_moyenne", "epargne_pct_revenus",
+            "part_investie", "investi", "gains_bruts", "gains_nets", "interets_et_dividendes", "impots_latents",
+            "apres_impots", "pea_ouverture", "pea_5_ans")
+    return {k: s.get(k) for k in cles}
+
+
+def _vue(con: sqlite3.Connection, h: pd.DataFrame, type_de: dict) -> dict:
+    """Total, types et périodes (série, variation, aires par type, cascade) d'un historique `h` ; `par_compte` en plus."""
     par_compte = h.pivot_table(index="date", columns="account_id", values="value", aggfunc="sum").ffill().fillna(0.0)
     par_type = par_compte.T.groupby(type_de).sum().T.reindex(columns=[t for t, _ in TYPES], fill_value=0.0)
     total = par_type.sum(axis=1)
@@ -122,7 +125,6 @@ def donnees(con: sqlite3.Connection, synthese: dict | None = None) -> dict:
     n_fin = float(total.iloc[-1])
     ids = [t for t, _ in TYPES if float(par_type[t].iloc[-1]) > 0.005]
     nom_type = dict(TYPES)
-
     periodes: dict[str, dict] = {}
     for label in PERIODES:
         d0 = bourse._debut(label, fin, debut)
@@ -137,6 +139,27 @@ def donnees(con: sqlite3.Connection, synthese: dict | None = None) -> dict:
             "types": {t: _points(par_type[t][par_type.index >= base].clip(lower=0), pos) for t in ids},  # aires empilées : jamais sous zéro
             "cascade": _cascade(con, h, total, base, fin),
         }
+    types = [{"id": t, "nom": nom_type[t], "valeur": _f(par_type[t].iloc[-1]),
+              "part": _f(float(par_type[t].iloc[-1]) / n_fin, 4) if n_fin else None} for t in ids]
+    return {"fin": fin, "total": n_fin, "ids": ids, "par_compte": par_compte, "types": types, "periodes": periodes}
+
+
+def donnees(con: sqlite3.Connection, synthese: dict | None = None, synthese_sans_peg: dict | None = None) -> dict:
+    """Tout l'écran. `synthese` : réponse de l'outil `synthese` (taux d'épargne, impôts latents), `None` ou avec
+    `erreur` quand elle manque ; `synthese_sans_peg` : la même sans le PEG (mode « Sans le PEG »)."""
+    h = queries.history(con)
+    if h.empty:
+        return {"erreur": "historique vide : lancer synchroniser"}
+    if synthese is not None and synthese.get("erreur"):
+        synthese = None
+    if synthese_sans_peg is not None and synthese_sans_peg.get("erreur"):
+        synthese_sans_peg = None
+    groupes = queries.account_groups(con)
+    type_de = {a: TYPE_DU_GROUPE.get(groupes.get(lbl), "courants") for a, lbl in h.drop_duplicates("account_id")[["account_id", "account"]].itertuples(index=False)}
+    h = h.assign(type=h.account_id.map(type_de))
+    vue = _vue(con, h, type_de)
+    par_compte, fin, n_fin, ids, periodes = vue["par_compte"], vue["fin"], vue["total"], vue["ids"], vue["periodes"]
+    nom_type = dict(TYPES)
 
     # Comptes : valeur du jour, variation sur 30 jours et petite courbe.
     securities = {r[0] for r in con.execute("SELECT DISTINCT account_id FROM positions WHERE quantity > 0")} | {"tr_cto", "tr_pea"}
@@ -162,14 +185,19 @@ def donnees(con: sqlite3.Connection, synthese: dict | None = None) -> dict:
         })
     comptes.sort(key=lambda c: (ids.index(c["type"]) if c["type"] in ids else 9, -c["valeur"]))
 
-    types = [{"id": t, "nom": nom_type[t], "valeur": _f(par_type[t].iloc[-1]),
-              "part": _f(float(par_type[t].iloc[-1]) / n_fin, 4) if n_fin else None} for t in ids]
     prepayes = {r[0] for r in con.execute("SELECT id FROM accounts WHERE kind = 'prepaye'")}  # cartes : pas de l'épargne
     disponible = float(sum(par_compte[a].iloc[-1] for a in par_compte.columns
                            if type_de[a] in LIQUIDES and a not in prepayes))
+    # Variante sans le PEG : mêmes périodes et mêmes types, sans le compte d'épargne salariale Airbus.
+    sans_peg = None
+    if PEG in par_compte.columns and abs(float(par_compte[PEG].iloc[-1])) > 0.005 and (h.account_id != PEG).any():
+        v = _vue(con, h[h.account_id != PEG], type_de)
+        sans_peg = {"total": _f(v["total"]), "types": v["types"], "periodes": v["periodes"],
+                    "details": _details(synthese_sans_peg)}
     return {
         "date": fin.date().isoformat(), "nb_comptes": len(comptes), "total": _f(n_fin), "periodes_dispo": PERIODES,
-        "types": types, "periodes": periodes, "comptes": comptes,
+        "types": vue["types"], "periodes": periodes, "comptes": comptes, "sans_peg": sans_peg,
+        "details": _details(synthese),
         "indicateurs": _indicateurs(con, disponible, n_fin, synthese),
         "note": "Épargne = variation moins marchés et dividendes (versements, salaire épargné, retraits) ; lignes sans "
                 "prix de revient : leur variation reste dans l'épargne.",

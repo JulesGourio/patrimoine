@@ -1,9 +1,10 @@
-"""Files Jules brings in by hand, the same way from the command line (a folder such as Downloads) and from the
+"""Files the user brings in by hand, the same way from the command line (a folder such as Downloads) and from the
 mobile app (a file picked on the phone): Amundi statements (PEG), CMB CSV exports, savings balances, and the
 whole database (moving it from the PC to the phone, or back).
 """
 from __future__ import annotations
 
+import json
 import shutil
 import sqlite3
 import urllib.parse
@@ -66,6 +67,51 @@ def cmb_csv(settings: Settings, files: list[Path] = ()) -> dict[str, tuple[int, 
     with db.session(settings.db_path) as con:
         db.init(con)
         return sync.import_cmb_csv(con, sorted(set(folder.glob("RELEVE_*.csv")) | set(given)))
+
+
+CSV_PROFILES = "csv_profils"
+
+
+def csv_profiles(settings: Settings) -> dict[str, dict]:
+    """The saved CSV profiles, {name: settings}."""
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        return db.get_meta(con, CSV_PROFILES) or {}
+
+
+def csv_generique(settings: Settings, path: Path, profil: str | None = None, reglages: dict | None = None,
+                  enregistrer: bool = False) -> dict:
+    """Import any bank CSV. ``reglages`` (see ``sources.csv_generique.Profile``) defines the format; with
+    ``profil`` (a name) and ``enregistrer`` it is saved in the database, and ``profil`` alone reuses it.
+    Lines already imported are ignored: {lignes, nouvelles, doublons, du, au, compte}."""
+    from . import sync
+    from .sources import csv_generique as gen
+    from .sources.tr_parse import words
+
+    if reglages is None and not profil:
+        raise ValueError("indiquer un profil enregistré ou les réglages du fichier")
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        saved = db.get_meta(con, CSV_PROFILES) or {}
+        if reglages is None:
+            if profil not in saved:
+                raise ValueError(f"profil inconnu : {profil}")
+            reglages = saved[profil]
+        prof = gen.Profile.from_dict(dict(reglages))
+        if not con.execute("SELECT 1 FROM accounts WHERE id = ?", (prof.account,)).fetchone():
+            raise ValueError(f"Compte inconnu : {prof.account}")
+        name = db.get_meta(con, "owner") or {}
+        owner = set(words(name.get("last")) + words(name.get("first"))[:1])
+        rows = gen.parse(gen.load(Path(path)), prof, owner, db.internal_labels(con))
+        known = {r[0] for r in con.execute("SELECT id FROM transactions")}
+        fresh = [r for r in rows if r.id not in known]
+        new, _ = sync.import_rows(con, fresh, lambda r: json.dumps(r.raw, ensure_ascii=False))
+        if enregistrer and profil:
+            saved[profil] = prof.to_dict()
+            db.set_meta(con, CSV_PROFILES, saved)
+        con.commit()
+    return {"compte": prof.account, "lignes": len(rows), "nouvelles": new, "doublons": len(rows) - len(fresh),
+            "du": min((r.date for r in rows), default=""), "au": max((r.date for r in rows), default="")}
 
 
 def balance(settings: Settings, account: str, euros: str | float, day: str | None = None) -> int:

@@ -1,7 +1,7 @@
 """Trade Republic read access through pytr (private web API, reverse-engineered).
 
 Only read subscriptions are used here; nothing in this module can place or cancel an order.
-Login uses pytr's v2 web login: Jules confirms it in the Trade Republic app, no SMS code and no
+Login uses pytr's v2 web login: the user confirms it in the Trade Republic app, no SMS code and no
 browser for the WAF token. The session cookies are kept in the data folder so later syncs
 resume without a new confirmation until Trade Republic expires them.
 """
@@ -22,7 +22,7 @@ from ..config import Settings
 
 
 class LoginRequired(RuntimeError):
-    """The saved session is gone; Jules must run `patrimoine tr login` and confirm in the app."""
+    """The saved session is gone; the user must run `patrimoine tr login` and confirm in the app."""
 
 
 def normalize_phone(raw: str) -> str:
@@ -58,7 +58,7 @@ def api(settings: Settings) -> TradeRepublicApi:
 
 def connect(settings: Settings, interactive: bool = False,
             ask_code: Callable[[], str] | None = None) -> TradeRepublicApi:
-    """Resume the saved session, or (interactive) log in: Jules confirms in the Trade Republic app. ``ask_code``
+    """Resume the saved session, or (interactive) log in: the user confirms in the Trade Republic app. ``ask_code``
     gives the authenticator code when the account uses one (the terminal by default)."""
     tr = api(settings)
     if tr.resume_websession():
@@ -149,7 +149,7 @@ async def fetch_all(tr: TradeRepublicApi, previous: dict[str, Any] | None = None
             details[item["id"]] = None
     out["details"] = details
     # The account settings only give the compte-titres number; the PEA is a sibling number
-    # (compte-titres + 1 for Jules). Try the neighbours and keep those that answer.
+    # (compte-titres + 1 for the user). Try the neighbours and keep those that answer.
     out["portfolios"] = {}
     cto = account.get("securitiesAccountNumber")
     if cto and cto.isdigit():

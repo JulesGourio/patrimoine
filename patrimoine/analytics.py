@@ -278,7 +278,7 @@ def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
     """Per month: income, spending (fees included), savings and savings rate.
 
     Refunds (friends paying back their share, health insurance) are netted off spending rather than counted
-    as income: otherwise a shared dinner paid by Jules would inflate both sides and the savings rate.
+    as income: otherwise a shared dinner paid by the user would inflate both sides and the savings rate.
     Windfalls (inheritance, gifts) are kept apart in ``heritage``: neither income nor savings.
     Bonuses and profit-sharing (``primes``: category « Primes et intéressement » on the bank account, plus the
     intéressement / participation paid into the PEG) are income, hence savings; the PEG ones remain securities

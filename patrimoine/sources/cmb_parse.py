@@ -11,13 +11,24 @@ import json
 import re
 from collections import Counter
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Iterable
 
 from .tr_parse import Row, words
 
-# Labels that move money between Jules's own accounts (Trade Republic, CMB savings).
-# Jules's own accounts; Revolut was one (closed, empty) that mostly relayed money to Trade Republic.
-INTERNAL = re.compile(r"LIVRET|COMPTE CHEQUES|TRADE ?REPUBLIC|GOURIO TRADER|REVOLU", re.I)
+# Generic labels of a transfer between the user's own accounts. What is specific to a user (his name on a broker
+# account, a closed neobank...) comes from his accounts and from the ``libelles_internes`` meta (see
+# ``db.internal_labels``), never from this file.
+INTERNAL = re.compile(r"LIVRET|COMPTE CHEQUES|COMPTE COURANT|VIR(EMENT)? INTERNE|TRADE ?REPUBLIC", re.I)
+
+
+def internal_regex(extra: Iterable[str] = ()) -> re.Pattern:
+    """``INTERNAL`` widened with the user's own labels (matched as plain text, case-insensitive)."""
+    extra = [e.strip() for e in extra if e and len(e.strip()) >= 4]
+    if not extra:
+        return INTERNAL
+    return re.compile(INTERNAL.pattern + "|" + "|".join(re.escape(e) for e in extra), re.I)
+
+
 TAX = re.compile(r"DIRECTION GENERALE DES FINA|DGFIP|IMPOT", re.I)
 
 
@@ -42,7 +53,10 @@ def signed_cents(tx: dict[str, Any]) -> int:
     return -amount if tx.get("credit_debit_indicator") == "DBIT" else amount
 
 
-def parse(dump: dict[str, Any], owner: set[str], account_id: str = "cmb_courant") -> tuple[list[Row], Counter]:
+def parse(dump: dict[str, Any], owner: set[str], account_id: str = "cmb_courant",
+          internal: Iterable[str] = ()) -> tuple[list[Row], Counter]:
+    """``internal``: the user's own labels of transfers between his accounts, on top of the generic ones."""
+    own = internal_regex(internal)
     rows: list[Row] = []
     kinds: Counter = Counter()
     for acc in dump.get("accounts", []):
@@ -56,7 +70,7 @@ def parse(dump: dict[str, Any], owner: set[str], account_id: str = "cmb_courant"
             amount = signed_cents(tx)
             who = counterparty(label, first)
 
-            if INTERNAL.search(label) or (who and owner and owner <= set(words(who))):
+            if own.search(label) or (who and owner and owner <= set(words(who))):
                 flow = "interne"
             elif first.startswith("F COTISATION") or first.startswith("FRAIS") or first.startswith("COMMISSION"):
                 flow = "frais"

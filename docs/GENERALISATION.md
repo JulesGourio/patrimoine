@@ -25,10 +25,13 @@ Aujourd'hui `patrimoine/sources/` mélange des parseurs (`cmb_parse`, `tr_parse`
 
 ## 3. Règles de catégories et libellés
 
-`patrimoine/categories.py` contient des motifs liés à l'historique du premier utilisateur (lieux, commerces,
-libellés de virements propres à ses comptes). `sources/cmb_parse.py` contient la liste des libellés de virements
-internes. À faire : un jeu de règles par défaut neutre + un fichier de règles utilisateur ; détecter les virements
-internes à partir des comptes configurés, plutôt que par libellés écrits à la main.
+Fait : `patrimoine/categories.py` ne contient plus que des commerces, enseignes et mots génériques. Les règles
+propres à un utilisateur sont dans la base (`category_rules`, origine `utilisateur`) : une règle `defaut` qui
+disparaît du code est basculée en `utilisateur` par `db.init` (jamais supprimée). Les virements internes sont
+détectés par des libellés génériques (LIVRET, COMPTE COURANT, VIREMENT INTERNE, TRADE REPUBLIC), le nom du
+propriétaire (`meta.owner`), les noms des comptes configurés et la liste `meta.libelles_internes`, remplie au
+premier passage depuis l'historique (contreparties des lignes `interne`). Reste : un fichier de règles
+utilisateur importable/exportable.
 
 ## 4. Lignes de portefeuille et indices de référence
 
@@ -38,15 +41,15 @@ saisir dans un fichier utilisateur), et ne plus citer de titre précis.
 
 ## 5. Valeurs en dur liées à une personne
 
-- `patrimoine/cloud.py` : dépôt GitHub par défaut (`PATRIMOINE_GITHUB_REPO` permet de le changer).
-- Consignes d'analyse (`scripts/analyse.md`, `scripts/analyse_cloud.md`) et description du serveur MCP
-  (`patrimoine/api.py`) : mentionnent le prénom et les lignes de l'utilisateur ; les passer en gabarits remplis
-  depuis le profil.
-- Docstrings et commentaires qui disent « Jules » : remplacer par « l'utilisateur ».
+- `patrimoine/cloud.py` : le dépôt GitHub par défaut reste celui de l'auteur (`PATRIMOINE_GITHUB_REPO` permet de
+  le changer, documenté dans le README) pour ne pas casser son installation. À faire : défaut vide et erreur
+  claire quand rien n'est configuré, une fois l'installation de l'auteur migrée.
+- Fait : consignes d'analyse, description MCP, docstrings et tests ne citent plus le prénom ni le nom. Les noms de proches
+  et libellés internes personnels ont quitté `categories.py` et `cmb_parse.py` (migration vers la base de
+  l'utilisateur). `scripts/analyse.md` cite encore des lignes en exemple (profil via
+  `CLAUDE.local.md`) ; la routine cloud n'a pas accès au profil.
 - Package Android `fr.julesgourio.patrimoine` : à renommer avec un identifiant neutre (le changement de
   `applicationId` impose de réinstaller l'appli ; à faire avec le dépôt propre).
-- Tests qui utilisent le prénom et le nom du premier utilisateur (`tests/test_alerts_cmb.py`) et son dépôt
-  (`tests/test_cloud.py`).
 
 ## 6. Internationalisation et fiscalité
 

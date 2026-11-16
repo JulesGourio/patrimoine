@@ -266,7 +266,11 @@ private fun reperes(operations: List<JSONObject>, dates: List<String>): List<Rep
         val d = o.str("date")?.take(10)
         if ((sens != "achat" && sens != "vente") || d == null || d < debut || d > fin) return@mapNotNull null
         val i = dates.indexOfFirst { it >= d }
-        if (i < 0) null else Repere(i, sens == "achat")
+        if (i < 0) null else {
+            val q = o.num("quantite")
+            val px = o.num("prix")
+            Repere(i, sens == "achat", if (q != null && px != null) number(q, 4) + " × " + euros(px, cents = true) else euros(o.num("montant"), cents = true))
+        }
     }
 }
 

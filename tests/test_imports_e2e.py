@@ -47,7 +47,7 @@ def test_cmb_csv_amounts_and_flows(settings, tmp_path):
     assert all(isinstance(x["amount_cents"], int) for x in r)
     assert by_date["2024-02-03"]["amount_cents"] == -1235 and by_date["2024-02-03"]["flow"] == "depense"
     assert by_date["2024-02-05"]["amount_cents"] == 123456 and by_date["2024-02-05"]["flow"] == "revenu"
-    # Transfers to Jules's own accounts are internal: neither spending nor income.
+    # Transfers to the user's own accounts are internal: neither spending nor income.
     assert by_date["2024-02-06"]["flow"] == "interne" and by_date["2024-02-06"]["amount_cents"] == -20000
     assert by_date["2024-02-07"]["flow"] == "interne" and by_date["2024-02-07"]["amount_cents"] == -5010
 

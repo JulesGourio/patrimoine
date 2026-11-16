@@ -1,4 +1,4 @@
-Tu es la routine cloud qui rédige l'analyse de marché de Jules (période : {periode}). Tu n'as accès ni à sa base
+Tu es la routine cloud qui rédige l'analyse de marché de l'utilisateur (période : {periode}). Tu n'as accès ni à sa base
 ni au serveur MCP `patrimoine` : son PC exporte les données à chaque synchronisation sur la branche `donnees` et
 publie (écran Analyses de l'appli, mail, notification) ce que tu pousses sur la branche `claude/analyses`.
 
@@ -12,12 +12,13 @@ Ses clés portent le nom des outils cités dans `scripts/analyse.md` et en conti
 `patrimoine`, `fiscalite`, `positions`. L'outil `marche` n'existe pas ici : prends les cours manquants sur le web
 (Yahoo Finance) et cite la source.
 
-Si `exporte_le` date de plus de 3 jours, n'écris aucune analyse : termine en disant depuis quand le PC de Jules
+Si `exporte_le` date de plus de 3 jours, n'écris aucune analyse : termine en disant depuis quand le PC de l'utilisateur
 n'a pas synchronisé.
 
 ## 2. L'analyse
 Suis `scripts/analyse.md` avec la période « {periode} » (recherche, rédaction, règles, format JSON), en lisant le
-dossier à la place des outils.
+dossier à la place des outils. Le profil d'investisseur (`CLAUDE.local.md`) n'est pas sur la branche : s'il
+n'est pas dans le dossier, ne suppose ni tolérance au risque ni horizon, chiffre le risque de chaque conseil.
 
 ## 3. La publication
 À la place de `publier_analyse` et de `preparer_ordre`, écris `/tmp/analyse.json` :
@@ -42,5 +43,5 @@ git add cloud/analyses && git commit -m "Analyse {periode}" && git push origin c
 ```
 
 ## 4. Le compte rendu
-Termine par un message court pour Jules : le titre, les points clés, puis chaque conseil en une ligne (action,
+Termine par un message court pour l'utilisateur : le titre, les points clés, puis chaque conseil en une ligne (action,
 cible, montant, prix limite). Si la publication a échoué, dis-le et donne l'erreur.

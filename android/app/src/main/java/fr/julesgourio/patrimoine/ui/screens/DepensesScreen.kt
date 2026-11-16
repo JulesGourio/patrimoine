@@ -80,7 +80,10 @@ import fr.julesgourio.patrimoine.ui.components.Carte
 import fr.julesgourio.patrimoine.ui.components.CarteEntete
 import fr.julesgourio.patrimoine.ui.components.CouleurDepenses
 import fr.julesgourio.patrimoine.ui.components.CourbeTaux
+import fr.julesgourio.patrimoine.ui.components.BarGroup
 import fr.julesgourio.patrimoine.ui.components.GraphiqueFlux
+import fr.julesgourio.patrimoine.ui.components.LigneInfobulle
+import fr.julesgourio.patrimoine.ui.components.StackedBarChart
 import fr.julesgourio.patrimoine.ui.components.GrilleIndicateurs
 import fr.julesgourio.patrimoine.ui.components.Indicateur
 import fr.julesgourio.patrimoine.ui.components.InfoRow
@@ -195,6 +198,22 @@ private fun treizeMois(): List<String> {
     return (12 downTo 0).map { fin.minusMonths(it.toLong()).toString() }
 }
 
+/** Barres mensuelles empilées par catégorie : les 6 plus grosses sur la période, le reste en « Autres » (toutes si 7 ou moins). */
+private fun groupes(ops: List<Op>, mois: List<String>): List<BarGroup> {
+    val noms = ops.groupBy { it.categorie }.mapValues { e -> e.value.sumOf { it.montant } }.entries.sortedByDescending { it.value }.map { it.key }
+    val gardees = if (noms.size <= 7) noms else noms.take(6)
+    return mois.map { m ->
+        val duMois = ops.filter { it.mois == m }
+        val parts = gardees.mapNotNull { c ->
+            val v = duMois.filter { it.categorie == c }.sumOf { it.montant }
+            if (v > 0) c to v else null
+        }.toMutableList()
+        val autres = duMois.filter { it.categorie !in gardees }.sumOf { it.montant }
+        if (autres > 0) parts.add("Autres" to autres)
+        BarGroup(moisCourt(m), parts, key = m)
+    }
+}
+
 private fun montantTexte(x: Double): String = if (x % 1.0 == 0.0) x.toInt().toString() else x.toString()
 
 /** « 12,5 % » arrondi à l'entier, depuis une fraction. */
@@ -233,7 +252,7 @@ fun DepensesScreen(nav: NavController) {
             .sortedByDescending { it.depense }
         val ordreCat = ops.groupBy { it.categorie }.mapValues { e -> e.value.sumOf { it.montant } }.entries
             .sortedByDescending { it.value }.map { it.key }
-        val couleur: (String) -> Color = { c -> COULEURS_CAT[ordreCat.indexOf(c).coerceAtLeast(0) % COULEURS_CAT.size] }
+        val couleur: (String) -> Color = { c -> if (c !in ordreCat) Pt.Mute else COULEURS_CAT[ordreCat.indexOf(c) % COULEURS_CAT.size] }
         val moisComplets = complets.map { it.mois }
         fun moyenneCat(c: String): Double =
             if (moisComplets.isEmpty()) 0.0 else ops.filter { it.categorie == c && it.mois in moisComplets }.sumOf { it.montant } / moisComplets.size
@@ -269,11 +288,13 @@ fun DepensesScreen(nav: NavController) {
                 Carte {
                     CarteEntete("Dépenses", if (moisComplets.isEmpty() || fluxSel?.partiel == true) null else "écart à ta moyenne")
                     if (cats.isEmpty()) Muted("Aucune dépense ce mois-là.")
+                    else Muted("${duMois.size} opérations · panier moyen " + euros(duMois.sumOf { it.montant } / maxOf(1, duMois.size), cents = true))
+                    val totalCats = cats.sumOf { it.depense }
                     val echelle = maxOf(1.0, cats.maxOfOrNull { maxOf(it.depense, it.budget ?: 0.0) } ?: 1.0)
                     cats.forEach { c ->
                         val av = moyenneCat(c.nom)
                         LigneCategorie(
-                            c, couleur(c.nom), echelle, if (moisComplets.isEmpty() || fluxSel?.partiel == true || av <= 0) null else c.depense - av,
+                            c, couleur(c.nom), echelle, if (totalCats > 0) c.depense / totalCats else null, if (moisComplets.isEmpty() || fluxSel?.partiel == true || av <= 0) null else c.depense - av,
                             choisie = catSel == c.nom,
                             onClick = { catSel = if (catSel == c.nom) null else c.nom },
                             onBudget = { edit = c },
@@ -288,6 +309,22 @@ fun DepensesScreen(nav: NavController) {
                         Text("Budget mensuel", fontSize = 12.sp, color = Pt.Mute)
                     }
                     Muted("Touchez une catégorie pour ne voir que ses opérations ; le crayon fixe un budget mensuel.")
+                }
+            }
+        }
+
+        // (2 bis) Dépenses des 13 mois par catégorie : toucher une barre change de mois et détaille ses catégories.
+        item {
+            Box(Modifier.padding(horizontal = 16.dp)) {
+                Carte {
+                    val moyenne = if (moisComplets.isEmpty()) 0.0 else moisComplets.sumOf { m -> ops.filter { it.mois == m }.sumOf { it.montant } } / moisComplets.size
+                    CarteEntete("Dépenses par mois", "${months.size} mois")
+                    StackedBarChart(
+                        groupes(ops, months), selectedKey = sel, limitLine = moyenne.takeIf { it > 0 },
+                        valueFormat = { euros(it, cents = false) }, couleur = couleur,
+                        onGroupClick = { g -> g.key?.let { changerMois(it) } },
+                    )
+                    Muted("Touchez une barre pour le détail du mois et pour y aller. Ligne = moyenne des mois complets.")
                 }
             }
         }
@@ -502,8 +539,19 @@ private fun BlocFlux(flux: List<MoisFlux>, m: MoisFlux, autres: List<MoisFlux>, 
     val eDep = if (m.partiel) null else ecart(m.depenses, moyDep)
     val barres = flux.map { f ->
         val lettre = try { YearMonth.parse(f.mois).month.getDisplayName(TextStyle.SHORT, Locale.FRANCE).take(1).uppercase() } catch (e: Exception) { "" }
-        BarreFlux(lettre, listOf(COULEUR_SALAIRE to f.salaire, COULEUR_PRIMES to f.primes, COULEUR_PLACEMENTS to f.placements, COULEUR_AUTRES to f.autres),
-            f.depenses, f.epargne)
+        val sources = listOf(
+            Triple("Salaire", COULEUR_SALAIRE, f.salaire), Triple("Primes", COULEUR_PRIMES, f.primes),
+            Triple("Dividendes, intérêts", COULEUR_PLACEMENTS, f.placements), Triple("Autres", COULEUR_AUTRES, f.autres),
+        )
+        val detail = buildList {
+            add(LigneInfobulle(moisLong(f.mois) + if (f.partiel) " · en cours" else "", null, gras = true))
+            add(LigneInfobulle("Revenus", euros(f.revenus, cents = false), gras = true))
+            sources.filter { it.third > 0.5 }.forEach { (nom, c, v) -> add(LigneInfobulle(nom, euros(v, cents = false), c)) }
+            add(LigneInfobulle("Dépenses", euros(f.depenses, cents = false), CouleurDepenses, gras = true))
+            add(LigneInfobulle("Épargne", euros(f.epargne, sign = true, cents = false), teinte = if (f.epargne >= 0) money.gain else money.loss, gras = true))
+            add(LigneInfobulle("Taux d'épargne", if (f.taux != null) pctEntier(f.taux) else "—"))
+        }
+        BarreFlux(lettre, sources.map { it.second to it.third }, f.depenses, f.epargne, detail)
     }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Pt.Nuit).padding(top = 18.dp, bottom = 14.dp),
@@ -610,7 +658,7 @@ private fun Piste(ratio: Double, couleur: Color, repere: Double? = null) {
 
 @Composable
 private fun LigneCategorie(
-    c: Categorie, couleur: Color, echelle: Double, ecart: Double?, choisie: Boolean, onClick: () -> Unit, onBudget: () -> Unit,
+    c: Categorie, couleur: Color, echelle: Double, part: Double?, ecart: Double?, choisie: Boolean, onClick: () -> Unit, onBudget: () -> Unit,
 ) {
     val money = LocalMoney.current
     val b = c.budget?.takeIf { it > 0 }
@@ -634,6 +682,7 @@ private fun LigneCategorie(
                 color = if (ecart > 0.5) money.loss else if (ecart < -0.5) money.gain else Pt.Mute,
             )
             Text(euros(c.depense, cents = false), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (depasse) money.loss else Pt.Encre)
+            if (part != null) Text(pctEntier(part), Modifier.widthIn(min = 34.dp), fontSize = 12.sp, color = Pt.Mute, textAlign = TextAlign.End)
             Box(Modifier.size(28.dp).clip(CircleShape).clickable(onClick = onBudget), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.Edit, contentDescription = "Budget : ${c.nom}", Modifier.size(14.dp), tint = Pt.Mute)
             }
@@ -658,7 +707,15 @@ private fun CarteTaux(flux: List<MoisFlux>, sel: String, tauxMoyen: Double?) {
             Text(pctEntier(dernier.taux), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Pt.Encre)
             Text("moyenne 12 mois ${pctEntier(moyenne)}", Modifier.padding(bottom = 4.dp), fontSize = 13.sp, color = Pt.Mute)
         }
-        CourbeTaux(taux, moisCourt(dernier.mois))
+        CourbeTaux(taux, moisCourt(dernier.mois)) { i ->
+            val f = flux[i]
+            listOf(
+                LigneInfobulle(moisLong(f.mois), null, gras = true),
+                LigneInfobulle("Revenus", euros(f.revenus, cents = false)),
+                LigneInfobulle("Dépenses", euros(f.depenses, cents = false)),
+                LigneInfobulle("Épargne", euros(f.epargne, sign = true, cents = false) + " · " + pctEntier(f.taux), gras = true),
+            )
+        }
         Muted("Dépenses nettes des remboursements ; héritages et donations à part. Le mois en cours est exclu tant qu'il n'est pas fini.")
     }
 }

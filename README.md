@@ -71,7 +71,7 @@ Optionnel, variables d'environnement (ou fichier `.env`, ignoré par git) :
 | `PATRIMOINE_DATA_DIR` | Dossier de la base (par défaut `data/`) |
 | `PATRIMOINE_EMAIL` | Adresse Gmail des mails (à défaut, le secret `smtp_email`) |
 | `PATRIMOINE_CONTACT` | Contact joint aux requêtes vers la SEC et le Congrès (la SEC en demande un) |
-| `PATRIMOINE_GITHUB_REPO` | Dépôt `propriétaire/nom` utilisé par les routines cloud (voir plus bas) |
+| `PATRIMOINE_GITHUB_REPO` | Dépôt `propriétaire/nom` utilisé par les routines cloud. À défaut : le dépôt de l'auteur (`JulesGourio/patrimoine`, défaut de `patrimoine/cloud.py`) ; à définir pour toute autre installation |
 
 ## Commandes
 

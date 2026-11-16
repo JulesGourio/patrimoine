@@ -1,6 +1,6 @@
 """CMB accounts through Enable Banking (PSD2 account information, read only).
 
-Jules registered a production application in "restricted" mode: it only sees the accounts he linked
+The user registered a production application in "restricted" mode: it only sees the accounts he linked
 himself, which is all we need. The private key (.pem named after the application id) stays in the
 data folder; the session id lives in the credential store. A session lasts until the consent
 expires (at most 180 days), then `patrimoine cmb connect` must be run again.
@@ -81,7 +81,7 @@ def find_bank(settings: Settings) -> dict[str, Any]:
 
 
 def start_consent(settings: Settings, days: int = 180) -> str:
-    """URL where Jules signs in to CMB; the bank then redirects to REDIRECT_URL?code=…"""
+    """URL where the user signs in to CMB; the bank then redirects to REDIRECT_URL?code=…"""
     bank = find_bank(settings)
     # The bank rejects anything beyond its maximum, to the second: keep an hour of margin.
     seconds = min(days * 86400, int(bank.get("maximum_consent_validity") or days * 86400)) - 3600

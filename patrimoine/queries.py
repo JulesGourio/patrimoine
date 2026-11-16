@@ -26,7 +26,7 @@ ACCOUNT_GROUPS = {"PEA": "Bourse", "Compte-titres": "Bourse", "PEG Airbus": "Ép
 
 
 def account_labels(con: sqlite3.Connection) -> dict[str, str]:
-    """Labels of the fixed accounts plus those of the accounts Jules created himself (prepaid cards: their name)."""
+    """Labels of the fixed accounts plus those of the accounts the user created himself (prepaid cards: their name)."""
     labels = dict(ACCOUNT_LABELS)
     try:
         for r in con.execute("SELECT id, name FROM accounts WHERE kind = 'prepaye'"):
@@ -219,7 +219,7 @@ def account_open_dates(con: sqlite3.Connection) -> dict[str, str]:
     return out
 
 
-# Ongoing charges (TER) of Jules's funds, % per year, from their factsheets: to check against the KID.
+# Ongoing charges (TER) of the user's funds, % per year, from their factsheets: to check against the KID.
 TER = {
     "FR0011550185": 0.0015,   # Amundi PEA S&P 500
     "FR0010342592": 0.0060,   # Amundi Nasdaq-100 Daily 2x Leveraged

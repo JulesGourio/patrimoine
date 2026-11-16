@@ -27,7 +27,7 @@ SPLIT_TOLERANCE = 1.25  # a trade/close ratio beyond this means Yahoo's scale di
 
 
 def cash_accounts(con: sqlite3.Connection) -> set[str]:
-    """Accounts whose cash counts in the valuation: the fixed ones plus the prepaid cards Jules created."""
+    """Accounts whose cash counts in the valuation: the fixed ones plus the prepaid cards the user created."""
     return CASH_ACCOUNTS | {r[0] for r in con.execute("SELECT id FROM accounts WHERE kind = 'prepaye'")}
 
 
@@ -244,7 +244,7 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
 
 
 def anchor_to_balances(con: sqlite3.Connection, df: pd.DataFrame, txs: list[sqlite3.Row]) -> pd.DataFrame:
-    """Shift each account's cash so it matches the latest balance its bank reported (or Jules typed).
+    """Shift each account's cash so it matches the latest balance its bank reported (or the user typed).
 
     Bank feeds only reach back ~13 months, so the running sum of the lines misses the opening balance;
     the reported balance fixes it. Days before the first known line of such an account are dropped.

@@ -52,7 +52,7 @@ REFUNDS = ("Remboursements",)
 # Bonuses, profit-sharing (intéressement, participation) and every premium: income, hence savings. Those paid into the
 # PEG show up as ``achat_titre`` lines of the PEG account (``PEG_PRIMES``); the bank ones as ``revenu`` of this category.
 PRIMES = "Primes et intéressement"
-# Meal vouchers credited on a prepaid card (Edenred, Swile…): income, as Jules decided (see cartes.py).
+# Meal vouchers credited on a prepaid card (Edenred, Swile…): income, as the user decided (see cartes.py).
 TITRES_RESTAURANT = "Titres-restaurant"
 PEG_PRIMES = ("PEG_INTERESSEMENT", "PEG_PARTICIPATION", "PEG_SUPPLEMENT_D'INTERESSEMENT")
 # Capital received once (inheritance, life insurance paid on a death, gifts): it adds to the wealth but is
@@ -63,29 +63,36 @@ NON_CASH_FLOWS = {"saveback", "titres_offerts", "operation_titres", "transfert_t
 CATEGORIES = SPENDING + INCOME
 FALLBACK = {"depense": "Divers", "revenu": "Autres revenus"}
 
-# Pattern -> category. The longest matching pattern wins, so "UBER EATS" beats "UBER"; rules
-# added by hand live in the database and are merged over these.
+# Pattern -> category. The longest matching pattern wins, so "UBER EATS" beats "UBER". Only generic French
+# chains, brands and words live here: rules that are personal (people, places, local shops) are added by the
+# user (``db.set_rule``, ``categoriser``) and live in the database, merged over these.
+_R, _S, _T = "Restaurants et sorties", "Sport et loisirs", "Transports"
 DEFAULT_RULES: dict[str, str] = {
     # Courses
     "CARREFOUR": "Courses", "LECLERC": "Courses", "INTERMARCHE": "Courses", "LIDL": "Courses",
-    "AUCHAN": "Courses", "SUPER U": "Courses", "HYPER U": "Courses", "MONOPRIX": "Courses",
-    "FRANPRIX": "Courses", "ALDI": "Courses", "BIOCOOP": "Courses", "PICARD": "Courses",
-    "GRAND FRAIS": "Courses", "CASINO": "Courses", "SPAR": "Courses", "NETTO": "Courses",
+    "AUCHAN": "Courses", "SUPER U": "Courses", "HYPER U": "Courses", "U EXPRESS": "Courses",
+    "MONOPRIX": "Courses", "FRANPRIX": "Courses", "ALDI": "Courses", "BIOCOOP": "Courses",
+    "PICARD": "Courses", "GRAND FRAIS": "Courses", "CASINO": "Courses", "SPAR": "Courses",
+    "NETTO": "Courses", "TOO GOOD T": "Courses", "TOO GOOD TO GO": "Courses", "TOOGOODTOGO": "Courses", "TGTG": "Courses", "NESPRESSO": "Courses",
+    "TESCO": "Courses", "SAINSBURY": "Courses",
     # Restaurants et sorties
-    "MCDONALD": "Restaurants et sorties", "BURGER KING": "Restaurants et sorties",
-    "KFC": "Restaurants et sorties", "UBER EATS": "Restaurants et sorties",
-    "DELIVEROO": "Restaurants et sorties", "STARBUCKS": "Restaurants et sorties",
-    "RESTAURANT": "Restaurants et sorties", "BRASSERIE": "Restaurants et sorties",
-    "BOULANGERIE": "Restaurants et sorties", "CINEMA": "Restaurants et sorties",
-    "PATHE": "Restaurants et sorties", "BAR ": "Restaurants et sorties",
+    "MCDONALD": _R, "MC DO": _R, "BURGER KING": _R, "KFC": _R, "SUBWAY": _R, "DOMINO": _R,
+    "UBER EATS": _R, "DELIVEROO": _R, "STARBUCKS": _R, "RESTAURANT": _R, "BRASSERIE": _R,
+    "BOULANGERIE": _R, "CINEMA": _R, "CINE ": _R, "PATHE": _R, "GAUMONT": _S, "BAR ": _R,
+    "CROUS": _R, "SODEXO": _R, "CLICKEAT": _R, "PANS & COMPANY": _R, "AMORINO": _R, "HAAGEN": _R,
+    # Words matched at word starts ("PIZZ" -> "PIZZERIA")
+    "CAFE": _R, "COFFEE": _R, "RAMEN": _R, "PIZZ": _R, "BURGER": _R, "KEBAP": _R, "KEBAB": _R,
+    "DONER": _R, "TACOS": _R, "SUSHI": _R, "PATISSERIE": _R, "BISTRO": _R, "RESTO": _R,
+    "AUBERGE": _R, "CREPERIE": _R, "GRILL": _R, "TRATTORIA": _R, "BRIOCHE": _R, "FASTFOOD": _R,
+    "FOOD": _R, "FOURNIL": _R, "TARTINE": _R, "THAI": _R, "CREMERIE": _R, "SORBET": _R,
+    "ENTRECOTE": _R, "CATERING": _R, "BIER": _R,
     # Transports
-    "SNCF": "Transports", "TOTALENERGIES": "Transports", "TOTALENERGIES ELECTRICITE": "Logement et énergie", "TOTAL ": "Transports",
-    "ESSO": "Transports", "SHELL": "Transports", "BP ": "Transports", "UBER": "Transports",
-    "BOLT": "Transports", "BLABLACAR": "Transports", "RATP": "Transports",
-    "AUTOROUTE": "Transports", "VINCI": "Transports", "SANEF": "Transports",
-    "PARKING": "Transports", "TRAINLINE": "Transports", "OUIGO": "Transports",
+    "SNCF": _T, "TOTALENERGIES": _T, "TOTALENERGIES ELECTRICITE": "Logement et énergie", "TOTAL ": _T,
+    "ESSO": _T, "SHELL": _T, "BP ": _T, "UBER": _T, "BOLT": _T, "BLABLACAR": _T, "RATP": _T,
+    "NAVIGO": _T, "FLIXBUS": _T, "AUTOROUTE": _T, "VINCI": _T, "SANEF": _T, "PARKING": _T,
+    "TRAINLINE": _T, "OUIGO": _T, "TRANSPORT FOR LONDON": _T,
     # Logement et énergie
-    "LOYER": "Logement et énergie", "DANIELLE PROPRIO": "Logement et énergie", "EDF": "Logement et énergie", "ENGIE": "Logement et énergie",
+    "LOYER": "Logement et énergie", "EDF": "Logement et énergie", "ENGIE": "Logement et énergie",
     "VEOLIA": "Logement et énergie", "IKEA": "Logement et énergie",
     "LEROY MERLIN": "Logement et énergie", "CASTORAMA": "Logement et énergie",
     # Abonnements et télécom
@@ -97,113 +104,45 @@ DEFAULT_RULES: dict[str, str] = {
     "APPLE.COM": "Abonnements et télécom", "GOOGLE": "Abonnements et télécom",
     "AMAZON PRIME": "Abonnements et télécom", "CANAL": "Abonnements et télécom",
     "ANTHROPIC": "Abonnements et télécom", "OPENAI": "Abonnements et télécom",
-    "STRAVA": "Abonnements et télécom",
+    "STRAVA": "Abonnements et télécom", "GITHUB": "Abonnements et télécom",
     # Santé
     "PHARMACIE": "Santé", "DOCTOLIB": "Santé", "MEDECIN": "Santé", "DENTISTE": "Santé",
     "KINE": "Santé", "OPTIC": "Santé", "MUTUELLE": "Santé", "LABORATOIRE": "Santé",
+    "TELECONSULTATION": "Santé", "DR ": "Santé",
     # Shopping
     "AMAZON": "Shopping", "FNAC": "Shopping", "DARTY": "Shopping", "ZARA": "Shopping",
     "H&M": "Shopping", "UNIQLO": "Shopping", "ACTION": "Shopping", "CDISCOUNT": "Shopping",
-    "VINTED": "Shopping", "ALIEXPRESS": "Shopping", "BOULANGER": "Shopping",
+    "VINTED": "Shopping", "ALIEXPRESS": "Shopping", "BOULANGER": "Shopping", "ZALANDO": "Shopping",
+    "LEBONCOIN": "Shopping", "HEMA": "Shopping", "PRIMARK": "Shopping", "CELIO": "Shopping",
+    "PAPETERIE": "Shopping", "LIBRAIRIE": "Shopping", "TRUFFAUT": "Shopping", "DELL": "Shopping",
     # Sport et loisirs
-    "DECATHLON": "Sport et loisirs", "INTERSPORT": "Sport et loisirs",
-    "GO SPORT": "Sport et loisirs", "I-RUN": "Sport et loisirs", "ALLTRICKS": "Sport et loisirs",
-    "COROS": "Sport et loisirs", "BASIC FIT": "Sport et loisirs", "STEAM": "Sport et loisirs",
-    "PLAYSTATION": "Sport et loisirs",
+    "DECATHLON": _S, "INTERSPORT": _S, "GO SPORT": _S, "ALLTRICKS": _S, "BASIC FIT": _S,
+    "STEAM": _S, "PLAYSTATION": _S, "ADIDAS": _S, "ASICS": _S, "INSTANT GAMING": _S,
+    "JEUX": _S, "MUSEE": _S, "SKI": _S, "ESCAPE": _S,
     # Voyages
     "AIRBNB": "Voyages", "BOOKING": "Voyages", "RYANAIR": "Voyages", "EASYJET": "Voyages",
     "AIR FRANCE": "Voyages", "TRANSAVIA": "Voyages", "VOLOTEA": "Voyages", "HOTEL": "Voyages",
-    # Services et administratif
+    "HOSTEL": "Voyages", "OTEL": "Voyages", "EDREAMS": "Voyages", "GITES DE FRANCE": "Voyages",
+    "GETYOURGUIDE": "Voyages", "HILTON": "Voyages", "MISTERFLY": "Voyages", "ESIM": "Voyages",
+    "CHEQUES VACANCE": "Voyages",
+    # Services, administratif, impôts
     "IMPOT": "Impôts et taxes", "IMPOTS": "Impôts et taxes", "DGFIP": "Impôts et taxes",
-    "DIRECTION GENERALE DES FINA": "Impôts et taxes", "RET DAB": "Retraits d'espèces",
-    "VELO TOULOUSE": "Transports", "PAYE": "Salaire", "WERO": "Remboursements",
-    "LA POSTE": "Services et administratif", "ANTS": "Services et administratif",
-    # Generic words, matched at word starts ("PIZZ" -> "PIZZERIA")
-    "CAFE": "Restaurants et sorties", "COFFEE": "Restaurants et sorties", "RAMEN": "Restaurants et sorties",
-    "PIZZ": "Restaurants et sorties", "BURGER": "Restaurants et sorties", "KEBAP": "Restaurants et sorties",
-    "KEBAB": "Restaurants et sorties", "DONER": "Restaurants et sorties", "TACOS": "Restaurants et sorties",
-    "SUSHI": "Restaurants et sorties", "PATISSERIE": "Restaurants et sorties", "BISTRO": "Restaurants et sorties",
-    "RESTO": "Restaurants et sorties", "AUBERGE": "Restaurants et sorties", "CREPERIE": "Restaurants et sorties",
-    "GRILL": "Restaurants et sorties", "TRATTORIA": "Restaurants et sorties", "PIDE": "Restaurants et sorties",
-    "BRIOCHE": "Restaurants et sorties", "COOKIE": "Restaurants et sorties", "FASTFOOD": "Restaurants et sorties",
-    "FOOD": "Restaurants et sorties", "BIER": "Restaurants et sorties", "ESCAPE": "Sport et loisirs",
-    "JEUX": "Sport et loisirs", "MUSEE": "Sport et loisirs", "SKI": "Sport et loisirs",
-    "HOSTEL": "Voyages", "OTEL": "Voyages", "BARBIER": "Services et administratif",
-    "BARBER": "Services et administratif", "COIFF": "Services et administratif", "DR ": "Santé",
-    # Places seen in Jules's own history (Toulouse, trips)
-    "TOO GOOD TO GO": "Courses", "TGTG": "Courses", "CROUS": "Restaurants et sorties",
-    "SODEXO": "Restaurants et sorties", "CLICKEAT": "Restaurants et sorties",
-    "CHER MONSIEUR": "Restaurants et sorties", "LES SABLES D OR": "Restaurants et sorties",
-    "BELLY": "Restaurants et sorties", "PRIMA LOVA": "Restaurants et sorties",
-    "MONSIEUR GEORGES": "Restaurants et sorties", "KILOMETRE ZERO": "Restaurants et sorties",
-    "STAREJ KUCHNI": "Restaurants et sorties", "PERIGOURDINE": "Restaurants et sorties",
-    "TEPE NAUTILUS": "Restaurants et sorties", "BRIOCHERIE": "Restaurants et sorties",
-    "MIE CALINE": "Restaurants et sorties", "BEL FRIES": "Restaurants et sorties",
-    "FOCA FOCA": "Restaurants et sorties", "LES ZINC": "Restaurants et sorties",
-    "P'TIT FLOT": "Restaurants et sorties", "MELTING POT": "Restaurants et sorties",
-    "CALE SECHE": "Restaurants et sorties", "DELIRIUM": "Restaurants et sorties",
-    "THE DANU": "Restaurants et sorties", "SORBET": "Restaurants et sorties",
-    "MAZZOLINA": "Restaurants et sorties", "CREMERIE": "Restaurants et sorties",
-    "ENTRECOTE": "Restaurants et sorties", "DELICIOSO": "Restaurants et sorties",
-    "TANDOORY": "Restaurants et sorties", "CATERING": "Restaurants et sorties",
-    "KASHMIR": "Restaurants et sorties", "AMORINO": "Restaurants et sorties",
-    "HAAGEN": "Restaurants et sorties", "ICHIBANYA": "Restaurants et sorties",
-    "UNLU MAMULLERI": "Restaurants et sorties", "AU GASCON": "Restaurants et sorties",
-    "RAVIOLI": "Restaurants et sorties", "PITAYA": "Restaurants et sorties", "MIA CHA": "Restaurants et sorties",
-    "4 TARTES": "Restaurants et sorties", "KIOSQUE": "Restaurants et sorties",
-    "BOREKCISI": "Restaurants et sorties", "TAKUMI": "Restaurants et sorties",
-    "TITO MOJITO": "Restaurants et sorties", "PANS & COMPANY": "Restaurants et sorties",
-    "BANH MI": "Restaurants et sorties", "DOMINO": "Restaurants et sorties",
-    "LEBREUILLY": "Restaurants et sorties", "GALACTICA": "Restaurants et sorties",
-    "HELADERIA": "Restaurants et sorties", "MC DO": "Restaurants et sorties",
-    "HALLE AUX PAINS": "Restaurants et sorties", "YOGO": "Restaurants et sorties",
-    "FOLIE DOUCE": "Restaurants et sorties", "BOW & ROLL": "Restaurants et sorties",
-    "N88DLES": "Restaurants et sorties", "XINYAN": "Restaurants et sorties",
-    "JUNE CAFES": "Restaurants et sorties", "GD CAFE": "Restaurants et sorties",
-    "GAUMONT": "Sport et loisirs", "LOUXOR": "Sport et loisirs", "MYSTERIA": "Sport et loisirs",
-    "GAMEBOX": "Sport et loisirs", "GROTTE DU YETI": "Sport et loisirs", "CAP LOISIRS": "Sport et loisirs",
-    "BARAKAJEUX": "Sport et loisirs", "BARAKA JEUX": "Sport et loisirs", "DREAM O CLOCK": "Sport et loisirs",
-    "WIGMORE HALL": "Sport et loisirs", "BILLET REDUC": "Sport et loisirs", "KINGUIN": "Sport et loisirs",
-    "ENEBA": "Sport et loisirs", "INSTANT GAMING": "Sport et loisirs", "ANKAMA": "Sport et loisirs",
-    "ASICS": "Sport et loisirs", "VELOTOPIE": "Transports",
-    "TISSEO": "Transports", "FLIXBUS": "Transports", "NAVIGO": "Transports", "BELBIM": "Transports",
-    "TRANSPORT FOR LONDON": "Transports",
-    "EDREAMS": "Voyages", "GITES DE FRANCE": "Voyages", "GETYOURGUIDE": "Voyages", "YHA": "Voyages",
-    "HILTON": "Voyages", "HEADOUT": "Voyages", "TOULOUSE TOURISME": "Voyages", "ESIM": "Voyages",
-    "VILLAGE IGLOO": "Voyages", "ZALANDO": "Shopping", "SIZE?": "Shopping", "LEBONCOIN": "Shopping",
-    "TRUFFAUT": "Shopping", "GRAND BAZAAR": "Shopping",
-    "TESCO": "Courses", "SAINSBURY": "Courses", "CONSUM": "Courses", "ASIA SHOP": "Courses",
-    "KIM MARKET": "Courses", "LAITERIE": "Courses", "SAVEURS D": "Courses", "PALAIS DES THES": "Courses",
-    "NESPRESSO": "Courses", "MAXICOFFEE": "Courses",
-    "TREATWELL": "Services et administratif", "HELLOASSO": "Cadeaux et dons", "GITHUB": "Abonnements et télécom",
-    "TELECONSULTATION": "Santé",
-    # Older CMB history (2020-2025)
-    "DANIELLE": "Logement et énergie", "METGE": "Logement et énergie", "FAUX JEAN": "Logement et énergie", "IZLY": "Cantine", "LYC ": "Études", "CONCOURS": "Études",
-    "SCEI": "Études", "EN VOITURE SIMON": "Transports", "EVA AIR": "Voyages", "MSA": "Aides et allocations",
-    "ACTION LOGEMENT": "Aides et allocations", "GOURIO SYLVAIN": "Famille", "VIOT": "Famille",
-    "CHLOE GOURIO": "Famille", "GOURIO SANDRA": "Famille", "WINAMAX": "Autres revenus", "DELL": "Shopping", "MI.COM": "Shopping",
-    "LIBRAIRIE": "Shopping", "SMONEY": "Cantine",
-    # Seen in the "Divers" backlog (2020-2026)
-    "TOO GOOD T": "Courses", "TOOGOODTOGO": "Courses", "U EXPRESS": "Courses", "RU ": "Cantine",
-    "FOURNIL": "Restaurants et sorties", "B.KING": "Restaurants et sorties", "SUBWAY": "Restaurants et sorties",
-    "ZINGBURGER": "Restaurants et sorties", "V AND B": "Restaurants et sorties", "DUBLINERS": "Restaurants et sorties",
-    "BLIND PIPER": "Restaurants et sorties", "BLACK LION": "Restaurants et sorties", "THAI": "Restaurants et sorties",
-    "SABLES D'OR": "Restaurants et sorties", "CHEZ TONTON": "Restaurants et sorties", "TARTINE": "Restaurants et sorties",
-    "CINE ": "Restaurants et sorties", "BIBUS": "Transports", "TMB BUS": "Transports", "PRIX DU TRAJ": "Transports",
-    "HEMA": "Shopping", "PRIMARK": "Shopping", "CELIO": "Shopping", "PAPETERIE": "Shopping",
-    "ADIDAS": "Sport et loisirs", "SPORT TICKETING": "Sport et loisirs", "MISTERFLY": "Voyages",
-    "VIVRE LE JAPON": "Voyages", "SZE'CHENYI": "Voyages", "TERROR HA": "Voyages",
-    "TIMBRE FISCAL": "Services et administratif", "BOOKSY": "Services et administratif",
-    "F COMM PAIEMENT": "Services et administratif",
-    # Told by Jules
-    "CSE AIRBUS": "Cantine", "COOP CE AIRBUS": "Cantine", "MONEWEB": "Cantine", "GALAXIE": "Cantine",
-    "MA VILLE MON SHOPPING": "Sport et loisirs", "CHEQUES VACANCE": "Voyages",
+    "DIRECTION GENERALE DES FINA": "Impôts et taxes", "TIMBRE FISCAL": "Services et administratif",
+    "RET DAB": "Retraits d'espèces", "LA POSTE": "Services et administratif",
+    "ANTS": "Services et administratif", "BARBIER": "Services et administratif",
+    "BARBER": "Services et administratif", "COIFF": "Services et administratif",
+    "TREATWELL": "Services et administratif", "BOOKSY": "Services et administratif",
+    "HELLOASSO": "Cadeaux et dons",
+    # Études et cantine
+    "IZLY": "Cantine", "LYC ": "Études", "CONCOURS": "Études", "RU ": "Cantine",
     # Revenus
-    "AIRBUS": "Salaire", "SALAIRE": "Salaire", "TITRES-RESTAURANT": TITRES_RESTAURANT,
+    "PAYE": "Salaire", "SALAIRE": "Salaire", "TITRES-RESTAURANT": TITRES_RESTAURANT,
     "INTERESSEMENT": PRIMES, "PARTICIPATION": PRIMES, "GRATIFICATION": PRIMES, "13EME MOIS": PRIMES,
     "TREIZIEME MOIS": PRIMES, "BONUS": PRIMES, "PRIME": PRIMES, "PRIME EXC": PRIMES, "PRIME DE": PRIMES,
-    "PRIME ANN": PRIMES, "PRIME VAC": PRIMES, "PRIME PAR": PRIMES, "PRIMES": PRIMES, "CPAM": "Remboursements",
-    "AMELI": "Remboursements", "CAF": "Aides et allocations", "LYDIA": "Remboursements",
+    "PRIME ANN": PRIMES, "PRIME VAC": PRIMES, "PRIME PAR": PRIMES, "PRIMES": PRIMES,
+    "CPAM": "Remboursements", "AMELI": "Remboursements", "LYDIA": "Remboursements",
+    "WERO": "Remboursements", "CAF": "Aides et allocations", "MSA": "Aides et allocations",
+    "ACTION LOGEMENT": "Aides et allocations",
     "REGLT DECES": "Héritage et donations", "SUCCESSION": "Héritage et donations",
 }
 

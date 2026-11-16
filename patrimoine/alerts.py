@@ -8,7 +8,7 @@ Kinds:
 - ``seuil_bas`` / ``seuil_haut``: an ISIN's price crossing ``threshold`` EUR.
 - ``concentration``: a line above ``threshold`` % of invested wealth (PEG included).
 - ``budget``: a category's spending this month above its budget (``budgets`` table); ``target`` limits
-  it to one category. Recorded and shown on the Suivi page, never pushed nor mailed: Jules checks his
+  it to one category. Recorded and shown on the Suivi page, never pushed nor mailed: the user checks his
   spending himself.
 """
 from __future__ import annotations

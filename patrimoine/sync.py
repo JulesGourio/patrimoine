@@ -98,7 +98,7 @@ def import_cmb(con: sqlite3.Connection, dump: dict) -> Report:
 
     name = db.get_meta(con, "owner") or {}
     owner = set(words(name.get("last")) + words(name.get("first"))[:1])
-    rows, _ = cmb_parse.parse(dump, owner)
+    rows, _ = cmb_parse.parse(dump, owner, internal=db.internal_labels(con))
     # The Livret CMB is followed through the current account's transfers only after its last CSV export.
     csv_until = (db.get_meta(con, "cmb_csv_until") or {}).get("cmb_livret_a", "")
     rows += [r for r in cmb_parse.livret_mirror(rows) if r.date > csv_until]
@@ -127,7 +127,7 @@ def import_cmb_csv(con: sqlite3.Connection, paths: list) -> dict[str, tuple[int,
     until = db.get_meta(con, "cmb_csv_until") or {}
     out = {}
     for path in paths:
-        rows = cmb_csv.parse(path, owner)
+        rows = cmb_csv.parse(path, owner, db.internal_labels(con))
         if not rows:
             continue
         account = rows[0].account_id

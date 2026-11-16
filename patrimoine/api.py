@@ -1,4 +1,4 @@
-"""The read and write operations on Jules's data, as plain functions returning JSON-safe dicts.
+"""The read and write operations on the user's data, as plain functions returning JSON-safe dicts.
 
 One list (`TOOLS`) serves the MCP server (`mcp_server`), the mobile app (`mobile`) and the cloud export
 (`cloud`); none of them needs the others' libraries (no `mcp` import here).
@@ -431,7 +431,7 @@ def budget(categorie: str, montant_mensuel: float) -> dict:
 def preparer_ordre(sens: str, titre: str, justification: str, risques: str, compte: str = "tr_cto",
                    isin: str = "", quantite: float = 0, montant_eur: float = 0, limite: float = 0,
                    notifier: bool = True) -> dict:
-    """Prépare un ordre (sens 'achat' ou 'vente') pour que Jules le passe lui-même dans l'appli Trade Republic.
+    """Prépare un ordre (sens 'achat' ou 'vente') pour que l'utilisateur le passe lui-même dans l'appli Trade Republic.
     Compte : tr_cto ou tr_pea (vérifier l'éligibilité PEA). Donner la justification chiffrée et les risques."""
     if sens not in ("achat", "vente"):
         return {"erreur": "sens : achat ou vente"}
@@ -448,7 +448,7 @@ def preparer_ordre(sens: str, titre: str, justification: str, risques: str, comp
         taille = f"{quantite:g} titres" if quantite else f"{montant_eur:.0f} €"
         notify.send(f"Idée d'ordre : {sens} {titre}", f"{taille}" + (f", limite {limite:.2f} €" if limite else "")
                     + f" sur {compte}.\n{justification[:600]}", priority=3)
-    return {"ok": True, "id": cur.lastrowid, "rappel": "Ordre non passé : Jules l'exécute dans Trade Republic."}
+    return {"ok": True, "id": cur.lastrowid, "rappel": "Ordre non passé : l'utilisateur l'exécute dans Trade Republic."}
 
 
 @tool
@@ -461,7 +461,7 @@ def ordres_proposes(statut: str = "proposé") -> dict:
 
 @tool
 def statut_ordre(id: int, statut: str) -> dict:
-    """Note ce que Jules a fait d'un ordre préparé : 'passé' (il l'a exécuté dans Trade Republic), 'abandonné', ou
+    """Note ce que l'utilisateur a fait d'un ordre préparé : 'passé' (il l'a exécuté dans Trade Republic), 'abandonné', ou
     'proposé' pour annuler. Ne passe aucun ordre."""
     if statut not in ("proposé", "passé", "abandonné"):
         return {"erreur": "statut : proposé, passé ou abandonné"}
@@ -474,7 +474,7 @@ def statut_ordre(id: int, statut: str) -> dict:
 @tool
 def faits_du_jour(periode: str = "jour") -> dict:
     """Point de départ d'une analyse de marché. periode 'jour' (dernière séance) ou 'semaine' (5 séances).
-    Calcule et enregistre un brouillon : lignes de Jules contre leur indice (move = variation, z = écart en
+    Calcule et enregistre un brouillon : lignes de l'utilisateur contre leur indice (move = variation, z = écart en
     écarts-types habituels, impact_eur), marchés, secteurs US, actions de ses ETF qui l'ont fait bouger
     (moteurs_etf), changements d'avis d'analystes, résultats à venir, et `a_expliquer` :
     les mouvements inhabituels à expliquer en priorité. Renvoie l'id à passer à `publier_analyse`."""
@@ -522,7 +522,7 @@ def analyses(n: int = 5) -> dict:
 @tool
 def enregistrer_rapport(titre: str, contenu_markdown: str, type: str = "demande", notifier: bool = True) -> dict:
     """Enregistre un rapport (type 'hebdo' ou 'demande') ; il s'affiche dans le dashboard et part sur le
-    téléphone de Jules et par mail. Commencer le contenu par 3 à 5 lignes de synthèse."""
+    téléphone de l'utilisateur et par mail. Commencer le contenu par 3 à 5 lignes de synthèse."""
     con = _con()
     cur = con.execute("INSERT INTO reports (created_at, kind, title, body_md) VALUES (?, ?, ?, ?)",
                       (db.now_iso(), type, titre, contenu_markdown))
@@ -544,7 +544,7 @@ def rapports(n: int = 5) -> dict:
 @tool
 def synchroniser() -> dict:
     """Relance la synchronisation complète (Trade Republic, CMB, cours, historique, alertes). Peut demander à
-    Jules de confirmer la connexion Trade Republic sur son téléphone."""
+    l'utilisateur de confirmer la connexion Trade Republic sur son téléphone."""
     from . import pipeline
 
     return {"resume": pipeline.run()}
@@ -910,11 +910,12 @@ def accueil_ecran() -> dict:
     comptes courants, livrets) sur chaque période (1S à MAX) avec la variation en euros et en % (versements
     inclus) et d'où elle vient (épargne, marchés, dividendes et intérêts) ; répartition ; indicateurs (taux
     d'épargne, mois de dépenses couverts, disponible sous 48 h, valeur après impôts latents) ; comptes avec leur
-    variation et leur courbe sur 30 jours ; dernière analyse, ordres préparés, alertes et dernière synchro."""
+    variation et leur courbe sur 30 jours ; `details` (gains d'investissement bruts et nets d'impôt, variations
+    depuis le 1er janvier et sur 1 an, épargne moyenne) et `sans_peg` (mêmes périodes sans le PEG Airbus) ; dernière analyse, ordres préparés, alertes et dernière synchro."""
     from . import accueil_ecran as _accueil
 
     con = _con()
-    out = _clean(_accueil.donnees(con, synthese()))
+    out = _clean(_accueil.donnees(con, synthese(), synthese(avec_peg=False)))
     if out.get("erreur"):
         return out
     last = analyses(1)

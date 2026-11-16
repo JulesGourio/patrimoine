@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.julesgourio.patrimoine.ui.theme.LocalMoney
 import fr.julesgourio.patrimoine.ui.theme.Pt
 import kotlin.math.abs
 import kotlin.math.max
@@ -61,7 +62,7 @@ sealed interface ModeleBourse {
 }
 
 /** Un achat ou une vente de l'utilisateur, posé sur le point [index] de la courbe. */
-class Repere(val index: Int, val achat: Boolean)
+class Repere(val index: Int, val achat: Boolean, val detail: String = "")
 
 /** Couleurs des repères : achat (triangle vers le haut) et vente (triangle vers le bas), lisibles sur fond sombre. */
 val CouleurAchat = Color(0xFF6CB2FF)
@@ -71,9 +72,9 @@ val CouleurVente = Color(0xFFFFB84D)
 private fun libelleAxe(iso: String, annee: Boolean) = if (iso.length > 10) iso.substring(11, 16) else dateCourte(iso, annee)
 
 private const val MARGE_DROITE = 8f
-private val HAUT = 10.dp
-private val BAS = 150.dp
-private val TOTAL = 170.dp
+private val HAUT = 30.dp   // bande du haut : l'infobulle y est dessinée (elle déborde un peu sur la courbe)
+private val BAS = 172.dp
+private val TOTAL = 192.dp
 
 @Composable
 fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
@@ -86,21 +87,26 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
     val bulleTexte = TextStyle(fontSize = 12.sp, color = Pt.Encre, fontWeight = FontWeight.SemiBold, fontFamily = police)
     val bulleDate = TextStyle(fontSize = 12.sp, color = Pt.Sub, fontWeight = FontWeight.Medium, fontFamily = police)
 
+    val gain = LocalMoney.current.gain
+    val perte = LocalMoney.current.loss
     Canvas(
         modifier.fillMaxWidth().height(TOTAL).pointerInput(modele) {
             awaitEachGesture {
-                val down = awaitFirstDown()
+                val down = awaitFirstDown(requireUnconsumed = false)
                 val largeur = size.width - MARGE_DROITE.dp.toPx()
                 fun indice(x: Float) = ((x / largeur).coerceIn(0f, 1f) * (n - 1)).roundToInt()
+                val avant = survol
+                var bouge = false
                 survol = indice(down.position.x)
                 do {
                     val ev = awaitPointerEvent()
                     val c = ev.changes.first()
                     survol = indice(c.position.x)
                     // Glissé horizontal : le graphique le garde ; vertical : la liste défile.
-                    if (abs(c.positionChange().x) > abs(c.positionChange().y)) c.consume()
+                    if (abs(c.positionChange().x) > abs(c.positionChange().y)) { c.consume(); bouge = true }
                 } while (c.pressed)
-                survol = null
+                // L'infobulle reste après le doigt levé ; un second appui sur le même point la referme.
+                if (!bouge && avant == survol) survol = null
             }
         },
     ) {
@@ -113,20 +119,20 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
 
         fun x(i: Int) = i.toFloat() / (n - 1) * l
         val (lo, hi) = bornes(modele)
+        val enEchelle = modele is ModeleBourse.Euros && investiDansEchelle(modele)
         fun y(v: Double) = (bas - ((v - lo) / (if (hi - lo == 0.0) 1.0 else hi - lo)) * (bas - haut)).toFloat()
         fun ligne(v: List<Double>): Path = Path().apply {
             v.forEachIndexed { i, a -> if (i == 0) moveTo(x(i), y(a)) else lineTo(x(i), y(a)) }
         }
 
         var pointSurvol: Offset? = null
-        var texteSurvol = ""
         when (modele) {
             is ModeleBourse.Euros -> {
                 val c = if (modele.hausse) Pt.HausseNuit else Pt.BaisseNuit
                 val p = ligne(modele.valeurs)
                 val aire = Path().apply { addPath(p); lineTo(l, bas); lineTo(0f, bas); close() }
                 drawPath(aire, Brush.verticalGradient(listOf(c.copy(alpha = 0.28f), c.copy(alpha = 0f)), startY = haut, endY = bas))
-                modele.investi?.let {
+                modele.investi?.takeIf { enEchelle }?.let {
                     drawPath(ligne(it), Pt.NuitSub, style = Stroke(1.4.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))))
                 }
                 drawPath(p, c, style = Stroke(2.dp.toPx(), join = StrokeJoin.Round, cap = StrokeCap.Round))
@@ -136,15 +142,17 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
                 modele.reperes.forEach { r ->
                     if (r.index in modele.valeurs.indices) repere(Offset(x(r.index), y(modele.valeurs[r.index])), r.achat, haut, bas, 0f, l)
                 }
-                survol?.let { pointSurvol = Offset(x(it), y(modele.valeurs[it])); texteSurvol = euros(modele.valeurs[it], cents = modele.centimes) }
+                survol?.let { pointSurvol = Offset(x(it), y(modele.valeurs[it])) }
             }
             is ModeleBourse.Pourcent -> {
-                val zy = y(0.0)
-                drawLine(Color(0xFF3A445C), Offset(0f, zy), Offset(size.width, zy), 1.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 3.dp.toPx())))
+                if (lo < 0.0 && hi > 0.0) {
+                    val zy = y(0.0)
+                    drawLine(Color(0xFF3A445C), Offset(0f, zy), Offset(size.width, zy), 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 3.dp.toPx())))
+                }
                 modele.indice?.let { drawPath(ligne(it), Pt.NuitSub, style = Stroke(1.6.dp.toPx(), join = StrokeJoin.Round)) }
                 drawPath(ligne(modele.portefeuille), Color.White, style = Stroke(2.dp.toPx(), join = StrokeJoin.Round, cap = StrokeCap.Round))
-                survol?.let { pointSurvol = Offset(x(it), y(modele.portefeuille[it])); texteSurvol = pct(modele.portefeuille[it], digits = 2) }
+                survol?.let { pointSurvol = Offset(x(it), y(modele.portefeuille[it])) }
             }
             is ModeleBourse.Comptes -> {
                 val cumul = DoubleArray(n)
@@ -159,19 +167,16 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
                     drawPath(aire, couleur)
                     drawPath(aire, Pt.Nuit, style = Stroke(1.5.dp.toPx()))
                 }
-                survol?.let { pointSurvol = Offset(x(it), y(cumul[it])); texteSurvol = euros(cumul[it], cents = false) }
+                survol?.let { pointSurvol = Offset(x(it), y(cumul[it])) }
             }
         }
 
         // Axes : bornes à gauche, première et dernière dates en pied.
-        val fmt: (Double) -> String = when {
-            modele is ModeleBourse.Pourcent -> { v -> pct(v, digits = 1) }
-            modele is ModeleBourse.Euros && modele.centimes -> { v -> euros(v, cents = true) }
-            else -> { v -> eurosK(v) }
-        }
+        val fmt = formatAxe(modele, lo, hi)
         drawText(mesure, fmt(hi), Offset(6.dp.toPx(), haut + 1.dp.toPx()), axe)
+        drawText(mesure, fmt((lo + hi) / 2), Offset(6.dp.toPx(), (haut + bas) / 2 + 1.dp.toPx()), axe)
         drawText(mesure, fmt(lo), Offset(6.dp.toPx(), bas - 14.dp.toPx()), axe)
-        val pied = 170.dp.toPx() - 15.dp.toPx()
+        val pied = TOTAL.toPx() - 15.dp.toPx()
         val premier = libelleAxe(modele.dates.first(), modele.anneeAxe)
         val dernier = libelleAxe(modele.dates.last(), modele.anneeAxe)
         drawText(mesure, premier, Offset(6.dp.toPx(), pied), axe)
@@ -182,7 +187,43 @@ fun GraphiqueBourse(modele: ModeleBourse, modifier: Modifier = Modifier) {
             drawLine(Color.White.copy(alpha = 0.5f), Offset(p.x, haut), Offset(p.x, bas), 1.dp.toPx())
             drawCircle(Pt.Nuit, 6.5.dp.toPx(), p)
             drawCircle(Color.White, 4.5.dp.toPx(), p)
-            bulle(mesure, texteSurvol, libelleAxe(modele.dates[survol!!], true), p.x, bulleTexte, bulleDate)
+            val lignes = lignesBulle(modele, survol!!, gain, perte)
+            bulle(mesure, lignes, p.x, bulleTexte, bulleDate)
+        }
+    }
+}
+
+/** Une ligne de l'infobulle : texte et couleur ([null] = couleur par défaut), en gras ou non. */
+private class LigneBulle(val texte: String, val couleur: Color? = null, val gras: Boolean = false)
+
+/** Contenu de l'infobulle au point [i] : date ou heure, valeur, variation depuis le début de la période, achats et ventes du jour. */
+private fun lignesBulle(m: ModeleBourse, i: Int, gain: Color, perte: Color): List<LigneBulle> {
+    val date = m.dates[i].let { if (it.length > 10) dateCourte(it, false) + " · " + it.substring(11, 16) else dateCourte(it, true) }
+    fun variation(v: Double, debut: Double, cents: Boolean): LigneBulle {
+        val d = v - debut
+        val txt = euros(d, sign = true, cents = cents) + (if (debut != 0.0) " (" + pct(d / abs(debut), digits = 2) + ")" else "") + " depuis le début"
+        return LigneBulle(txt, if (d >= 0) gain else perte)
+    }
+    return when (m) {
+        is ModeleBourse.Euros -> buildList {
+            add(LigneBulle(date))
+            add(LigneBulle((if (m.centimes) "Cours " else "") + euros(m.valeurs[i], cents = m.centimes), gras = true))
+            add(variation(m.valeurs[i], m.valeurs.first(), m.centimes))
+            m.reperes.filter { it.index == i }.forEach {
+                add(LigneBulle((if (it.achat) "Achat" else "Vente") + if (it.detail.isNotEmpty()) " " + it.detail else "", if (it.achat) CouleurAchat else CouleurVente))
+            }
+        }
+        is ModeleBourse.Pourcent -> buildList {
+            add(LigneBulle(date))
+            add(LigneBulle("Portefeuille " + pct(m.portefeuille[i], digits = 2), if (m.portefeuille[i] >= 0) gain else perte, gras = true))
+            m.indice?.getOrNull(i)?.let {
+                add(LigneBulle("Indice " + pct(it, digits = 2) + " · écart " + pct(m.portefeuille[i] - it, digits = 2)))
+            }
+        }
+        is ModeleBourse.Comptes -> {
+            val total = m.piles.sumOf { it.second.getOrElse(i) { 0.0 } }
+            val debut = m.piles.sumOf { it.second.getOrElse(0) { 0.0 } }
+            listOf(LigneBulle(date), LigneBulle(euros(total, cents = false), gras = true), variation(total, debut, false))
         }
     }
 }
@@ -206,38 +247,62 @@ private fun DrawScope.repere(sur: Offset, achat: Boolean, haut: Float, bas: Floa
     drawPath(tri, if (achat) CouleurAchat else CouleurVente)
 }
 
-private fun bornes(m: ModeleBourse): Pair<Double, Double> = when (m) {
-    is ModeleBourse.Euros -> {
-        val tous = m.valeurs + (m.investi ?: emptyList())
-        val lo = tous.min()
-        val hi = tous.max()
-        val pv = (hi - lo) * 0.1
-        max(0.0, lo - (if (pv == 0.0) 1.0 else pv)) to hi + (if (pv == 0.0) 1.0 else pv)
+/** Marge de l'échelle autour du min et du max de la période affichée. */
+private const val MARGE_ECHELLE = 0.08
+
+/** La ligne de référence (investi, clôture précédente) n'entre dans l'échelle que si elle n'écrase pas la courbe. */
+private fun investiDansEchelle(m: ModeleBourse.Euros): Boolean {
+    val inv = m.investi ?: return false
+    val lo = m.valeurs.min()
+    val hi = m.valeurs.max()
+    val ecart = max(hi - lo, abs(hi) * 0.005)
+    return inv.all { it >= lo - ecart * 0.6 && it <= hi + ecart * 0.6 }
+}
+
+/** Échelle verticale : min et max de la série de la période affichée plus 8 %, jamais forcée à zéro (sauf piles de comptes). */
+private fun bornes(m: ModeleBourse): Pair<Double, Double> {
+    val tous = when (m) {
+        is ModeleBourse.Euros -> m.valeurs + (if (investiDansEchelle(m)) m.investi.orEmpty() else emptyList())
+        is ModeleBourse.Pourcent -> m.portefeuille + (m.indice ?: emptyList())
+        is ModeleBourse.Comptes -> {
+            val maxTotal = m.dates.indices.maxOf { i -> m.piles.sumOf { it.second.getOrElse(i) { 0.0 } } }
+            return 0.0 to (if (maxTotal <= 0) 1.0 else maxTotal * (1 + MARGE_ECHELLE))
+        }
     }
-    is ModeleBourse.Pourcent -> {
-        val tous = m.portefeuille + (m.indice ?: emptyList())
-        val lo = tous.min()
-        val hi = tous.max()
-        val pv = (hi - lo) * 0.1
-        val p = if (pv == 0.0) 0.001 else pv
-        (min(lo, 0.0) - p) to (max(hi, 0.0) + p)
-    }
-    is ModeleBourse.Comptes -> {
-        val n = m.dates.size
-        val maxTotal = (0 until n).maxOf { i -> m.piles.sumOf { it.second.getOrElse(i) { 0.0 } } }
-        0.0 to (if (maxTotal <= 0) 1.0 else maxTotal * 1.08)
+    val lo = tous.min()
+    val hi = tous.max()
+    // Courbe plate : une étendue minimale évite de diviser par zéro et d'écraser la ligne au milieu.
+    val minimum = if (m is ModeleBourse.Pourcent) 0.002 else max(abs(hi) * 0.002, 0.01)
+    val etendue = max(hi - lo, minimum)
+    val pv = etendue * MARGE_ECHELLE
+    val milieu = (hi + lo) / 2
+    return (milieu - etendue / 2 - pv) to (milieu + etendue / 2 + pv)
+}
+
+/** Format des graduations : assez de précision pour que haut, milieu et bas restent distincts sur une période courte. */
+private fun formatAxe(m: ModeleBourse, lo: Double, hi: Double): (Double) -> String {
+    val etendue = hi - lo
+    return when {
+        m is ModeleBourse.Pourcent -> { v -> pct(v, digits = if (etendue < 0.02) 2 else 1) }
+        m is ModeleBourse.Euros && m.centimes -> { v -> euros(v, cents = true) }
+        etendue < 3000 -> { v -> euros(v, cents = etendue < 30) }
+        else -> { v -> eurosK(v) }
     }
 }
 
-private fun DrawScope.bulle(mesure: TextMeasurer, valeur: String, date: String, xCentre: Float, sv: TextStyle, sd: TextStyle) {
-    val a = mesure.measure(valeur, sv)
-    val b = mesure.measure(date, sd)
+private fun DrawScope.bulle(mesure: TextMeasurer, lignes: List<LigneBulle>, xCentre: Float, sv: TextStyle, sd: TextStyle) {
+    val mesures = lignes.map { l ->
+        val st = (if (l.gras) sv else sd).let { if (l.couleur != null) it.copy(color = l.couleur) else it }
+        mesure.measure(l.texte, st)
+    }
     val pad = 8.dp.toPx()
-    val ecart = 6.dp.toPx()
-    val w = a.size.width + ecart + b.size.width + 2 * pad
-    val h = max(a.size.height, b.size.height) + 10.dp.toPx()
-    val x0 = (xCentre - w / 2).coerceIn(0f, size.width - w)
+    val w = mesures.maxOf { it.size.width } + 2 * pad
+    val h = mesures.sumOf { it.size.height } + 2 * 4.dp.toPx()
+    val x0 = (xCentre - w / 2).coerceIn(0f, max(0f, size.width - w))
     drawRoundRect(Color.White, Offset(x0, 0f), Size(w, h), CornerRadius(8.dp.toPx()))
-    drawText(mesure, valeur, Offset(x0 + pad, 5.dp.toPx()), sv)
-    drawText(mesure, date, Offset(x0 + pad + a.size.width + ecart, 5.dp.toPx()), sd)
+    var y = 4.dp.toPx()
+    mesures.forEach { m ->
+        drawText(m, topLeft = Offset(x0 + pad, y))
+        y += m.size.height
+    }
 }
