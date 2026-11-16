@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
+import threading
 from datetime import date, timedelta
 from typing import Any, Callable
 
@@ -37,10 +38,29 @@ def tool(fn: Callable[..., dict]) -> Callable[..., dict]:
     return fn
 
 
+_OUVERTES = threading.local()
+
+
 def _con() -> sqlite3.Connection:
     con = db.connect(Settings().db_path)
     db.init(con)
+    getattr(_OUVERTES, "liste", None) is None and setattr(_OUVERTES, "liste", [])
+    _OUVERTES.liste.append(con)
     return con
+
+
+def fermer_connexions() -> None:
+    """Ferme les connexions ouvertes par l'appel d'outil en cours (annule ce qui n'a pas été validé).
+
+    Sans cela, une écriture jamais validée garde le verrou de la base jusqu'au ramasse-miettes et bloque tous
+    les écrans de l'appli (« database is locked » au bout de 30 s)."""
+    for con in getattr(_OUVERTES, "liste", None) or []:
+        try:
+            con.rollback()
+            con.close()
+        except Exception:  # noqa: BLE001 - déjà fermée
+            pass
+    _OUVERTES.liste = []
 
 
 def _clean(x: Any) -> Any:
@@ -124,7 +144,9 @@ def historique(pas: str = "M") -> dict:
     h = queries.history(_con())
     if h.empty:
         return {"historique": []}
-    rule = {"M": "ME", "W": "W"}.get(pas.upper(), "ME")
+    from .bourse import FIN_DE_MOIS
+
+    rule = {"M": FIN_DE_MOIS, "W": "W"}.get(pas.upper(), FIN_DE_MOIS)
     g = (h.set_index("date").groupby("account").resample(rule)[["value", "cost", "realised", "deposits"]].last()
          .reset_index())
     return {"historique": _records(g)}

@@ -395,12 +395,16 @@ def _periodes(ctx: Contexte, v: pd.DataFrame, par_compte: dict[str, pd.DataFrame
     return out
 
 
+# pandas >= 2.2 nomme « ME » la fin de mois ; l'appli Android embarque un pandas plus ancien qui dit « M ».
+FIN_DE_MOIS = "ME" if tuple(int(x) for x in pd.__version__.split(".")[:2]) >= (2, 2) else "M"
+
+
 def _rendements_mensuels(v: pd.DataFrame) -> list[dict]:
     idx = v.twr_index
     moved = idx[idx != 100.0]
     if moved.empty:
         return []
-    mois = idx.resample("ME").last()
+    mois = idx.resample(FIN_DE_MOIS).last()
     prev = mois.shift(1)
     prev.iloc[0] = float(idx.iloc[0])
     ret = (mois / prev - 1)

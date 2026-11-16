@@ -146,6 +146,12 @@ def call(name: str, args_json: str = "{}") -> str:
 
 def _call(name: str, args_json: str) -> str:
     def run() -> Any:
+        try:
+            return _run()
+        finally:
+            api.fermer_connexions()
+
+    def _run() -> Any:
         fn = SCREENS.get(name) or next((f for f in api.TOOLS if f.__name__ == name), None)
         if fn is None:
             raise ValueError(f"fonction inconnue : {name}")
