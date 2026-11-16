@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import hashlib
 from collections import Counter
+from typing import Iterable
 from pathlib import Path
 
 from . import cmb_parse
@@ -27,7 +28,7 @@ def amount(s: str) -> float:
     return float(s) if s else 0.0
 
 
-def parse(path: Path, owner: set[str]) -> list[Row]:
+def parse(path: Path, owner: set[str], internal: Iterable[str] = ()) -> list[Row]:
     account = account_of(path)
     if not account:
         return []
@@ -41,7 +42,7 @@ def parse(path: Path, owner: set[str]) -> list[Row]:
                     "credit_debit_indicator": "CRDT" if value > 0 else "DBIT",
                     "transaction_amount": {"currency": "EUR", "amount": f"{abs(value):.2f}"},
                     "remittance_information": [line["Libelle"].strip()], "source": "csv"})
-    rows, _ = cmb_parse.parse({"accounts": [{"transactions": txs}]}, owner, account_id=account)
+    rows, _ = cmb_parse.parse({"accounts": [{"transactions": txs}]}, owner, account_id=account, internal=internal)
     seen: Counter = Counter()
     for r in rows:  # own id space: CSV labels are shorter than the feed's, so the two never collide
         basis = f"{account}|{r.date}|{r.amount_cents}|{r.label}"

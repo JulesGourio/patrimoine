@@ -109,7 +109,7 @@ def tools() -> str:
 
 # Read-only functions computed from the database alone (no network): their answer only changes when the database
 # does, so a tab opened twice is instant (pandas on a phone takes seconds per screen).
-_CACHEABLE = {"accueil", "portefeuille", "depenses_ecran", "ventes_realisees", "analyses", "analyse", "positions",
+_CACHEABLE = {"accueil", "accueil_ecran", "portefeuille", "depenses_ecran", "ventes_realisees", "analyses", "analyse", "positions",
               "synthese", "patrimoine", "historique", "depenses", "flux", "fiscalite", "alertes", "ordres_proposes", "references"}
 _cache: dict[tuple, str] = {}
 
@@ -146,6 +146,12 @@ def call(name: str, args_json: str = "{}") -> str:
 
 def _call(name: str, args_json: str) -> str:
     def run() -> Any:
+        try:
+            return _run()
+        finally:
+            api.fermer_connexions()
+
+    def _run() -> Any:
         fn = SCREENS.get(name) or next((f for f in api.TOOLS if f.__name__ == name), None)
         if fn is None:
             raise ValueError(f"fonction inconnue : {name}")
@@ -186,9 +192,6 @@ def etat() -> dict:
     }
 
 
-_SECURITIES_ACCOUNTS = ("tr_cto", "tr_pea")  # same accounts as api.patrimoine's cost basis
-
-
 def _points(s) -> list:
     """Daily series as [[ISO date, value rounded to the cent]]."""
     step = max(1, len(s) // 400)  # a chart cannot show more than a few hundred points: 10 years of days weigh 700 KB
@@ -206,6 +209,8 @@ def accueil(jours: int = 3650) -> dict:
     out: dict[str, Any] = {"patrimoine": api.patrimoine()}
     with db.session(settings().db_path) as con:
         h = queries.history(con)
+        securities = db.accounts_of_kind(con, *db.SECURITIES_KINDS)  # same accounts as api.patrimoine's cost basis
+        out["comptes_titres"] = list(dict.fromkeys(queries.labels_of_kind(con, *db.SECURITIES_KINDS)))
     if not h.empty:
         total = h.groupby("date")["value"].sum()
         total = total[total.index >= total.index.max() - pd.Timedelta(days=jours)]
@@ -213,13 +218,12 @@ def accueil(jours: int = 3650) -> dict:
         out["courbe"] = _points(total)
         w = h[h.date >= since]
         out["courbes_comptes"] = {name: _points(g.set_index("date")["value"]) for name, g in w.groupby("account")}
-        inv = w[w.account_id.isin(_SECURITIES_ACCOUNTS)].groupby("date")[["securities", "cost"]].sum()
+        inv = w[w.account_id.isin(securities)].groupby("date")[["securities", "cost"]].sum()
         out["courbe_titres"] = {"valeur": _points(inv["securities"]), "cout": _points(inv["cost"])}
     else:
         out["courbe"] = []
         out["courbes_comptes"] = {}
         out["courbe_titres"] = {"valeur": [], "cout": []}
-    out["comptes_titres"] = [queries.ACCOUNT_LABELS[a] for a in _SECURITIES_ACCOUNTS]
     out["synthese"] = api.synthese()  # {"erreur": ...} si l'historique est vide
     last = api.analyses(1)
     out["derniere_analyse"] = (last.get("analyses") or [None])[0]
@@ -309,8 +313,10 @@ def veille(force: bool = False) -> str:
                 db.init(con)
                 book, _ = portfolio.replay(con)
                 held = sorted({isin for (_, isin), line in book.lines.items() if line.quantity > 1e-6})
-                if held:  # only the lines held: the full history of every instrument is the daily sync's job
+                if held and not db.get_meta(con, "demo"):  # jeu fictif : jamais de réseau
+                    # only the lines held: the full history of every instrument is the daily sync's job
                     prices.update(con, held)
+                    prices.update_intraday(con, held, force=True)  # 5-minute quotes of the day (period 1J); never raises
                 df, _ = portfolio.valuations(con)
                 portfolio.store(con, df)
                 con.commit()
@@ -332,9 +338,9 @@ def pull_analyses() -> str:
 # --- Actions that need the phone ------------------------------------------------------------------------------
 
 
-def import_file(kind: str, path: str) -> str:
-    """A file Jules picked, copied by the app into its cache: ``peg`` (Amundi AVO*.pdf), ``cmb_csv``
-    (RELEVE_*.csv), ``base`` (a whole patrimoine.db, from the PC) or ``cle_cmb`` (Enable Banking .pem)."""
+def import_file(kind: str, path: str, profil: str | None = None, reglages: dict | None = None) -> str:
+    """A file the user picked, copied by the app into its cache: ``peg`` (Amundi AVO*.pdf), ``cmb_csv``
+    (RELEVE_*.csv), ``csv_generique`` (any bank CSV: ``profil`` saved name and/or ``reglages``), ``base`` (a whole patrimoine.db, from the PC) or ``cle_cmb`` (Enable Banking .pem)."""
     def run() -> Any:
         from . import imports
 
@@ -343,6 +349,8 @@ def import_file(kind: str, path: str) -> str:
             return imports.peg(settings(), [p])
         if kind == "cmb_csv":
             return imports.cmb_csv(settings(), [p])
+        if kind == "csv_generique":
+            return imports.csv_generique(settings(), p, profil, reglages, enregistrer=bool(profil and reglages))
         if kind == "base":
             if not _sync_lock.acquire(blocking=False):
                 raise RuntimeError("synchronisation en cours : réessaie quand elle est finie")
@@ -366,6 +374,13 @@ def export_database(dest: str) -> str:
     return _reply(lambda: {"fichier": str(imports.backup(settings(), Path(dest)))})
 
 
+def create_account(account: str, name: str, kind: str, institution: str = "") -> str:
+    """Create an account of the user (kind: courant, livret, especes, cto, pea, peg ; une carte prépayée se crée avec l'outil carte)."""
+    from . import imports
+
+    return _reply(lambda: imports.creer_compte(settings(), account, name, kind, institution))
+
+
 def set_balance(account: str, amount: str) -> str:
     from . import imports
 
@@ -387,7 +402,7 @@ def set_secret(name: str, value: str) -> str:
 
 
 def tr_login() -> str:
-    """Log in to Trade Republic: blocks until Jules confirms in the Trade Republic app (2 minutes at most)."""
+    """Log in to Trade Republic: blocks until the user confirms in the Trade Republic app (2 minutes at most)."""
     def run() -> dict:
         from .sources import trade_republic
 
@@ -402,7 +417,7 @@ def tr_login() -> str:
 
 
 def cmb_consent_url() -> str:
-    """Where Jules signs in to the CMB; the app opens it and watches for the redirect (`enable_banking`)."""
+    """Where the user signs in to the CMB; the app opens it and watches for the redirect (`enable_banking`)."""
     from .sources import enable_banking as eb
 
     return _reply(lambda: {"url": eb.start_consent(settings()), "retour": eb.REDIRECT_URL})
@@ -421,12 +436,13 @@ def test_notification() -> str:
 @screen
 def depenses_ecran(mois: int = 13) -> dict:
     """Écran Dépenses en un appel : opérations des N derniers mois, totaux par mois, budgets du mois en cours,
-    revenus/dépenses/épargne par mois et liste des catégories de dépenses."""
+    revenus/dépenses/épargne par mois, liste des catégories de dépenses et détail des flux (`flux_ecran`)."""
     from .categories import SPENDING
 
     dep = api.depenses(mois)
     return {"operations": api.depenses_operations(mois)["operations"], "par_mois": dep["par_mois"],
-            "mois_en_cours": dep["mois_en_cours"], "flux": api.flux(mois)["flux"], "categories": SPENDING}
+            "mois_en_cours": dep["mois_en_cours"], "flux": api.flux(mois)["flux"], "categories": SPENDING,
+            "flux_detail": api.flux_ecran(mois)}
 
 
 @screen

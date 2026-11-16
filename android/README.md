@@ -55,6 +55,28 @@ Dans GitHub → Settings → Secrets and variables → Actions, ajoute `ANDROID_
 `ANDROID_KEYSTORE_PASSWORD` et `ANDROID_KEY_ALIAS`. Sans ces variables, la clé de débogage d'Android est
 utilisée : l'APK s'installe, mais une autre clé oblige à désinstaller l'ancienne version.
 
+## Voir l'appli avec ses propres données (captures d'écran)
+
+Sans téléphone ni SDK d'émulateur, on photographie les vrais écrans (code Compose réel, taille d'un Pixel 8a)
+avec des réponses du moteur lues dans des fichiers JSON.
+
+```bash
+# 1. Les JSON de chaque écran : jeu fictif par défaut, ou votre base (copiée, jamais modifiée ni publiée)
+uv run python scripts/ecrans_json.py android/build/ecrans
+uv run python scripts/ecrans_json.py android/build/ecrans --donnees chemin/vers/data   # vos données
+
+# 2. Les PNG dans android/build/captures/ (SDK Android + Java 17 + Python 3.13 sur le PATH)
+cd android
+ANDROID_HOME=~/Android/sdk PATRIMOINE_SANS_PYTHON=1 \
+PATRIMOINE_ECRANS=$PWD/build/ecrans PATRIMOINE_CAPTURES=$PWD/build/captures \
+./gradlew :app:recordRoborazziDebug --tests '*EcransTest*'
+```
+
+`uv run patrimoine demo <dossier>` crée une base fictive pour développer l'appli sans aucune donnée personnelle.
+Les couleurs dynamiques (fond d'écran) du téléphone ne sont pas reproduites (l'appli n'en utilise plus : thème clair de la maquette `docs/maquette`). L'écran Patrimoine (outil `accueil_ecran`) a les siennes (`01-patrimoine*.png` : 1A par défaut, 3M, milieu et bas d'écran). L'écran Bourse a ses propres captures (`02-bourse-*.png` : défaut en 1J avec courbe de séance, mode Comptes sur 1A, un compte en %, etc.), la fiche d'un titre aussi (`13-titre-*.png` : 1J, 1A avec repères d'achats, bas d'écran, titre sans prix de revient).
+La police Inter (`app/src/main/res/font/inter.ttf`, licence SIL OFL 1.1, © The Inter Project Authors) est embarquée. Les captures de vraies données
+restent sur votre machine : ne les commitez pas et ne les publiez pas.
+
 ## Construire en local
 
 Il faut le SDK Android (Android Studio), Java 17 et Python 3.13 sur le PC. Ensuite :

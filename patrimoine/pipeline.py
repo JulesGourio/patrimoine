@@ -1,7 +1,7 @@
 """Everything the daily task does, in order, each step isolated so one failure does not stop the rest.
 
 1. Trade Republic: resume the saved session; when it has expired, start a login and push a
-   notification asking Jules to confirm it in the app (the sync waits up to two minutes).
+   notification asking the user to confirm it in the app (the sync waits up to two minutes).
 2. CMB through Enable Banking; a notice when the 180-day consent is about to end.
 3. Prices, daily valuation.
 4. The alert rules (spending budgets are recorded, never sent).

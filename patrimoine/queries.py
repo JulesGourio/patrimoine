@@ -25,24 +25,46 @@ ACCOUNT_GROUPS = {"PEA": "Bourse", "Compte-titres": "Bourse", "PEG Airbus": "Ép
                   "Livret Jeune": "Livrets", "Trade Republic espèces": "Liquidités", "CMB courant": "Liquidités"}
 
 
+# Group of the home page of each account type.
+KIND_GROUPS = {"cto": "Bourse", "pea": "Bourse", "peg": "Épargne salariale", "livret": "Livrets",
+               "courant": "Liquidités", "especes": "Liquidités", "prepaye": "Liquidités"}
+
+
 def account_labels(con: sqlite3.Connection) -> dict[str, str]:
-    """Labels of the fixed accounts plus those of the accounts Jules created himself (prepaid cards: their name)."""
+    """Display label per account: the historical labels of the first user's accounts, else the account's own name."""
     labels = dict(ACCOUNT_LABELS)
     try:
-        for r in con.execute("SELECT id, name FROM accounts WHERE kind = 'prepaye'"):
-            labels[r[0]] = r[1]
+        for r in con.execute("SELECT id, name FROM accounts"):
+            labels.setdefault(r[0], r[1])
     except sqlite3.OperationalError:  # database without the table
         pass
     return labels
 
 
+def labels_of_kind(con: sqlite3.Connection, *kinds: str) -> list[str]:
+    """Display labels of the accounts of these types."""
+    labels = account_labels(con)
+    return [labels.get(a, a) for a in db.accounts_of_kind(con, *kinds)]
+
+
 def account_groups(con: sqlite3.Connection) -> dict[str, str]:
-    """Home page grouping by label; prepaid cards count as liquidities."""
+    """Home page grouping by label, from the account type (prepaid cards count as liquidities)."""
     groups = dict(ACCOUNT_GROUPS)
-    for acc, label in account_labels(con).items():
-        if acc not in ACCOUNT_LABELS:
-            groups[label] = "Liquidités"
+    labels = account_labels(con)
+    try:
+        for acc, kind in con.execute("SELECT id, kind FROM accounts"):
+            if kind in KIND_GROUPS:
+                groups[labels.get(acc, acc)] = KIND_GROUPS[kind]
+    except sqlite3.OperationalError:
+        pass
     return groups
+
+
+def pea_open_date(con: sqlite3.Connection) -> str | None:
+    """Date of the first operation of the oldest PEA (5-year mark), None without PEA."""
+    opened = account_open_dates(con)
+    dates = [opened[a] for a in db.accounts_of_kind(con, "pea") if a in opened]
+    return min(dates) if dates else None
 
 
 def history(con: sqlite3.Connection) -> pd.DataFrame:
@@ -63,18 +85,19 @@ def positions(con: sqlite3.Connection, replayed: tuple | None = None) -> pd.Data
     book, prices = replayed or portfolio.replay(con)
     names = dict(con.execute("SELECT isin, name FROM instruments"))
     today = pd.Timestamp.today().normalize()
+    labels = account_labels(con)
     out = []
     for (acc, isin), line in book.lines.items():
         if line.quantity > 1e-6:
             out.append((acc, isin, line.quantity, line.cost))
-    for isin, qty in portfolio.peg_without_history(con):
-        out.append(("peg_airbus", isin, qty, None))
+    for acc, isin, qty in portfolio.peg_without_history(con):
+        out.append((acc, isin, qty, None))
     rows = []
     for acc, isin, qty, cost in out:
         price = prices.get(isin, today)
         value = qty * price if price is not None else None
         rows.append({
-            "account": ACCOUNT_LABELS.get(acc, acc), "isin": isin, "name": names.get(isin) or isin,
+            "account": labels.get(acc, acc), "account_id": acc, "isin": isin, "name": names.get(isin) or isin,
             "quantity": qty, "unit_cost": cost / qty if cost else float("nan"), "price": price, "value": value,
             "cost": cost if cost else float("nan"),
             "gain": value - cost if value is not None and cost else float("nan"),
@@ -89,8 +112,10 @@ def positions(con: sqlite3.Connection, replayed: tuple | None = None) -> pd.Data
 
 def realised(con: sqlite3.Connection, replayed: tuple | None = None) -> pd.DataFrame:
     book, _ = replayed or portfolio.replay(con)
+    labels = account_labels(con)
     df = pd.DataFrame([{
-        "date": pd.Timestamp(r.date), "account": ACCOUNT_LABELS.get(r.account_id, r.account_id), "name": r.name,
+        "date": pd.Timestamp(r.date), "account": labels.get(r.account_id, r.account_id), "account_id": r.account_id,
+        "name": r.name,
         "isin": r.isin, "quantity": r.quantity, "proceeds": r.proceeds, "cost": r.cost, "gain": r.gain,
     } for r in book.realised])
     return df.sort_values("date", ascending=False) if not df.empty else df
@@ -144,10 +169,11 @@ def peg_primes(con: sqlite3.Connection) -> pd.DataFrame:
     """Profit-sharing and bonuses paid into the PEG (intéressement, participation): date, amount (EUR, positive =
     value invested) and the kind. They stay purchases of securities for the portfolio; for the budget they are income."""
     marks = ",".join("?" * len(PEG_PRIMES))
+    pegs = db.accounts_of_kind(con, "peg")
     df = pd.read_sql_query(
         "SELECT id, date, account_id, label, amount_cents, event_type FROM transactions"
-        f" WHERE account_id = 'peg_airbus' AND flow = 'achat_titre' AND event_type IN ({marks})",
-        con, params=list(PEG_PRIMES), parse_dates=["date"])
+        f" WHERE account_id IN ({','.join('?' * len(pegs))}) AND flow = 'achat_titre' AND event_type IN ({marks})",
+        con, params=pegs + list(PEG_PRIMES), parse_dates=["date"])
     df["amount"] = -df.pop("amount_cents") / 100
     return df
 
@@ -202,7 +228,7 @@ def investment_income(con: sqlite3.Connection) -> pd.DataFrame:
     """Interest and dividends actually received, by flow and account, EUR."""
     df = pd.read_sql_query(
         "SELECT flow, COALESCE(holding_account_id, account_id) AS account_id, SUM(amount_cents) AS cents"
-        " FROM transactions WHERE flow IN ('interets', 'dividende') GROUP BY flow, account_id", con)
+        " FROM transactions WHERE flow IN ('interets', 'dividende') GROUP BY 1, 2", con)
     df["amount"] = df.pop("cents") / 100
     df["account"] = df["account_id"].map(account_labels(con)).fillna(df["account_id"])
     return df
@@ -219,7 +245,7 @@ def account_open_dates(con: sqlite3.Connection) -> dict[str, str]:
     return out
 
 
-# Ongoing charges (TER) of Jules's funds, % per year, from their factsheets: to check against the KID.
+# Ongoing charges (TER) of the user's funds, % per year, from their factsheets: to check against the KID.
 TER = {
     "FR0011550185": 0.0015,   # Amundi PEA S&P 500
     "FR0010342592": 0.0060,   # Amundi Nasdaq-100 Daily 2x Leveraged
@@ -230,11 +256,12 @@ TER = {
 
 
 def data_date(con: sqlite3.Connection) -> pd.Timestamp:
-    """Reference date of the data: latest transaction of the current account (``cmb_courant``), else of any account,
+    """Reference date of the data: latest transaction of the current account(s), else of any account,
     else today. A database a few days old must not be read as if it were up to date."""
-    for sql in ("SELECT MAX(date) FROM transactions WHERE account_id = 'cmb_courant'",
-                "SELECT MAX(date) FROM transactions"):
-        d = con.execute(sql).fetchone()[0]
+    courants = db.accounts_of_kind(con, "courant")
+    for sql, args in ((f"SELECT MAX(date) FROM transactions WHERE account_id IN ({','.join('?' * len(courants))})",
+                       courants), ("SELECT MAX(date) FROM transactions", [])):
+        d = con.execute(sql, args).fetchone()[0]
         if d:
             return pd.Timestamp(d).normalize()
     return pd.Timestamp.today().normalize()

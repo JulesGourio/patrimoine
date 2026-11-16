@@ -1,9 +1,10 @@
-"""Files Jules brings in by hand, the same way from the command line (a folder such as Downloads) and from the
+"""Files the user brings in by hand, the same way from the command line (a folder such as Downloads) and from the
 mobile app (a file picked on the phone): Amundi statements (PEG), CMB CSV exports, savings balances, and the
 whole database (moving it from the PC to the phone, or back).
 """
 from __future__ import annotations
 
+import json
 import shutil
 import sqlite3
 import urllib.parse
@@ -44,8 +45,8 @@ def peg(settings: Settings, files: list[Path] = ()) -> dict:
     with db.session(settings.db_path) as con:
         db.init(con)
         new, updated = sync.import_rows(con, rows, amundi.raw_json)
-        con.execute("UPDATE positions SET quantity = ?, as_of = ?, source = 'amundi' WHERE account_id = 'peg_airbus'",
-                    (summary["total_actions"], summary["as_of"]))
+        con.execute("UPDATE positions SET quantity = ?, as_of = ?, source = 'amundi' WHERE account_id = ?",
+                    (summary["total_actions"], summary["as_of"], amundi.ACCOUNT))
         db.set_meta(con, "peg_summary", summary)
     return {"copies": copied, "releves": len(statements), "nouvelles": new, "mises_a_jour": updated,
             "actions": summary["total_actions"], "au": summary["as_of"], "esop": summary["esop_events"]}
@@ -68,6 +69,67 @@ def cmb_csv(settings: Settings, files: list[Path] = ()) -> dict[str, tuple[int, 
         return sync.import_cmb_csv(con, sorted(set(folder.glob("RELEVE_*.csv")) | set(given)))
 
 
+CSV_PROFILES = "csv_profils"
+
+
+def csv_profiles(settings: Settings) -> dict[str, dict]:
+    """The saved CSV profiles, {name: settings}."""
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        return db.get_meta(con, CSV_PROFILES) or {}
+
+
+def csv_generique(settings: Settings, path: Path, profil: str | None = None, reglages: dict | None = None,
+                  enregistrer: bool = False) -> dict:
+    """Import any bank CSV. ``reglages`` (see ``sources.csv_generique.Profile``) defines the format; with
+    ``profil`` (a name) and ``enregistrer`` it is saved in the database, and ``profil`` alone reuses it.
+    Lines already imported are ignored: {lignes, nouvelles, doublons, du, au, compte}."""
+    from . import sync
+    from .sources import csv_generique as gen
+    from .sources.tr_parse import words
+
+    if reglages is None and not profil:
+        raise ValueError("indiquer un profil enregistré ou les réglages du fichier")
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        saved = db.get_meta(con, CSV_PROFILES) or {}
+        if reglages is None:
+            if profil not in saved:
+                raise ValueError(f"profil inconnu : {profil}")
+            reglages = saved[profil]
+        prof = gen.Profile.from_dict(dict(reglages))
+        kind = con.execute("SELECT kind FROM accounts WHERE id = ?", (prof.account,)).fetchone()
+        if not kind:
+            raise ValueError(f"Compte inconnu : {prof.account}")
+        if kind[0] in ("cto", "peg"):
+            raise ValueError(
+                f"L'import CSV générique ne gère que les comptes d'argent (courant, livret, espèces) : un compte "
+                f"{'titres' if kind[0] == 'cto' else 'PEG'} ({prof.account}) a besoin des titres et quantités, que le "
+                "fichier ne donne pas. Importer sur le compte espèces du courtier.")
+        name = db.get_meta(con, "owner") or {}
+        owner = set(words(name.get("last")) + words(name.get("first"))[:1])
+        rows = gen.parse(gen.load(Path(path)), prof, owner, db.internal_labels(con))
+        known = {r[0] for r in con.execute("SELECT id FROM transactions")}
+        fresh = [r for r in rows if r.id not in known]
+        new, _ = sync.import_rows(con, fresh, lambda r: json.dumps(r.raw, ensure_ascii=False))
+        if enregistrer and profil:
+            saved[profil] = prof.to_dict()
+            db.set_meta(con, CSV_PROFILES, saved)
+        con.commit()
+    return {"compte": prof.account, "lignes": len(rows), "nouvelles": new, "doublons": len(rows) - len(fresh),
+            "du": min((r.date for r in rows), default=""), "au": max((r.date for r in rows), default="")}
+
+
+def creer_compte(settings: Settings, account: str, nom: str, kind: str, etablissement: str = "") -> dict:
+    """Create an account of the user (``kind``: courant, livret, especes, cto, pea or peg; a prepaid card is made with the card tool), so the generic CSV
+    import and the balances can target it. Raises ValueError if it exists or the type is unknown."""
+    with db.session(settings.db_path) as con:
+        db.init(con)
+        if not db.create_account(con, account, nom, kind, etablissement):
+            raise ValueError(f"Le compte existe déjà : {account}")
+    return {"id": account.strip(), "nom": nom.strip(), "type": kind}
+
+
 def balance(settings: Settings, account: str, euros: str | float, day: str | None = None) -> int:
     """Record the balance of an account the bank feeds do not cover (savings); returns it in cents."""
     cents = round(float(str(euros).replace(" ", "").replace(",", ".")) * 100)
@@ -75,7 +137,7 @@ def balance(settings: Settings, account: str, euros: str | float, day: str | Non
         db.init(con)
         if not con.execute("SELECT 1 FROM accounts WHERE id = ?", (account,)).fetchone():
             raise ValueError(f"Compte inconnu : {account}")
-        if account.startswith("prepaye_"):
+        if con.execute("SELECT 1 FROM accounts WHERE id = ? AND kind = 'prepaye'", (account,)).fetchone():
             raise ValueError("Carte prépayée : utiliser l'outil carte_solde (ajustement), pas un solde de référence")
         db.set_balance(con, account, day or date.today().isoformat(), cents)
     return cents

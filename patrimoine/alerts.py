@@ -8,7 +8,7 @@ Kinds:
 - ``seuil_bas`` / ``seuil_haut``: an ISIN's price crossing ``threshold`` EUR.
 - ``concentration``: a line above ``threshold`` % of invested wealth (PEG included).
 - ``budget``: a category's spending this month above its budget (``budgets`` table); ``target`` limits
-  it to one category. Recorded and shown on the Suivi page, never pushed nor mailed: Jules checks his
+  it to one category. Recorded and shown on the Suivi page, never pushed nor mailed: the user checks his
   spending himself.
 """
 from __future__ import annotations
@@ -92,7 +92,7 @@ def check(con: sqlite3.Connection, today: date | None = None) -> list[Fired]:
     for (_, isin), line in book.lines.items():
         if line.quantity > 1e-6:
             held[isin] = held.get(isin, 0) + line.quantity
-    for isin, qty in portfolio.peg_without_history(con):
+    for _, isin, qty in portfolio.peg_without_history(con):
         held[isin] = held.get(isin, 0) + qty
     month = today_ts.strftime("%Y-%m")
     fired: list[Fired] = []

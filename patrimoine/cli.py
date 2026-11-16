@@ -16,7 +16,32 @@ def cmd_init(args: argparse.Namespace, settings: Settings) -> None:
     print(f"Base prête : {settings.db_path} ({n} comptes)")
 
 
+def cmd_demo(args: argparse.Namespace, settings: Settings) -> None:
+    from pathlib import Path
+
+    from . import demo
+
+    if not args.dossier:
+        raise SystemExit("Indique un dossier explicite pour le jeu fictif (patrimoine demo DOSSIER) : "
+                         "il ne s'écrit jamais dans le dossier de données réel.")
+    target = Path(args.dossier)
+    if target.resolve() == Path(settings.data_dir).resolve():
+        raise SystemExit("Ce dossier est le dossier de données réel : choisis-en un autre pour le jeu fictif.")
+    out = demo.build(target / "patrimoine.db")
+    print(f"Jeu fictif écrit dans {out['base']} ({out['operations']} opérations). "
+          f"Pour l'utiliser : PATRIMOINE_DATA_DIR={target}")
+
+
 def cmd_accounts(args: argparse.Namespace, settings: Settings) -> None:
+    if args.ajouter:
+        from . import imports
+
+        try:
+            r = imports.creer_compte(settings, args.ajouter, args.nom or "", args.type or "", args.etablissement or "")
+        except ValueError as e:
+            raise SystemExit(str(e)) from None
+        print(f"Compte créé : {r['id']} ({r['nom']}, {r['type']})")
+        return
     with db.session(settings.db_path) as con:
         for a in con.execute("SELECT id, institution, name, kind, source FROM accounts ORDER BY institution, id"):
             print(f"{a['id']:<18} {a['institution']:<7} {a['name']:<18} {a['kind']:<8} {a['source']}")
@@ -207,6 +232,29 @@ def cmd_cmb_csv(args: argparse.Namespace, settings: Settings) -> None:
         print(f"{acc} : {new} nouvelles, {updated} mises à jour ({first} → {last})")
 
 
+def cmd_csv_generique(args: argparse.Namespace, settings: Settings) -> None:
+    from pathlib import Path
+
+    from . import imports
+
+    reglages = None
+    if args.compte:
+        reglages = {"account": args.compte, "delimiter": args.separateur, "date_format": args.format_date,
+                    "decimal": args.decimal, "encoding": args.encodage, "header": not args.sans_entete,
+                    "skip": args.ignorer, "date": args.col_date, "label": args.col_libelle}
+        if args.col_montant:
+            reglages["amount"] = args.col_montant
+        else:
+            reglages.update(debit=args.col_debit, credit=args.col_credit)
+    try:
+        r = imports.csv_generique(settings, Path(args.fichier).expanduser(), args.profil, reglages,
+                                  enregistrer=bool(args.profil and reglages))
+    except (ValueError, OSError, UnicodeDecodeError) as e:
+        raise SystemExit(str(e)) from None
+    print(f"{r['compte']} : {r['lignes']} lignes, {r['nouvelles']} nouvelles, {r['doublons']} déjà importées "
+          f"({r['du']} → {r['au']})")
+
+
 def main(argv: list[str] | None = None) -> None:
     # Windows opens stdout/stderr in the legacy console codepage, which mangles accents.
     for stream in (sys.stdout, sys.stderr):
@@ -218,7 +266,15 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="patrimoine")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init", help="Créer la base et les comptes").set_defaults(func=cmd_init)
-    sub.add_parser("comptes", help="Lister les comptes").set_defaults(func=cmd_accounts)
+    p = sub.add_parser("demo", help="Remplir une base vide avec un jeu de données fictif")
+    p.add_argument("dossier", nargs="?", help="Dossier où écrire le jeu fictif (obligatoire, jamais le dossier de données réel)")
+    p.set_defaults(func=cmd_demo)
+    p = sub.add_parser("comptes", help="Lister les comptes, ou en créer un avec --ajouter")
+    p.add_argument("--ajouter", metavar="ID", help="Identifiant du compte à créer (ex. banque_courant)")
+    p.add_argument("--nom", help="Nom affiché")
+    p.add_argument("--type", help="courant, livret, especes, cto, pea ou peg (une carte prépayée : outil carte)")
+    p.add_argument("--etablissement", help="Banque ou courtier (facultatif)")
+    p.set_defaults(func=cmd_accounts)
     p = sub.add_parser("secret", help="Gérer les secrets (PIN, jetons)")
     p.add_argument("action", choices=["list", "set", "delete"])
     p.add_argument("name", nargs="?")
@@ -264,6 +320,22 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("cmb-csv", help="Importer les exports CSV de la CMB (RELEVE_*.csv)")
     p.add_argument("dossier", nargs="?", help="Dossier où prendre les RELEVE_*.csv (ex. Téléchargements)")
     p.set_defaults(func=cmd_cmb_csv)
+    p = sub.add_parser("csv-generique", help="Importer un CSV bancaire quelconque (réglages ou profil enregistré)")
+    p.add_argument("fichier")
+    p.add_argument("--profil", help="Nom du profil : enregistré avec les réglages, réutilisé sans eux")
+    p.add_argument("--compte", help="Compte cible (obligatoire pour définir les réglages)")
+    p.add_argument("--separateur", default=";")
+    p.add_argument("--format-date", default="%d/%m/%Y", help="ex. %%d/%%m/%%Y ou %%Y-%%m-%%d")
+    p.add_argument("--decimal", default=",", choices=[",", "."])
+    p.add_argument("--encodage", default="utf-8-sig", help="ex. cp1252, latin-1")
+    p.add_argument("--sans-entete", action="store_true", help="Colonnes données par leur numéro (0, 1, …)")
+    p.add_argument("--ignorer", type=int, default=0, help="Lignes à sauter avant l'en-tête")
+    p.add_argument("--col-date", default="Date")
+    p.add_argument("--col-libelle", default="Libellé")
+    p.add_argument("--col-montant", help="Colonne du montant signé")
+    p.add_argument("--col-debit")
+    p.add_argument("--col-credit")
+    p.set_defaults(func=cmd_csv_generique)
     p = sub.add_parser("peg", help="Importer les relevés Amundi (AVO*.pdf) du PEG Airbus")
     p.add_argument("dossier", nargs="?", help="Dossier où prendre les nouveaux AVO*.pdf (ex. Téléchargements)")
     p.set_defaults(func=cmd_peg)

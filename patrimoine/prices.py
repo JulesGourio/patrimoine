@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import math
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 
@@ -207,4 +207,157 @@ def update(con: sqlite3.Connection, isins: list[str] | None = None) -> dict[str,
         gap = f", écart aux ordres {100 * (math.exp(-sc[1]) - 1):.1f} %" if sc[1] > -1 else ""
         done[isin] = f"{sym} ({currency}{'' if sc[0] else ', période incomplète'}{gap})"
     con.commit()
+    return done
+
+
+# ---------- intraday quotes (period 1J of the Bourse screen, stock sheet) ----------
+
+PARIS = "Europe/Paris"
+INTRADAY_INTERVAL = "5m"
+INTRADAY_KEEP_DAYS = 7       # rows older than this are deleted at each refresh
+INTRADAY_FETCH_DAYS = 5      # Yahoo serves 5-minute bars for the last 60 days; 5 days cover a long weekend
+INTRADAY_MAX_AGE_MIN = 15    # during the session, quotes older than this are fetched again
+_ECHEC: dict[str, float] = {}  # isin -> monotonic time before which the source is not asked again
+_ECHEC_ERREUR = 300.0          # offline, Yahoo down
+_ESSAI: dict[str, datetime] = {}  # isin -> heure du dernier essai (réussi ou non) : pas de nouvel appel avant 15 min
+_ECHEC_VIDE = 1800.0           # no bars (holiday, unknown symbol)
+
+
+def _paris(now: datetime | None = None) -> datetime:
+    from zoneinfo import ZoneInfo
+
+    return (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(PARIS))
+
+
+def session_ouverte(now: datetime | None = None) -> bool:
+    """Weekdays 8:00–22:00 in Paris: the only time prices move for the lines held (Europe, then the US close)."""
+    p = _paris(now)
+    return p.weekday() < 5 and 8 <= p.hour < 22
+
+
+def _derniere_seance(now: datetime | None = None) -> date:
+    """Paris date of the session the quotes should cover: today once 8:00 has passed on a weekday, else the
+    previous weekday."""
+    p = _paris(now)
+    d = p.date()
+    if p.weekday() >= 5 or p.hour < 8:
+        d -= timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d
+
+
+def intraday(symbol: str, interval: str = INTRADAY_INTERVAL, jours: int = INTRADAY_FETCH_DAYS) -> tuple[pd.Series, str]:
+    """Bars of the last days (Yahoo 'Close', UTC naive index) and the listing currency. Raises when offline."""
+    import yfinance as yf
+
+    t = yf.Ticker(symbol)
+    df = t.history(period=f"{jours}d", interval=interval, auto_adjust=False, actions=False, timeout=10)
+    if df.empty:
+        return pd.Series(dtype=float), ""
+    currency = (t.history_metadata or {}).get("currency") or ""
+    s = df["Close"].dropna()
+    idx = pd.to_datetime(s.index)
+    s.index = (idx.tz_convert("UTC") if idx.tz is not None else idx).tz_localize(None)
+    return s, currency
+
+
+def intraday_eur(s: pd.Series, currency: str, fx: dict[str, pd.Series | None]) -> pd.Series | None:
+    """Intraday bars in euros, with the currency pair at the same pace (kept in `fx` for the other lines)."""
+    if currency == "EUR":
+        return s
+    if currency == "GBp":
+        s, currency = s / 100, "GBP"
+    pair = FX.get(currency)
+    if not pair:
+        return None
+    if pair not in fx:
+        try:
+            rate, _ = intraday(pair)
+        except Exception as e:  # noqa: BLE001
+            log.info("%s: %s", pair, e)
+            rate = pd.Series(dtype=float)
+        fx[pair] = rate if not rate.empty else None
+    rate = fx[pair]
+    if rate is None:
+        return None
+    rate = rate.reindex(s.index.union(rate.index)).ffill().bfill().reindex(s.index)
+    return (s / rate).dropna()
+
+
+def purge_intraday(con: sqlite3.Connection, now: datetime | None = None, jours: int = INTRADAY_KEEP_DAYS) -> int:
+    """Delete the quotes older than `jours` days. Returns how many rows went."""
+    cutoff = ((now or datetime.now(timezone.utc)) - timedelta(days=jours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    n = con.execute("DELETE FROM prices_intraday WHERE ts < ?", (cutoff,)).rowcount
+    return n
+
+
+def _a_rafraichir(last: str | None, now: datetime) -> bool:
+    if last is None:
+        return True
+    t = datetime.strptime(last, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    if session_ouverte(now):
+        return now - t > timedelta(minutes=INTRADAY_MAX_AGE_MIN)
+    return _paris(t).date() < _derniere_seance(now)
+
+
+def update_intraday(con: sqlite3.Connection, isins: list[str] | None = None, now: datetime | None = None,
+                    force: bool = False) -> dict[str, int]:
+    """Fetch the 5-minute quotes of the lines (all instruments with a symbol, or the given ISINs) and store them in
+    `prices_intraday`. Without `force`, only the lines whose quotes are missing or, during the session, older than
+    15 minutes. Never raises: offline or source down, the quotes already stored stay. Returns {isin: rows written}."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    now = now or datetime.now(timezone.utc)
+    done: dict[str, int] = {}
+    try:
+        purge_intraday(con, now)
+        todo = []
+        for isin, symbol, currency in con.execute(
+                "SELECT isin, symbol, currency FROM instruments WHERE symbol IS NOT NULL AND symbol != ''"
+                " AND COALESCE(kind, '') != 'derive'").fetchall():
+            if isins is not None and isin not in isins:
+                continue
+            if time.monotonic() < _ECHEC.get(isin, 0.0):
+                continue
+            last = con.execute("SELECT MAX(ts) FROM prices_intraday WHERE isin = ?", (isin,)).fetchone()[0]
+            essai = _ESSAI.get(isin)
+            if not force and essai is not None and timedelta(0) <= now - essai < timedelta(minutes=INTRADAY_MAX_AGE_MIN):
+                continue  # Yahoo renvoie les barres des 5 derniers jours : la dernière peut rester vieille
+            if force or _a_rafraichir(last, now):
+                todo.append((isin, symbol, currency or "EUR"))
+        if not todo:
+            return done
+
+        def fetch(item: tuple[str, str, str]) -> tuple[str, str, pd.Series | None, str]:
+            isin, symbol, _ = item
+            try:
+                s, cur = intraday(symbol)
+                return isin, symbol, s, cur
+            except Exception as e:  # noqa: BLE001 - offline, Yahoo format change
+                log.info("%s %s: %s", isin, symbol, e)
+                return isin, symbol, None, ""
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            fetched = list(pool.map(fetch, todo))
+        for isin, _, _ in todo:
+            _ESSAI[isin] = now
+        fx: dict[str, pd.Series | None] = {}
+        for (isin, symbol, stored_cur), (_, _, s, cur) in zip(todo, fetched):
+            if s is None:
+                _ECHEC[isin] = time.monotonic() + _ECHEC_ERREUR
+                continue
+            eur = intraday_eur(s, cur or stored_cur, fx) if not s.empty else None
+            if eur is None or eur.empty:
+                _ECHEC[isin] = time.monotonic() + _ECHEC_VIDE
+                continue
+            _ECHEC.pop(isin, None)
+            con.executemany(
+                "INSERT OR REPLACE INTO prices_intraday (isin, ts, close, source) VALUES (?, ?, ?, ?)",
+                [(isin, d.strftime("%Y-%m-%dT%H:%M:%SZ"), float(v), symbol) for d, v in eur.items()])
+            done[isin] = len(eur)
+        con.commit()
+    except Exception as e:  # noqa: BLE001 - the screen and the watch must never fail for the quotes
+        log.warning("intraday: %s", e)
     return done

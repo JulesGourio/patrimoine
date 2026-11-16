@@ -1,4 +1,4 @@
-"""Local MCP server: Claude reads Jules's accounts, markets and alerts, and writes reports and order ideas.
+"""Local MCP server: Claude reads the user's accounts, markets and alerts, and writes reports and order ideas.
 
 The tools themselves live in `api` (shared with the mobile app); this module only exposes them over MCP.
 """

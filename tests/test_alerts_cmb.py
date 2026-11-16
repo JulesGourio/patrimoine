@@ -13,18 +13,18 @@ def tx(day, amount, indicator, *label):
 
 def test_cmb_labels_give_flows_and_counterparties():
     dump = {"accounts": [{"transactions": [
-        tx("2026-09-23", 700, "DBIT", "VIR INST VIR JULES GOURIO TRADER  de GOURIO JULES  26266IP1RT500269162"),
+        tx("2026-09-23", 700, "DBIT", "VIR INST VIR ALICE DUPONT TRADE REPUBLIC  de DUPONT ALICE  26266IP1RT500269162"),
         tx("2026-09-23", 750, "CRDT", "VIR de LIVRET CMB  de LIVRET CMB  2626609459620001"),
         tx("2026-08-28", 2453.08, "CRDT", "VIR MP DATA SUD-OUEST  000068-Paye 08 2026  2623949470160432"),
         tx("2026-09-09", 4.7, "DBIT", "F COTISATION OFFRE JEUNES 09/26"),
         tx("2025-12-28", 4.83, "DBIT", "CARTE 28/12 GAMSGO Hong Kong 4,83 EUR"),
-        tx("2026-09-25", 77.5, "DBIT", "VIR vers LE POTTIER SEBASTIEN /  de GOURIO JULES  2626814443850001"),
-        tx("2026-09-25", 77.5, "DBIT", "VIR vers LE POTTIER SEBASTIEN /  de GOURIO JULES  2626814443850001"),
+        tx("2026-09-25", 77.5, "DBIT", "VIR vers LE POTTIER SEBASTIEN /  de DUPONT ALICE  2626814443850001"),
+        tx("2026-09-25", 77.5, "DBIT", "VIR vers LE POTTIER SEBASTIEN /  de DUPONT ALICE  2626814443850001"),
     ], "balances": [{"balance_amount": {"amount": "191.41"}, "reference_date": "2026-09-25"}]}]}
-    rows, _ = cmb_parse.parse(dump, owner={"GOURIO", "JULES"})
+    rows, _ = cmb_parse.parse(dump, owner={"DUPONT", "ALICE"})
     flows = [(r.flow, r.counterparty, r.amount_cents) for r in rows]
     assert flows[:5] == [
-        ("interne", "VIR JULES GOURIO TRADER", -70000),
+        ("interne", "VIR ALICE DUPONT TRADE REPUBLIC", -70000),
         ("interne", "LIVRET CMB", 75000),
         ("revenu", "MP DATA SUD-OUEST", 245308),
         ("frais", "F COTISATION OFFRE JEUNES 09/26", -470),
@@ -37,7 +37,7 @@ def test_cmb_labels_give_flows_and_counterparties():
 
     con = db.connect(":memory:")
     db.init(con)
-    db.set_meta(con, "owner", {"first": "Jules André", "last": "Gourio"})
+    db.set_meta(con, "owner", {"first": "Alice Marie", "last": "Dupont"})
     first = sync.import_cmb(con, dump)
     again = sync.import_cmb(con, dump)
     assert first.new == 8 and again.new == 0
@@ -64,3 +64,14 @@ def test_budget_alert():
     db.set_meta(con, "alerts_seeded", True)
     fired = alerts.run(con, send=False)
     assert len(fired) == 1 and "Courses" in fired[0].title
+
+
+def test_internal_transfer_labels_come_from_the_user():
+    dump = {"accounts": [{"transactions": [
+        tx("2026-09-23", 700, "DBIT", "VIR vers COFFRE ZETA  de X"),
+        tx("2026-09-24", 20, "DBIT", "VIR vers PAUL  de X"),
+        tx("2026-09-25", 30, "DBIT", "VIR INTERNE VERS EPARGNE"),
+    ]}]}
+    flows = lambda **kw: [r.flow for r in cmb_parse.parse(dump, set(), **kw)[0]]
+    assert flows() == ["depense", "depense", "interne"]
+    assert flows(internal=["Coffre Zeta"]) == ["interne", "depense", "interne"]

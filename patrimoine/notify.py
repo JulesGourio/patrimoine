@@ -1,7 +1,7 @@
 """Notifications: push through ntfy.sh (phone app) and e-mail through Gmail SMTP.
 
 ntfy.sh no longer relays e-mail for anonymous users (error 40053), so mail goes out directly from
-Jules's Gmail account with an app password kept in the credential store (`smtp_password`).
+the user's Gmail account with an app password kept in the credential store (`smtp_password`).
 The ntfy topic name is the only thing protecting the push channel: it is random and kept secret.
 In the mobile app, pushes become the phone's own notifications (`set_local`, installed by `mobile.init`).
 """

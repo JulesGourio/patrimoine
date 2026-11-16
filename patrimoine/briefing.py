@@ -1,6 +1,6 @@
 """Market analyses, daily (the last session) and weekly (the last five): facts computed here, analysis by Claude.
 
-1. ``facts`` gathers what happened, from the database and Yahoo, with no judgement: Jules's lines against their
+1. ``facts`` gathers what happened, from the database and Yahoo, with no judgement: the user's lines against their
    index, the market (indices, rates, currencies, commodities, US sectors and themes), the stocks behind his ETFs
    that moved them most, analysts' rating changes, earnings coming up. Each unusual move (large against the line's own daily volatility) is listed in
    ``to_explain``.
@@ -52,7 +52,7 @@ SECTORS = [
     ("XLB", "Matériaux"), ("XLP", "Conso. de base"), ("XLU", "Services publics"), ("XLRE", "Immobilier"),
     ("UFO", "Spatial"), ("REMX", "Terres rares et métaux"), ("EWY", "Corée"),
 ]
-# Jules's lines -> the index or theme each should be read against (and the line's leverage on it).
+# The user's lines -> the index or theme each should be read against (and the line's leverage on it).
 BENCH = {
     "NL0000235190": ("^FCHI", 1.0),     # Airbus: against the Paris market (ITA is in the sectors)
     "FR0011550185": ("^GSPC", 1.0),

@@ -16,19 +16,19 @@ from datetime import date, timedelta
 
 import pandas as pd
 
+from . import db
 from .categories import NON_CASH_FLOWS
 
 log = logging.getLogger(__name__)
 
 IN_FLOWS = {"achat_titre", "saveback", "titres_offerts", "transfert_titres"}
 OUT_FLOWS = {"vente_titre"}
-CASH_ACCOUNTS = {"tr_especes", "tr_pea", "cmb_courant", "cmb_livret_a", "cmb_livret_jeune"}
 SPLIT_TOLERANCE = 1.25  # a trade/close ratio beyond this means Yahoo's scale differs (split, wrong line)
 
 
 def cash_accounts(con: sqlite3.Connection) -> set[str]:
-    """Accounts whose cash counts in the valuation: the fixed ones plus the prepaid cards Jules created."""
-    return CASH_ACCOUNTS | {r[0] for r in con.execute("SELECT id FROM accounts WHERE kind = 'prepaye'")}
+    """Accounts whose cash counts in the valuation: current, savings, cash, PEA and prepaid-card accounts."""
+    return set(db.accounts_of_kind(con, *db.CASH_KINDS))
 
 
 @dataclass
@@ -177,11 +177,15 @@ class Prices:
         return past[-1] if past else None
 
 
-def peg_without_history(con: sqlite3.Connection) -> list[tuple[str, float]]:
-    """PEG lines typed by hand, used only while no Amundi statement has been imported."""
-    if con.execute("SELECT 1 FROM transactions WHERE holding_account_id = 'peg_airbus' LIMIT 1").fetchone():
-        return []
-    return [tuple(r) for r in con.execute("SELECT isin, quantity FROM positions WHERE account_id = 'peg_airbus'")]
+def peg_without_history(con: sqlite3.Connection) -> list[tuple[str, str, float]]:
+    """(account, isin, quantity) of the PEG lines typed by hand, used only while no statement has been imported
+    for that PEG account."""
+    out = []
+    for acc in db.accounts_of_kind(con, "peg"):
+        if con.execute("SELECT 1 FROM transactions WHERE holding_account_id = ? LIMIT 1", (acc,)).fetchone():
+            continue
+        out.extend((acc, r[0], r[1]) for r in con.execute("SELECT isin, quantity FROM positions WHERE account_id = ?", (acc,)))
+    return out
 
 
 def replay(con: sqlite3.Connection) -> tuple[Book, Prices]:
@@ -204,6 +208,7 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
     peg = peg_without_history(con)
     start, end = date.fromisoformat(txs[0]["date"]), end or date.today()
     cash_accs = cash_accounts(con)
+    securities_accs = db.used_accounts(con, *db.SECURITIES_KINDS)
     by_day: dict[str, list[sqlite3.Row]] = defaultdict(list)
     for r in txs:
         by_day[r["date"]].append(r)
@@ -228,14 +233,14 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
                 p = prices.get(isin, ts)
                 value[acc] += line.quantity * (p if p is not None else (line.unit_cost or 0))
                 cost[acc] += line.cost
-        for isin, qty in peg:
+        for acc, isin, qty in peg:
             p = prices.get(isin, ts)
             if p is not None:
-                value["peg_airbus"] += qty * p
+                value[acc] += qty * p
         realised: dict[str, float] = defaultdict(float)
         for x in book.realised:
             realised[x.account_id] += x.gain
-        for acc in sorted(set(cash) | set(value) | set(realised) | {"tr_cto", "tr_pea"}):
+        for acc in sorted(set(cash) | set(value) | set(realised) | set(securities_accs)):
             out.append({"date": day.isoformat(), "account_id": acc, "cash": round(cash[acc], 2),
                         "securities": round(value[acc], 2), "cost": round(cost[acc], 2),
                         "realised": round(realised[acc], 2), "deposits": round(deposits[acc], 2)})
@@ -244,7 +249,7 @@ def valuations(con: sqlite3.Connection, end: date | None = None) -> tuple[pd.Dat
 
 
 def anchor_to_balances(con: sqlite3.Connection, df: pd.DataFrame, txs: list[sqlite3.Row]) -> pd.DataFrame:
-    """Shift each account's cash so it matches the latest balance its bank reported (or Jules typed).
+    """Shift each account's cash so it matches the latest balance its bank reported (or the user typed).
 
     Bank feeds only reach back ~13 months, so the running sum of the lines misses the opening balance;
     the reported balance fixes it. Days before the first known line of such an account are dropped.
@@ -260,7 +265,8 @@ def anchor_to_balances(con: sqlite3.Connection, df: pd.DataFrame, txs: list[sqli
         mask = df.account_id == acc
         if not mask.any():
             # No line at all (Livret Jeune): flat since the bank feed begins.
-            start = first_line.get(acc) or first_line.get("cmb_courant") or d
+            main = db.main_account(con, "courant")
+            start = first_line.get(acc) or first_line.get(main) or d
             days = pd.date_range(max(start, df.date.min()), df.date.max()).strftime("%Y-%m-%d")
             df = pd.concat([df, pd.DataFrame({"date": days, "account_id": acc, "cash": 0.0, "securities": 0.0,
                                               "cost": 0.0, "realised": 0.0, "deposits": 0.0})])
@@ -321,15 +327,17 @@ def tax_summary(con: sqlite3.Connection, book: Book) -> dict[int, dict[str, floa
     Trade Republic interest are counted here.
     """
     years: dict[int, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    cto, pea = set(db.accounts_of_kind(con, "cto")), set(db.accounts_of_kind(con, "pea"))
+    especes = set(db.accounts_of_kind(con, "especes"))  # intérêts du compte espèces du courtier : imposables
     for x in book.realised:
-        if x.account_id == "tr_cto":
+        if x.account_id in cto:
             years[int(x.date[:4])]["plus_values"] += x.gain
     for d, flow, amount, tax, acc in con.execute(
             "SELECT date, flow, amount_cents, tax_cents, COALESCE(holding_account_id, account_id)"
             " FROM transactions WHERE flow IN ('dividende', 'interets')"):
-        if flow == "dividende" and acc == "tr_pea":
+        if flow == "dividende" and acc in pea:
             continue
-        if flow == "interets" and acc != "tr_especes":  # livrets CMB : exonérés
+        if flow == "interets" and acc not in especes:  # livrets : exonérés
             continue
         y = years[int(d[:4])]
         y["dividendes" if flow == "dividende" else "interets"] += (amount + (tax or 0)) / 100  # gross

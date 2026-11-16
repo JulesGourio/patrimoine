@@ -61,7 +61,7 @@ Le lire s'il existe ; sinon ne rien supposer sur sa tolérance au risque et le d
   `synchroniser`. Outils repris de l'ancien tableau de bord : `projection`
   (Monte-Carlo, `patrimoine/projection.py` ; écran Projection de l'appli), `performance` (TWR, TRI, volatilité,
   comparaison à un indice), `risques` (levier, dollar, simulation de baisse), `frais`, `pistes_fiscales`,
-  `abonnements`. Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
+  `abonnements`, `bourse` (tout l'écran Bourse en un appel, `patrimoine/bourse.py`), `titre` (toute la fiche d'un titre en un appel, `patrimoine/titre.py`). `flux_ecran` (écran Flux : revenus par source, charges fixes, taux d'épargne, prélèvements à venir, `patrimoine/flux_ecran.py`), `accueil_ecran` (écran Patrimoine en un appel : courbe par type, cascade de variation, indicateurs, `patrimoine/accueil_ecran.py`). Cours à 5 minutes de la séance (période 1J) : table `prices_intraday`, alimentée par `prices.update_intraday` (à la demande si vide ou vieille de plus de 15 min, et à chaque passage de la veille), purgée au-delà de 7 jours. Pour une analyse : partir de `patrimoine` + `positions`, puis `marche` et la recherche web.
 - Synchronisation : `uv run patrimoine sync` (tâche Windows « Patrimoine - synchronisation », 7 h 30). Si la
   session Trade Republic a expiré, une notification demande à l'utilisateur de confirmer dans l'appli.
 - Analyses de marché (`patrimoine/briefing.py`, méthode dans `scripts/analyse.md`) : Python calcule les faits

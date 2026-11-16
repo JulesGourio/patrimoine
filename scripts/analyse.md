@@ -1,4 +1,4 @@
-Rédige l'analyse de marché de Jules (période : {periode}), en français, puis publie-la. Jules la lit sur son
+Rédige l'analyse de marché de l'utilisateur (période : {periode}), en français, puis publie-la. Il la lit sur son
 téléphone : chaque phrase doit apprendre quelque chose. Pas de remplissage, pas de généralités, pas de
 répétition d'un chiffre déjà affiché (le mail montre déjà les variations et l'impact en euros de chaque ligne).
 Style télégraphique mais en phrases correctes : un fait, un chiffre, une conséquence.
@@ -16,8 +16,8 @@ Style télégraphique mais en phrases correctes : un fait, un chiffre, une cons�
 Priorité, dans l'ordre :
 1. Chaque entrée de `a_expliquer` : trouve la cause précise (chiffre, annonce, déclaration) datée de la séance
    étudiée ou des 72 h avant. Si rien d'identifiable, écris « pas de cause identifiée, mouvement de marché ».
-2. Chaque ligne de Jules : l'actualité de la séance (Airbus : livraisons, commandes, Boeing, chaîne
-   d'approvisionnement ; les ETF : leurs plus grosses positions dans `moteurs_etf`). Une ligne a-t-elle fait
+2. Chaque ligne du portefeuille : l'actualité de la séance (pour une action, son secteur, ses concurrents et
+   fournisseurs ; pour un ETF, ses plus grosses positions dans `moteurs_etf`). Une ligne a-t-elle fait
    mieux ou moins bien que son indice (`indice_move` × levier) ? Pourquoi ? Attention aux dates : `depuis` →
    `date` (Yahoo a parfois un jour manquant, la variation couvre alors deux séances ; les ETF cotés en Europe
    ferment avant Wall Street et rattrapent le lendemain).
@@ -40,7 +40,7 @@ corrige et rappelle) :
 
 ```json
 {
-  "titre": "Une phrase qui dit ce qui compte pour Jules aujourd'hui (≤ 90 car.)",
+  "titre": "Une phrase qui dit ce qui compte pour l'utilisateur aujourd'hui (≤ 90 car.)",
   "ton": "haussier | baissier | mitigé | calme",
   "points_cles": ["3 phrases au plus, ≤ 200 car., chiffrées, du plus important au moins important"],
   "lignes": [{
@@ -65,7 +65,7 @@ corrige et rappelle) :
     "invalidation": "le fait ou le cours qui rendrait le conseil caduc (≤ 160)",
     "confiance": "faible | moyenne | forte", "sources": [5]
   }],
-  "bilan_semaine": "semaine seulement : performance vs indices, concentration Airbus, fiscalité utile avant le 31/12 (≤ 900)",
+  "bilan_semaine": "semaine seulement : performance vs indices, concentration, fiscalité utile avant le 31/12 (≤ 900)",
   "sources": [{"id": 1, "titre": "…", "media": "Reuters", "url": "https://…", "date": "2026-09-29 14:05"}]
 }
 ```
@@ -77,24 +77,25 @@ Les conseils (le cœur de l'analyse, 2 à 4 à chaque fois) :
 - Variés dans leur nature, selon ce que la séance justifie :
   - tactique : profiter d'une baisse excessive sur une ligne dont la thèse tient (renforcer par paliers), prendre
     une partie des gains après un emballement, attendre un catalyseur (résultats, Fed) avant d'agir ;
-  - allocation : réduire la concentration Airbus (PEG disponible, ~33 % du patrimoine investi) par étapes, le
-    poids du levier (Nasdaq x2), l'exposition au dollar, la part des thèmes spéculatifs (spatial, terres rares) ;
+  - allocation : réduire par étapes une ligne trop lourde (voir `positions`, `risques`), le poids d'un
+    éventuel levier, l'exposition au dollar, la part des thèmes spéculatifs ;
   - nouvelles positions : une idée issue des analystes ou d'un secteur en mouvement, seulement avec une
     raison récente vérifiée ; préciser le compte (PEA si éligible : actions européennes ou ETF éligibles) ;
   - fiscalité et frais : PEA d'abord, moins-values latentes du compte-titres à réaliser avant le 31/12 pour
     compenser des plus-values, TER élevés.
 - « attendre » est un vrai conseil quand rien ne justifie d'agir : dire quoi surveiller et à quel niveau agir.
-- Profil : Jules cherche la performance et tolère le risque, horizon long ; ne pas proposer un profil prudent par
-  défaut, mais chiffrer honnêtement le risque (ex. « −20 % si le Nasdaq recule de 10 % »).
+- Profil : tolérance au risque et horizon sont dans `CLAUDE.local.md` (modèle : `docs/profil-exemple.md`) ; sans
+  profil, ne rien supposer et le dire. Dans tous les cas, chiffrer honnêtement le risque (ex. « −20 % si l'indice
+  recule de 10 % » pour une ligne à levier).
 - Ne pas contredire un conseil récent sans l'expliquer (voir `analyses`) ; si un conseil passé s'est révélé
   faux, le dire.
-- Pour un conseil d'achat ou de vente à confiance forte, prépare l'ordre avec `preparer_ordre` (Jules
+- Pour un conseil d'achat ou de vente à confiance forte, prépare l'ordre avec `preparer_ordre` (l'utilisateur
   l'exécute lui-même ; jamais d'ordre passé).
 
 Règles :
 - `lignes` : les lignes qui ont bougé de façon notable ou qui ont une actualité, 6 au plus (toutes en semaine).
   Le verdict est direct ; « agir » renvoie à un conseil de la liste `conseils`.
-- `points_cles` : l'impact en euros pour Jules d'abord, puis la cause, puis ce qui vient. Pas de phrase qui
+- `points_cles` : l'impact en euros pour l'utilisateur d'abord, puis la cause, puis ce qui vient. Pas de phrase qui
   pourrait s'écrire sans avoir regardé le marché du jour.
 - Chiffres au format français (1 234 €, +1,2 %). Donne l'âge des informations tardives.
 - N'invente rien : une donnée manquante se signale.

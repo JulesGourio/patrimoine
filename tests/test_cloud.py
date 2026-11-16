@@ -31,7 +31,7 @@ class FakeGitHub:
         return hashlib.sha1(b"blob %d\0" % len(raw) + raw).hexdigest()
 
     def request(self, method, url, timeout=None, json=None, params=None):
-        path = url.split("/repos/JulesGourio/patrimoine/", 1)[1]
+        path = url.split("/repos/exemple/patrimoine/", 1)[1]
         self.calls.append((method, path))
         if method == "POST" and path == "git/trees":
             entries = []
@@ -70,7 +70,7 @@ class FakeGitHub:
 
 def test_api_transport_writes_one_parentless_commit_and_reads_it_back():
     gh = FakeGitHub()
-    t = cloud.ApiTransport("tok", repo="JulesGourio/patrimoine", http=gh)
+    t = cloud.ApiTransport("tok", repo="exemple/patrimoine", http=gh)
     t.write_branch("donnees", {"jour.json": '{"a": 1}', "semaine.json": "{}"}, "Données")
     assert gh.headers["Authorization"] == "Bearer tok"
     first = gh.refs["donnees"]
@@ -85,14 +85,14 @@ def test_api_transport_writes_one_parentless_commit_and_reads_it_back():
 
 def test_api_transport_lists_only_the_folder_and_uses_git_blob_ids():
     gh = FakeGitHub()
-    t = cloud.ApiTransport("tok", repo="JulesGourio/patrimoine", http=gh)
+    t = cloud.ApiTransport("tok", repo="exemple/patrimoine", http=gh)
     t.write_branch("claude/analyses", {"cloud/analyses/1.json": "{}", "README.md": "x"}, "analyse")
     listing = t.list_dir("claude/analyses", "cloud/analyses")
     assert listing == [("cloud/analyses/1.json", FakeGitHub.blob_sha("{}"))]
 
 
 def test_api_transport_missing_branch_is_not_an_error():
-    t = cloud.ApiTransport("tok", repo="JulesGourio/patrimoine", http=FakeGitHub())
+    t = cloud.ApiTransport("tok", repo="exemple/patrimoine", http=FakeGitHub())
     assert t.list_dir("claude/analyses", "cloud/analyses") is None
 
 
@@ -109,7 +109,7 @@ def test_api_errors_are_reported():
             return FakeResponse(500, {"message": "boom"})
 
     with pytest.raises(RuntimeError, match="500"):
-        cloud.ApiTransport("tok", repo="JulesGourio/patrimoine", http=Down()).write_branch("donnees", {}, "x")
+        cloud.ApiTransport("tok", repo="exemple/patrimoine", http=Down()).write_branch("donnees", {}, "x")
 
 
 def test_api_transport_offline_or_bad_token_means_try_later():
@@ -124,7 +124,7 @@ def test_api_transport_offline_or_bad_token_means_try_later():
             return FakeResponse(401, {"message": "Bad credentials"})
 
     for http in (Offline(), Expired()):
-        assert cloud.ApiTransport("tok", repo="JulesGourio/patrimoine", http=http).list_dir("b", "d") is None
+        assert cloud.ApiTransport("tok", repo="exemple/patrimoine", http=http).list_dir("b", "d") is None
 
 
 def test_pulls_never_run_together(monkeypatch, tmp_path):

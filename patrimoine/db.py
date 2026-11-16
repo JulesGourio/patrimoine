@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS prices (
     source TEXT,
     PRIMARY KEY (isin, date)
 );
+CREATE TABLE IF NOT EXISTS prices_intraday (  -- 5-minute quotes of the last days (prices.update_intraday), purged
+    isin TEXT NOT NULL,
+    ts TEXT NOT NULL,                   -- UTC, YYYY-MM-DDTHH:MM:SSZ
+    close REAL NOT NULL,                -- EUR per share, same unit as prices.close
+    source TEXT,
+    PRIMARY KEY (isin, ts)
+);
 CREATE TABLE IF NOT EXISTS balances (
     account_id TEXT NOT NULL REFERENCES accounts(id),
     date TEXT NOT NULL,
@@ -84,7 +91,7 @@ CREATE TABLE IF NOT EXISTS valuations (      -- rebuilt from the transactions (p
     securities_cents INTEGER NOT NULL,  -- market value
     cost_cents INTEGER NOT NULL,        -- cost basis of what is still held
     realised_cents INTEGER NOT NULL,    -- cumulative realised gains
-    deposits_cents INTEGER NOT NULL,    -- cumulative money moved in from Jules's other accounts
+    deposits_cents INTEGER NOT NULL,    -- cumulative money moved in from the user's other accounts
     PRIMARY KEY (date, account_id)
 );
 CREATE TABLE IF NOT EXISTS category_rules (
@@ -122,7 +129,7 @@ CREATE TABLE IF NOT EXISTS reports (
     title TEXT,
     body_md TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS order_ideas (      -- orders Claude prepares; Jules places them himself
+CREATE TABLE IF NOT EXISTS order_ideas (      -- orders Claude prepares; the user places them himself
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
     account_id TEXT REFERENCES accounts(id),
@@ -147,6 +154,11 @@ CREATE TABLE IF NOT EXISTS merchant_names (   -- display name of a merchant; sev
 );
 """
 
+# Comptes du premier utilisateur, semés à l'initialisation (INSERT OR IGNORE : une base qui a d'autres comptes les
+# garde telle quelle). Les identifiants ne sont codés en dur que dans cette liste, dans les connecteurs
+# (`sources/tr_parse.py`, `cmb_parse.py`, `cmb_csv.py`, `amundi.py`, qui produisent ces ids) et dans les libellés
+# d'affichage historiques de `queries.ACCOUNT_LABELS`. Tout le reste du moteur cherche les comptes par type
+# (`accounts_of_kind`), jamais par identifiant.
 ACCOUNTS = [
     ("cmb_courant", "CMB", "Compte courant", "courant", "banque"),
     ("cmb_livret_jeune", "CMB", "Livret Jeune", "livret", "banque"),
@@ -199,32 +211,159 @@ def migrate(con: sqlite3.Connection) -> None:
             con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
 
+def _signature() -> int:
+    """Empreinte du schéma, des comptes fixes et des règles par défaut : change quand le code change."""
+    import zlib
+
+    texte = repr((SCHEMA, ACCOUNTS, MIGRATIONS, AIRBUS, PEG_AIRBUS_SHARES, sorted(DEFAULT_RULES.items())))
+    return zlib.crc32(texte.encode()) & 0x7FFFFFFF
+
+
+def _keep_obsolete_rules(con: sqlite3.Connection) -> None:
+    """A default rule that left the code (rules personal to the first user were moved out of it) becomes the
+    user's own, so it stays in his database. Nothing in the code ever deletes a rule."""
+    gone = [(r[0],) for r in con.execute("SELECT pattern FROM category_rules WHERE origin = 'defaut'")
+            if r[0] not in DEFAULT_RULES]
+    con.executemany("UPDATE category_rules SET origin = 'utilisateur' WHERE pattern = ?", gone)
+
+
+def _seed_internal_labels(con: sqlite3.Connection) -> None:
+    """Once: fill ``libelles_internes`` with what the user's own history already says. The counterparties of
+    the bank lines classified ``interne`` that the generic labels and his name no longer recognise are kept as
+    labels, so the next syncs keep classifying them the same way (no personal label lives in the code)."""
+    if con.execute("SELECT 1 FROM meta WHERE key = 'libelles_internes'").fetchone():
+        return
+    from .sources.cmb_parse import INTERNAL
+    from .sources.tr_parse import words
+
+    name = get_meta(con, "owner") or {}
+    owner = set(words(name.get("last")) + words(name.get("first"))[:1])
+    found: dict[str, None] = {}
+    for (who,) in con.execute("SELECT DISTINCT counterparty FROM transactions WHERE flow = 'interne'"
+                              " AND counterparty IS NOT NULL AND account_id LIKE 'cmb%'"):
+        who = who.strip()
+        if len(who) < 4 or INTERNAL.search(who) or (owner and owner <= set(words(who))):
+            continue
+        found[who.upper()] = None
+    set_meta(con, "libelles_internes", list(found))
+
+
+def internal_labels(con: sqlite3.Connection) -> list[str]:
+    """Labels of transfers between the user's own accounts, beyond the generic ones: his own list
+    (meta ``libelles_internes``) and the names of his accounts that are precise (at least two words and six
+    characters). A one-word name, often the name of an institution ("Revolut"), is not taken: it would also match
+    ordinary payments to that merchant; the user adds it explicitly to ``libelles_internes`` if it is a transfer."""
+    extra = [str(x) for x in (get_meta(con, "libelles_internes") or [])]
+    names = [r[0] for r in con.execute("SELECT name FROM accounts WHERE name IS NOT NULL")]
+    return extra + [n for n in names if len(n) >= 6 and len(n.split()) >= 2]
+
+
 def init(con: sqlite3.Connection) -> None:
     """Create the schema and seed the fixed accounts, the PEG holding and the default rules.
 
     Idempotent: seeds never overwrite what is already there (a PEG quantity or a rule edited
     by hand survives a re-run).
     """
+    signature = _signature()
+    if con.execute("PRAGMA user_version").fetchone()[0] == signature:
+        return  # déjà à jour : aucune écriture, donc aucune attente derrière une synchro en cours
     con.executescript(SCHEMA)
     migrate(con)
+    try:
+        neuve = con.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == 0
+    except sqlite3.OperationalError:
+        neuve = True
     con.executemany(
         "INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, ?, ?, ?, ?)",
         ACCOUNTS,
     )
     con.execute("UPDATE accounts SET name = 'Livret CMB' WHERE id = 'cmb_livret_a'")
     con.execute("INSERT OR IGNORE INTO instruments VALUES (?, ?, ?, ?, ?)", AIRBUS)
-    con.execute(
-        "INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
-        " VALUES ('peg_airbus', ?, ?, NULL, ?, 'manuel')",
-        (AIRBUS[0], PEG_AIRBUS_SHARES, now_iso()[:10]),
-    )
+    if not neuve:
+        # Base d'avant : la ligne PEG saisie à la main reste (et se recrée si elle manque) ; une base neuve n'en
+        # reçoit plus, la quantité étant celle du premier utilisateur.
+        con.execute(
+            "INSERT OR IGNORE INTO positions (account_id, isin, quantity, avg_cost, as_of, source)"
+            " VALUES ('peg_airbus', ?, ?, NULL, ?, 'manuel')",
+            (AIRBUS[0], PEG_AIRBUS_SHARES, now_iso()[:10]),
+        )
+    _keep_obsolete_rules(con)
+    _seed_internal_labels(con)
     con.executemany(
-        # Default rules follow the code; rules Jules set himself are never touched.
+        # Default rules follow the code; rules the user set himself are never touched.
         "INSERT INTO category_rules (pattern, category, origin) VALUES (?, ?, 'defaut')"
         " ON CONFLICT(pattern) DO UPDATE SET category = excluded.category WHERE origin = 'defaut'",
         DEFAULT_RULES.items(),
     )
     con.commit()
+    con.execute(f"PRAGMA user_version = {signature}")
+
+
+CASH_KINDS = ("courant", "livret", "especes", "pea", "prepaye")  # types dont les liquidités comptent dans la valeur
+SECURITIES_KINDS = ("cto", "pea")  # comptes où l'on suit des titres achetés (hors épargne salariale)
+ACCOUNT_KINDS = ("courant", "livret", "especes", "cto", "pea", "peg", "prepaye")
+
+
+def accounts_of_kind(con: sqlite3.Connection, *kinds: str) -> list[str]:
+    """Identifiants des comptes de ces types, dans l'ordre de création ; liste vide si aucun (ou pas de table)."""
+    if not kinds:
+        return []
+    try:
+        rows = con.execute(f"SELECT id FROM accounts WHERE kind IN ({','.join('?' * len(kinds))}) ORDER BY rowid",
+                           kinds).fetchall()
+    except sqlite3.OperationalError:  # base sans la table
+        return []
+    return [r[0] for r in rows]
+
+
+def main_account(con: sqlite3.Connection, kind: str) -> str | None:
+    """Compte principal d'un type : celui qui a le plus d'opérations (les comptes semés par `ACCOUNTS` restent
+    vides chez un autre utilisateur), à égalité le premier créé ; None sans compte de ce type."""
+    found = accounts_of_kind(con, kind)
+    if len(found) < 2:
+        return found[0] if found else None
+    counts = dict(con.execute(
+        f"SELECT acc, COUNT(*) FROM (SELECT account_id AS acc FROM transactions UNION ALL"
+        f" SELECT holding_account_id FROM transactions WHERE holding_account_id IS NOT NULL)"
+        f" WHERE acc IN ({','.join('?' * len(found))}) GROUP BY acc", found).fetchall())
+    return max(found, key=lambda a: (counts.get(a, 0), -found.index(a)))
+
+
+def used_accounts(con: sqlite3.Connection, *kinds: str) -> list[str]:
+    """Comptes de ces types qui ont au moins une opération ou une position (les comptes semés restés vides sont
+    écartés)."""
+    out = []
+    for acc in accounts_of_kind(con, *kinds):
+        if con.execute("SELECT 1 FROM transactions WHERE account_id = ?1 OR holding_account_id = ?1 LIMIT 1",
+                       (acc,)).fetchone() or con.execute("SELECT 1 FROM positions WHERE account_id = ?", (acc,)).fetchone():
+            out.append(acc)
+    return out
+
+
+def create_account(con: sqlite3.Connection, account_id: str, name: str, kind: str, institution: str = "",
+                   source: str = "manuel") -> bool:
+    """Crée un compte de l'utilisateur ; False s'il existe déjà. Lève ValueError si l'id, le nom ou le type est
+    invalide, si le type est `prepaye` (une carte se crée avec l'outil `creer_carte`) ou si le nom est déjà celui
+    d'un autre compte (les écrans désignent les comptes par leur nom)."""
+    account_id = (account_id or "").strip()
+    if not account_id or not name.strip():
+        raise ValueError("identifiant et nom du compte obligatoires")
+    if kind not in ACCOUNT_KINDS:
+        raise ValueError(f"type de compte inconnu : {kind!r} ({', '.join(ACCOUNT_KINDS)})")
+    if kind == "prepaye":
+        raise ValueError("une carte prépayée se crée avec l'outil carte (creer_carte), pas comme un compte")
+    if con.execute("SELECT 1 FROM accounts WHERE id = ?", (account_id,)).fetchone():
+        return False
+    from .queries import ACCOUNT_LABELS
+
+    taken = {r[0].strip().lower() for r in con.execute("SELECT name FROM accounts WHERE name IS NOT NULL")}
+    taken |= {v.strip().lower() for v in ACCOUNT_LABELS.values()}
+    if name.strip().lower() in taken:
+        raise ValueError(f"le nom « {name.strip()} » est déjà celui d'un autre compte")
+    cur = con.execute("INSERT OR IGNORE INTO accounts (id, institution, name, kind, source) VALUES (?, ?, ?, ?, ?)",
+                      (account_id, institution.strip() or "Autre", name.strip(), kind, source))
+    con.commit()
+    return cur.rowcount > 0
 
 
 def get_meta(con: sqlite3.Connection, key: str) -> Any:

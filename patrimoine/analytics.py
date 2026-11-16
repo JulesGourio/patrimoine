@@ -17,9 +17,8 @@ from datetime import date
 
 import pandas as pd
 
-from . import portfolio
+from . import db, portfolio
 
-INVESTED = ("tr_cto", "tr_pea")
 MIN_BASE = 1000.0
 BENCHMARKS = {"MSCI World": "IWDA.AS", "S&P 500": "CSPX.AS", "CAC 40": "^FCHI", "Nasdaq 100": "EQQQ.DE"}
 # Tables de risque (outil `risques`). Levier : le Nasdaq 100 x2 bouge deux fois plus que l'indice chaque jour.
@@ -56,8 +55,14 @@ def xirr(flows: list[tuple[date, float]], guess: float = 0.1) -> float | None:
     return (lo + hi) / 2
 
 
-def security_flows(con: sqlite3.Connection, accounts: tuple[str, ...] = INVESTED) -> pd.Series:
+def invested_accounts(con: sqlite3.Connection) -> tuple[str, ...]:
+    """Accounts where securities are bought: compte-titres and PEA (not the employee savings plan)."""
+    return tuple(db.accounts_of_kind(con, *db.SECURITIES_KINDS))
+
+
+def security_flows(con: sqlite3.Connection, accounts: tuple[str, ...] | None = None) -> pd.Series:
     """Money put into securities per day (buys and gifts positive, sales negative), EUR."""
+    accounts = invested_accounts(con) if accounts is None else accounts
     out: dict[str, float] = defaultdict(float)
     for r in con.execute("SELECT date, flow, amount_cents, COALESCE(holding_account_id, account_id) acc FROM transactions"
                          " WHERE flow IN ('achat_titre', 'vente_titre', 'saveback', 'titres_offerts')"):
@@ -70,8 +75,11 @@ def security_flows(con: sqlite3.Connection, accounts: tuple[str, ...] = INVESTED
     return s.sort_index()
 
 
-def invested_series(con: sqlite3.Connection, accounts: tuple[str, ...] = INVESTED) -> pd.DataFrame:
+def invested_series(con: sqlite3.Connection, accounts: tuple[str, ...] | None = None) -> pd.DataFrame:
     """Daily market value, net money put in, cumulated gain, and the time-weighted index (base 100)."""
+    accounts = invested_accounts(con) if accounts is None else accounts
+    if not accounts:
+        return pd.DataFrame()
     v = pd.read_sql_query(
         "SELECT date, SUM(securities_cents) / 100.0 AS value, SUM(cost_cents) / 100.0 AS cost,"
         " SUM(realised_cents) / 100.0 AS realised FROM valuations WHERE account_id IN (%s) GROUP BY date ORDER BY date"
@@ -149,7 +157,10 @@ def benchmark(con: sqlite3.Connection, v: pd.DataFrame, symbol: str) -> pd.Serie
 
 def lines(con: sqlite3.Connection) -> pd.DataFrame:
     """Every security ever held on Trade Republic: invested, received, current value, gain, TRI, holding time."""
+    from .queries import account_labels
+
     names = dict(con.execute("SELECT isin, name FROM instruments"))
+    labels = account_labels(con)
     book, prices = portfolio.replay(con)
     today = pd.Timestamp.today().normalize()
     cf: dict[tuple[str, str], list[tuple[date, float]]] = defaultdict(list)
@@ -171,7 +182,7 @@ def lines(con: sqlite3.Connection) -> pd.DataFrame:
         put = -sum(v for _, v in flows if v < 0)
         got = sum(v for _, v in flows if v > 0)
         rows.append({
-            "account": {"tr_cto": "Compte-titres", "tr_pea": "PEA", "peg_airbus": "PEG Airbus"}.get(acc, acc), "isin": isin,
+            "account": labels.get(acc, acc), "isin": isin,
             "name": names.get(isin) or isin, "open": qty > 1e-6, "invested": put, "received": got, "value": value,
             "gain": value + got - put, "gain_pct": (value + got - put) / put if put else None,
             "tri": xirr(flows + [(today.date(), value)]) if (value or got) else None,
@@ -278,7 +289,7 @@ def monthly_balance(con: sqlite3.Connection) -> pd.DataFrame:
     """Per month: income, spending (fees included), savings and savings rate.
 
     Refunds (friends paying back their share, health insurance) are netted off spending rather than counted
-    as income: otherwise a shared dinner paid by Jules would inflate both sides and the savings rate.
+    as income: otherwise a shared dinner paid by the user would inflate both sides and the savings rate.
     Windfalls (inheritance, gifts) are kept apart in ``heritage``: neither income nor savings.
     Bonuses and profit-sharing (``primes``: category « Primes et intéressement » on the bank account, plus the
     intéressement / participation paid into the PEG) are income, hence savings; the PEG ones remain securities

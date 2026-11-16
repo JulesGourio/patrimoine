@@ -18,12 +18,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import fr.julesgourio.patrimoine.ui.theme.Pt
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -64,9 +69,11 @@ import fr.julesgourio.patrimoine.ui.components.LocalRefresh
 import fr.julesgourio.patrimoine.ui.components.LocalSync
 import fr.julesgourio.patrimoine.ui.components.SyncControl
 import fr.julesgourio.patrimoine.ui.screens.AccueilScreen
+import fr.julesgourio.patrimoine.ui.screens.AjouterScreen
 import fr.julesgourio.patrimoine.ui.screens.AlertesScreen
 import fr.julesgourio.patrimoine.ui.screens.AnalyseScreen
 import fr.julesgourio.patrimoine.ui.screens.AnalysesScreen
+import fr.julesgourio.patrimoine.ui.screens.CartesScreen
 import fr.julesgourio.patrimoine.ui.screens.CmbConsentScreen
 import fr.julesgourio.patrimoine.ui.screens.DepensesScreen
 import fr.julesgourio.patrimoine.ui.screens.OperationsScreen
@@ -167,11 +174,10 @@ private fun Locked(onUnlock: () -> Unit) {
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
 private val TABS = listOf(
-    Tab(Routes.ACCUEIL, "Patrimoine", Icons.Filled.AccountBalance),
-    Tab(Routes.PORTEFEUILLE, "Portefeuille", Icons.AutoMirrored.Filled.ShowChart),
-    Tab(Routes.DEPENSES, "Dépenses", Icons.AutoMirrored.Filled.ReceiptLong),
-    Tab(Routes.ANALYSES, "Analyses", Icons.Filled.Insights),
-    Tab(Routes.PLUS, "Plus", Icons.Filled.MoreHoriz),
+    Tab(Routes.ACCUEIL, "Patrimoine", Icons.Outlined.PieChart),
+    Tab(Routes.BOURSE, "Bourse", Icons.AutoMirrored.Outlined.TrendingUp),
+    Tab(Routes.DEPENSES, "Flux", Icons.Outlined.SwapVert),
+    Tab(Routes.PROJECTION, "Projection", Icons.AutoMirrored.Outlined.ShowChart),
 )
 
 @Composable
@@ -207,12 +213,18 @@ private fun App() {
         start = { Scheduler.syncNow(context) },
     )
 
+    AppContent(nav, refresh, sync)
+}
+
+/** Tabs and screens, without WorkManager or permissions: what the screen captures render (`app/src/test`). */
+@Composable
+internal fun AppContent(nav: NavHostController, refresh: Int, sync: SyncControl) {
     CompositionLocalProvider(LocalRefresh provides refresh, LocalSync provides sync) {
         Scaffold(
             bottomBar = { BottomBar(nav) },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
-                if (running) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (sync.running) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Graph(nav, Modifier.weight(1f))
             }
         }
@@ -222,26 +234,33 @@ private fun App() {
 @Composable
 private fun BottomBar(nav: NavHostController) {
     val entry by nav.currentBackStackEntryAsState()
-    NavigationBar {
-        TABS.forEach { tab ->
-            val selected = entry?.destination?.hierarchy?.any { it.route == tab.route } == true
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    // Tapping the tab you are on closes the detail screens above it (restoreState would bring them back).
-                    if (selected) {
-                        nav.popBackStack(tab.route, inclusive = false)
-                        return@NavigationBarItem
-                    }
-                    nav.navigate(tab.route) {
-                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                icon = { Icon(tab.icon, contentDescription = null) },
-                label = { Text(tab.label, maxLines = 1) },
-            )
+    Column {
+        HorizontalDivider(color = Pt.Ligne)
+        NavigationBar(containerColor = Pt.Carte, tonalElevation = 0.dp) {
+            TABS.forEach { tab ->
+                val selected = entry?.destination?.hierarchy?.any { it.route == tab.route } == true
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = {
+                        // Tapping the tab you are on closes the detail screens above it (restoreState would bring them back).
+                        if (selected) {
+                            nav.popBackStack(tab.route, inclusive = false)
+                            return@NavigationBarItem
+                        }
+                        nav.navigate(tab.route) {
+                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    icon = { Icon(tab.icon, contentDescription = null) },
+                    label = { Text(tab.label, maxLines = 1, fontSize = 11.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Pt.Encre, selectedTextColor = Pt.Encre, indicatorColor = Color.Transparent,
+                        unselectedIconColor = Pt.Mute, unselectedTextColor = Pt.Mute,
+                    ),
+                )
+            }
         }
     }
 }
@@ -251,9 +270,9 @@ private fun Graph(nav: NavHostController, modifier: Modifier) {
     val back: () -> Unit = { nav.popBackStack() }
     NavHost(nav, startDestination = Routes.ACCUEIL, modifier = modifier) {
         composable(Routes.ACCUEIL) { AccueilScreen(nav) }
-        composable(Routes.PORTEFEUILLE) { PortefeuilleScreen(nav) }
+        composable(Routes.BOURSE) { PortefeuilleScreen(nav) }
         composable(Routes.DEPENSES) { DepensesScreen(nav) }
-        composable(Routes.ANALYSES) { AnalysesScreen(nav) }
+        composable(Routes.ANALYSES) { AnalysesScreen(nav, back) }
         composable(Routes.PLUS) { PlusScreen(nav) }
         composable(Routes.TITRE, arguments = listOf(navArgument("symbole") { type = NavType.StringType })) {
             TitreScreen(it.arguments?.getString("symbole").orEmpty(), back)
@@ -263,7 +282,9 @@ private fun Graph(nav: NavHostController, modifier: Modifier) {
         }
         composable(Routes.OPERATIONS) { OperationsScreen(back) }
         composable(Routes.VENDEURS) { VendeursScreen(back) }
-        composable(Routes.PROJECTION) { ProjectionScreen(back) }
+        composable(Routes.CARTES) { CartesScreen(back) }
+        composable(Routes.PROJECTION) { ProjectionScreen() }
+        composable(Routes.AJOUTER) { AjouterScreen(back) }
         composable(Routes.ORDRES) { OrdresScreen(back) }
         composable(Routes.ALERTES) { AlertesScreen(back) }
         composable(Routes.REGLAGES) { ReglagesScreen(nav, back) }

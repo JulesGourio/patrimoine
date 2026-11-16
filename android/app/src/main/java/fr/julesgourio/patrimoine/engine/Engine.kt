@@ -49,8 +49,16 @@ object Engine {
         }
     }
 
+    /**
+     * Replaces the Python engine for screen captures (`app/src/test`): answers come from JSON files written by
+     * `scripts/ecrans_json.py` instead of the engine. Always null in the real app.
+     */
+    @Volatile
+    var override: (suspend (name: String, args: JSONObject) -> Reply)? = null
+
     /** A tool of `patrimoine.api` or a screen of `patrimoine.mobile`, by name. */
-    suspend fun call(name: String, args: JSONObject = JSONObject()): Reply = invoke("call", name, args.toString())
+    suspend fun call(name: String, args: JSONObject = JSONObject()): Reply =
+        override?.invoke(name, args) ?: invoke("call", name, args.toString())
 
     /** `args("jours" to 30)`: keyword arguments for [call]. */
     fun args(vararg pairs: Pair<String, Any?>): JSONObject =

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.chaquopy)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -58,6 +59,12 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // Captures d'écran (src/test) : variables PATRIMOINE_ECRANS (JSON de `scripts/ecrans_json.py`) et
+        // PATRIMOINE_CAPTURES (dossier des PNG), voir android/README.md.
+        unitTests.isReturnDefaultValues = true
+    }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
@@ -88,8 +95,11 @@ chaquopy {
         version = "3.13"
         pip {
             // Wheels built by CI for packages with no Android build anywhere (cffi, see android.yml).
-            options("--find-links", file("wheels").absolutePath)
-            install("-r", "requirements.txt")
+            // Les captures d'écran (PATRIMOINE_SANS_PYTHON=1) n'exécutent pas le moteur : pas de roues à construire.
+            if (System.getenv("PATRIMOINE_SANS_PYTHON") == null) {
+                options("--find-links", file("wheels").absolutePath)
+                install("-r", "requirements.txt")
+            }
         }
     }
     sourceSets {
@@ -117,4 +127,17 @@ dependencies {
     implementation(libs.androidx.glance.appwidget)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// Un APK sans moteur Python (captures d'écran) ne doit jamais être livré : échec explicite en release.
+if (System.getenv("PATRIMOINE_SANS_PYTHON") != null) {
+    tasks.matching { it.name.contains("Release") && (it.name.startsWith("assemble") || it.name.startsWith("bundle")) }
+        .configureEach {
+            doFirst { throw GradleException("PATRIMOINE_SANS_PYTHON n'est pas permis pour une version release (moteur Python absent).") }
+        }
 }

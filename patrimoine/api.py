@@ -1,4 +1,4 @@
-"""The read and write operations on Jules's data, as plain functions returning JSON-safe dicts.
+"""The read and write operations on the user's data, as plain functions returning JSON-safe dicts.
 
 One list (`TOOLS`) serves the MCP server (`mcp_server`), the mobile app (`mobile`) and the cloud export
 (`cloud`); none of them needs the others' libraries (no `mcp` import here).
@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
+import threading
 from datetime import date, timedelta
 from typing import Any, Callable
 
@@ -26,7 +27,7 @@ INSTRUCTIONS = (
     "écran Analyses). Rapport libre à la demande : `enregistrer_rapport`."
 )
 
-RISKY_ACCOUNTS = {"PEA", "Compte-titres", "PEG Airbus"}  # libellés de queries.ACCOUNT_LABELS
+RISKY_KINDS = ("pea", "cto", "peg")  # types de comptes exposés aux marchés
 
 TOOLS: list[Callable[..., dict]] = []
 
@@ -37,10 +38,29 @@ def tool(fn: Callable[..., dict]) -> Callable[..., dict]:
     return fn
 
 
+_OUVERTES = threading.local()
+
+
 def _con() -> sqlite3.Connection:
     con = db.connect(Settings().db_path)
     db.init(con)
+    getattr(_OUVERTES, "liste", None) is None and setattr(_OUVERTES, "liste", [])
+    _OUVERTES.liste.append(con)
     return con
+
+
+def fermer_connexions() -> None:
+    """Ferme les connexions ouvertes par l'appel d'outil en cours (annule ce qui n'a pas été validé).
+
+    Sans cela, une écriture jamais validée garde le verrou de la base jusqu'au ramasse-miettes et bloque tous
+    les écrans de l'appli (« database is locked » au bout de 30 s)."""
+    for con in getattr(_OUVERTES, "liste", None) or []:
+        try:
+            con.rollback()
+            con.close()
+        except Exception:  # noqa: BLE001 - déjà fermée
+            pass
+    _OUVERTES.liste = []
 
 
 def _clean(x: Any) -> Any:
@@ -73,7 +93,7 @@ def patrimoine() -> dict:
     last_day = h.date.max()
     total = h.groupby("date")["value"].sum()
     now = h[h.date == last_day]
-    inv = now[now.account_id.isin(["tr_cto", "tr_pea"])]
+    inv = now[now.account_id.isin(db.accounts_of_kind(con, *db.SECURITIES_KINDS))]
     return _clean({
         "date": last_day,
         "total": total.iloc[-1],
@@ -124,7 +144,9 @@ def historique(pas: str = "M") -> dict:
     h = queries.history(_con())
     if h.empty:
         return {"historique": []}
-    rule = {"M": "ME", "W": "W"}.get(pas.upper(), "ME")
+    from .bourse import FIN_DE_MOIS
+
+    rule = {"M": FIN_DE_MOIS, "W": "W"}.get(pas.upper(), FIN_DE_MOIS)
     g = (h.set_index("date").groupby("account").resample(rule)[["value", "cost", "realised", "deposits"]].last()
          .reset_index())
     return {"historique": _records(g)}
@@ -182,6 +204,16 @@ def flux(mois: int = 12) -> dict:
 
 
 @tool
+def flux_ecran(mois: int = 13) -> dict:
+    """Écran Flux : par mois revenus par source (salaire, primes, placements, autres), dépenses nettes, épargne,
+    taux, part investie, charges fixes et dépenses courantes ; indicateurs sur 12 mois complets (moyenne, évolution
+    sur un an, salaire, revenus de placements) ; prélèvements récurrents encore attendus ce mois-ci."""
+    from . import flux_ecran as _flux
+
+    return _clean(_flux.donnees(_con(), mois))
+
+
+@tool
 def fiscalite() -> dict:
     """Par année, compte-titres : plus-values, moins-values reportées, dividendes, intérêts, PFU estimé."""
     return {"annees": _clean(queries.taxes(_con()).to_dict("index")),
@@ -198,7 +230,7 @@ def ventes_realisees() -> dict:
 def operations(recherche: str = "", jours: int = 90, compte: str = "", flux_type: str = "",
                categorie: str = "", mois: str = "") -> dict:
     """Recherche dans les opérations (libellé ou commerçant), sur N jours, filtrables par compte
-    (tr_especes, tr_cto, tr_pea, cmb_courant…), par flux (depense, revenu, interne, achat_titre…), par catégorie
+    (identifiants des comptes de l'utilisateur), par flux (depense, revenu, interne, achat_titre…), par catégorie
     et par mois (« 2026-10 », remplace alors la période en jours)."""
     con = _con()
     q = ("SELECT id, date, account_id, flow, COALESCE(category_override, category) AS categorie, counterparty, label,"
@@ -418,14 +450,18 @@ def budget(categorie: str, montant_mensuel: float) -> dict:
 
 
 @tool
-def preparer_ordre(sens: str, titre: str, justification: str, risques: str, compte: str = "tr_cto",
+def preparer_ordre(sens: str, titre: str, justification: str, risques: str, compte: str = "",
                    isin: str = "", quantite: float = 0, montant_eur: float = 0, limite: float = 0,
                    notifier: bool = True) -> dict:
-    """Prépare un ordre (sens 'achat' ou 'vente') pour que Jules le passe lui-même dans l'appli Trade Republic.
-    Compte : tr_cto ou tr_pea (vérifier l'éligibilité PEA). Donner la justification chiffrée et les risques."""
+    """Prépare un ordre (sens 'achat' ou 'vente') pour que l'utilisateur le passe lui-même dans l'appli Trade Republic.
+    Compte : identifiant d'un compte-titres ou PEA (vide : le compte-titres principal ; vérifier l'éligibilité PEA).
+    Donner la justification chiffrée et les risques."""
     if sens not in ("achat", "vente"):
         return {"erreur": "sens : achat ou vente"}
     con = _con()
+    compte = compte or db.main_account(con, "cto") or db.main_account(con, "pea")
+    if not compte:
+        return {"erreur": "aucun compte-titres ni PEA : en créer un avec `patrimoine comptes --ajouter`"}
     cur = con.execute(
         "INSERT INTO order_ideas (created_at, account_id, isin, name, side, quantity, amount_eur, limit_price,"
         " rationale, risks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -438,7 +474,7 @@ def preparer_ordre(sens: str, titre: str, justification: str, risques: str, comp
         taille = f"{quantite:g} titres" if quantite else f"{montant_eur:.0f} €"
         notify.send(f"Idée d'ordre : {sens} {titre}", f"{taille}" + (f", limite {limite:.2f} €" if limite else "")
                     + f" sur {compte}.\n{justification[:600]}", priority=3)
-    return {"ok": True, "id": cur.lastrowid, "rappel": "Ordre non passé : Jules l'exécute dans Trade Republic."}
+    return {"ok": True, "id": cur.lastrowid, "rappel": "Ordre non passé : l'utilisateur l'exécute dans Trade Republic."}
 
 
 @tool
@@ -451,7 +487,7 @@ def ordres_proposes(statut: str = "proposé") -> dict:
 
 @tool
 def statut_ordre(id: int, statut: str) -> dict:
-    """Note ce que Jules a fait d'un ordre préparé : 'passé' (il l'a exécuté dans Trade Republic), 'abandonné', ou
+    """Note ce que l'utilisateur a fait d'un ordre préparé : 'passé' (il l'a exécuté dans Trade Republic), 'abandonné', ou
     'proposé' pour annuler. Ne passe aucun ordre."""
     if statut not in ("proposé", "passé", "abandonné"):
         return {"erreur": "statut : proposé, passé ou abandonné"}
@@ -464,7 +500,7 @@ def statut_ordre(id: int, statut: str) -> dict:
 @tool
 def faits_du_jour(periode: str = "jour") -> dict:
     """Point de départ d'une analyse de marché. periode 'jour' (dernière séance) ou 'semaine' (5 séances).
-    Calcule et enregistre un brouillon : lignes de Jules contre leur indice (move = variation, z = écart en
+    Calcule et enregistre un brouillon : lignes de l'utilisateur contre leur indice (move = variation, z = écart en
     écarts-types habituels, impact_eur), marchés, secteurs US, actions de ses ETF qui l'ont fait bouger
     (moteurs_etf), changements d'avis d'analystes, résultats à venir, et `a_expliquer` :
     les mouvements inhabituels à expliquer en priorité. Renvoie l'id à passer à `publier_analyse`."""
@@ -512,7 +548,7 @@ def analyses(n: int = 5) -> dict:
 @tool
 def enregistrer_rapport(titre: str, contenu_markdown: str, type: str = "demande", notifier: bool = True) -> dict:
     """Enregistre un rapport (type 'hebdo' ou 'demande') ; il s'affiche dans le dashboard et part sur le
-    téléphone de Jules et par mail. Commencer le contenu par 3 à 5 lignes de synthèse."""
+    téléphone de l'utilisateur et par mail. Commencer le contenu par 3 à 5 lignes de synthèse."""
     con = _con()
     cur = con.execute("INSERT INTO reports (created_at, kind, title, body_md) VALUES (?, ?, ?, ?)",
                       (db.now_iso(), type, titre, contenu_markdown))
@@ -534,7 +570,7 @@ def rapports(n: int = 5) -> dict:
 @tool
 def synchroniser() -> dict:
     """Relance la synchronisation complète (Trade Republic, CMB, cours, historique, alertes). Peut demander à
-    Jules de confirmer la connexion Trade Republic sur son téléphone."""
+    l'utilisateur de confirmer la connexion Trade Republic sur son téléphone."""
     from . import pipeline
 
     return {"resume": pipeline.run()}
@@ -556,7 +592,7 @@ def synthese(avec_peg: bool = True) -> dict:
     if h.empty:
         return {"erreur": "historique vide : lancer synchroniser"}
     if not avec_peg:
-        h = h[h.account_id != "peg_airbus"]
+        h = h[~h.account_id.isin(db.accounts_of_kind(con, "peg"))]
     total = h.groupby("date")["value"].sum()
     today = total.index.max()
     at = lambda d: float(total.asof(d)) if d >= total.index.min() else None  # noqa: E731
@@ -574,17 +610,20 @@ def synthese(avec_peg: bool = True) -> dict:
     real = queries.realised(con, replayed)
     income = queries.investment_income(con)
     ps, pfu = 0.172, 0.30
-    wrapper = (pos.groupby("account").gain.sum() if not pos.empty else pd.Series(dtype=float)).add(
-        real.groupby("account").gain.sum() if not real.empty else pd.Series(dtype=float), fill_value=0.0)
-    gain_cto, gain_pea, gain_peg = (float(wrapper.get(a, 0.0)) for a in ("Compte-titres", "PEA", "PEG Airbus"))
-    div_pea = float(income[(income.flow == "dividende") & (income.account == "PEA")].amount.sum()) if len(income) else 0.0
-    div_other = float(income[(income.flow == "dividende") & (income.account != "PEA")].amount.sum()) if len(income) else 0.0
+    # par identifiant de compte, jamais par libellé : deux comptes de même libellé ne se comptent pas deux fois
+    wrapper = (pos.groupby("account_id").gain.sum() if not pos.empty else pd.Series(dtype=float)).add(
+        real.groupby("account_id").gain.sum() if not real.empty else pd.Series(dtype=float), fill_value=0.0)
+    gain_cto, gain_pea, gain_peg = (float(wrapper.reindex(db.accounts_of_kind(con, kind)).fillna(0.0).sum())
+                                    for kind in ("cto", "pea", "peg"))
+    pea_ids = db.accounts_of_kind(con, "pea")
+    div_pea = float(income[(income.flow == "dividende") & income.account_id.isin(pea_ids)].amount.sum()) if len(income) else 0.0
+    div_other = float(income[(income.flow == "dividende") & ~income.account_id.isin(pea_ids)].amount.sum()) if len(income) else 0.0
     interest = float(income[income.flow == "interets"].amount.sum()) if len(income) else 0.0
     if not avec_peg:
         gain_peg = 0.0
     gain = gain_cto + gain_pea + gain_peg + div_pea + div_other + interest
     net = (gain_cto + div_other + interest) * (1 - pfu) + (gain_pea + div_pea + gain_peg) * (1 - ps)
-    pea_open = queries.account_open_dates(con).get("tr_pea")
+    pea_open = queries.pea_open_date(con)
     pea_5y = bool(pea_open and (today - pd.Timestamp(pea_open)).days >= 365.25 * 5)
     invested = float(by_group.get("Bourse", 0) + by_group.get("Épargne salariale", 0))
     comptes = [{"compte": r.account, "groupe": groupes.get(r.account), "valeur": float(r.value),
@@ -643,22 +682,23 @@ def cours(isin: str, jours: int = 400) -> dict:
             points.append([d.date().isoformat(), round(float(s.asof(d)) * today_factor, 4)])
     qty = sum(ln.quantity for (_, i), ln in book.lines.items() if i == isin and ln.quantity > 1e-6)
     cost = sum(ln.cost for (_, i), ln in book.lines.items() if i == isin and ln.quantity > 1e-6)
-    ops = []
-    for r in txs:
-        if r["isin"] != isin or not r["quantity"] or r["flow"] not in (
-                "achat_titre", "saveback", "vente_titre", "titres_offerts", "transfert_titres"):
-            continue
-        fees = (r["fees_cents"] or 0) / 100
-        value = abs(r["amount_cents"]) / 100
-        sale = r["flow"] == "vente_titre"
-        if value == 0 and r["flow"] in ("titres_offerts", "transfert_titres"):
-            continue
-        # Quantities and prices of the operations are put on today's scale (divide by later splits).
-        ratio = math.prod(x for d, x in later_splits if d > pd.Timestamp(r["date"])) or 1.0
-        ops.append({"date": r["date"], "sens": "vente" if sale else "achat", "quantite": r["quantity"] * ratio,
-                    "prix": (value + fees if sale else value - fees) / r["quantity"] / ratio})
+    from . import titre as _titre
+
+    ops = [{k: o[k] for k in ("date", "sens", "quantite", "prix")} for o in _titre.operations(txs, isin, later_splits)]
     return _clean({"isin": isin, "cours": points, "pmp": cost / qty if qty > 1e-6 and cost else None,
                    "operations": ops})
+
+
+@tool
+def titre(isin: str) -> dict:
+    """Fiche d'un titre en un appel (ISIN, ou ticker Yahoo d'un titre connu) : cours en euros, série par période
+    (1J à cours de séance quand ils sont stockés, `intraday` faux sinon), variation du cours en % et en euros par
+    titre, prix de revient unitaire, position détenue (valeur, plus-value, quantité, montant investi, variation du
+    jour, poids, une ligne par compte), variations du cours (1J, 1S, 1M, 3M, YTD, 1A), volatilité et plus forte
+    baisse sur 1 an, dividendes reçus et opérations (achat, vente, dividende)."""
+    from . import titre as _titre
+
+    return _clean(_titre.donnees(_con(), isin))
 
 
 @tool
@@ -706,8 +746,9 @@ def projection(horizon_ans: int = 20, epargne_mensuelle: float | None = None, ha
     if h.empty:
         return {"erreur": "historique vide : lancer synchroniser"}
     last = h[h.date == h.date.max()]
-    risky = float(last[last.account.isin(RISKY_ACCOUNTS)].value.sum())
-    safe = float(last[~last.account.isin(RISKY_ACCOUNTS)].value.sum())
+    risky_ids = db.accounts_of_kind(con, *RISKY_KINDS)
+    risky = float(last[last.account_id.isin(risky_ids)].value.sum())
+    safe = float(last[~last.account_id.isin(risky_ids)].value.sum())
     total = risky + safe
     if epargne_mensuelle is None:
         epargne_mensuelle = 1000.0
@@ -786,7 +827,7 @@ def pistes_fiscales() -> dict:
     def g(k: str) -> float:
         return float(cur.get(k, 0.0) or 0.0)
 
-    cto = pos[pos.account == queries.ACCOUNT_LABELS["tr_cto"]] if not pos.empty else pos
+    cto = pos[pos.account_id.isin(db.accounts_of_kind(con, "cto"))] if not pos.empty else pos
     latent = float(cto.gain.sum()) if not cto.empty else 0.0
     if year in tax.index:
         carry = g("moins_values_reportables")
@@ -812,7 +853,7 @@ def pistes_fiscales() -> dict:
     if carry > 0:
         pistes.append(f"{carry:.0f} € de moins-values reportables : autant de plus-values réalisables sans impôt.")
     pea = None
-    pea_open = queries.account_open_dates(con).get("tr_pea")
+    pea_open = queries.pea_open_date(con)
     if pea_open:
         five = pd.Timestamp(pea_open) + pd.DateOffset(years=5)
         left = (five - today).days
@@ -843,20 +884,28 @@ def performance(compte: str = "", indice: str = "") -> dict:
     """Performance des placements Trade Republic : valeur, net investi, gain total, TRI (rendement de ton argent selon
     les dates de versement), TWR (rendement des placements, neutre aux versements : total, annualisé, 1 mois, depuis
     le 1er janvier, 1 an), volatilité annualisée, pire baisse et baisse actuelle depuis le plus haut. Rendements en
-    fractions (0,05 = 5 %). `compte` : vide (compte-titres + PEA), "tr_cto" ou "tr_pea". `indice` (optionnel) :
+    fractions (0,05 = 5 %). `compte` : vide (compte-titres + PEA), identifiant d'un compte, "cto" ou "pea". `indice` (optionnel) :
     MSCI World, S&P 500, CAC 40 ou Nasdaq 100 ; compare à ce que les mêmes achats et ventes vaudraient placés dans
     l'indice (nécessite Internet pour les cours). Le PEG Airbus est exclu."""
     from . import analytics
 
-    ids = {"": analytics.INVESTED, "tr_cto": ("tr_cto",), "cto": ("tr_cto",), "compte-titres": ("tr_cto",),
-           "tr_pea": ("tr_pea",), "pea": ("tr_pea",)}
-    accounts = ids.get(compte.strip().lower())
-    if accounts is None:
-        return {"erreur": f"compte inconnu : {compte!r} (tr_cto, tr_pea ou vide)"}
+    con = _con()
+    key = compte.strip().lower()
+    by_kind = {"cto": "cto", "compte-titres": "cto", "pea": "pea"}
+    invested = analytics.invested_accounts(con)
+    if not key:
+        accounts = invested
+    elif key in invested:
+        accounts = (key,)
+    elif compte.strip() in invested:
+        accounts = (compte.strip(),)
+    elif key in by_kind:
+        accounts = tuple(db.accounts_of_kind(con, by_kind[key]))
+    else:
+        return {"erreur": f"compte inconnu : {compte!r} (identifiant d'un compte-titres ou PEA, « cto », « pea » ou vide)"}
     bench_key = next((k for k in analytics.BENCHMARKS if k.lower() == indice.strip().lower()), None)
     if indice.strip() and bench_key is None:
         return {"erreur": f"indice inconnu : {indice!r} ({', '.join(analytics.BENCHMARKS)})"}
-    con = _con()
     v = analytics.invested_series(con, accounts)
     if v.empty:
         return {"erreur": "aucun historique de titres : lancer synchroniser"}
@@ -876,6 +925,43 @@ def performance(compte: str = "", indice: str = "") -> dict:
                              "note": "Valeur si chaque achat et vente avait porté sur l'indice ; écart > 0 : le "
                                      "portefeuille a fait mieux."}
     return _clean(out)
+
+
+@tool
+def bourse(indice: str = "") -> dict:
+    """Tout l'écran Bourse en un appel, pour « tous les comptes » (`tous`) et chaque compte de placement
+    (`par_compte`) : valeur, montant investi, plus-values latentes et réalisées, dividendes, frais, gain total ;
+    pour chaque période (1J, 1S, 1M, 3M, YTD, 1A, MAX) la série de valeur, le montant investi, la variation en
+    euros et en % hors versements (TWR) et celle de l'indice de référence (`indice` : MSCI World par défaut ; null
+    sans cours) ; rendement annualisé, volatilité 1 an, plus forte baisse ; rendements mensuels ; lignes avec leur
+    variation par période ; répartition (compte, type, devise quand la base la connaît) ; dividendes sur 12 mois.
+    Rendements en fractions. En 1J, `intraday` est faux : pas de série, seulement la variation du jour."""
+    from . import bourse as _bourse
+
+    con = _con()
+    return _clean(_bourse.donnees(con, indice or None))
+
+
+@tool
+def accueil_ecran() -> dict:
+    """Tout l'écran Patrimoine (accueil de l'appli) en un appel : patrimoine net par type de compte (placements,
+    comptes courants, livrets) sur chaque période (1S à MAX) avec la variation en euros et en % (versements
+    inclus) et d'où elle vient (épargne, marchés, dividendes et intérêts) ; répartition ; indicateurs (taux
+    d'épargne, mois de dépenses couverts, disponible sous 48 h, valeur après impôts latents) ; comptes avec leur
+    variation et leur courbe sur 30 jours ; `details` (gains d'investissement bruts et nets d'impôt, variations
+    depuis le 1er janvier et sur 1 an, épargne moyenne) et `sans_peg` (mêmes périodes sans le PEG Airbus) ; dernière analyse, ordres préparés, alertes et dernière synchro."""
+    from . import accueil_ecran as _accueil
+
+    con = _con()
+    out = _clean(_accueil.donnees(con, synthese(), synthese(avec_peg=False)))
+    if out.get("erreur"):
+        return out
+    last = analyses(1)
+    out["derniere_analyse"] = (last.get("analyses") or [None])[0]
+    out["ordres_proposes"] = len(ordres_proposes().get("ordres") or [])
+    out["alertes_30j"] = len(alertes().get("recentes") or [])
+    out["derniere_synchro"] = patrimoine().get("derniere_synchro")
+    return out
 
 
 @tool

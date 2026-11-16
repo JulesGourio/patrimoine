@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -11,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,11 +49,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.julesgourio.patrimoine.ui.theme.Pt
 import java.time.LocalDate
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -564,6 +572,7 @@ fun StackedBarChart(
     valueFormat: (Double) -> String = { euros(it) },
     selectedKey: String? = null,
     onGroupClick: (BarGroup) -> Unit = {},
+    couleur: ((String) -> Color)? = null,
 ) {
     if (groups.isEmpty()) {
         Muted("Rien à afficher.")
@@ -572,7 +581,7 @@ fun StackedBarChart(
     val scheme = MaterialTheme.colorScheme
     val n = groups.size
     val cats = remember(groups) { groups.flatMap { g -> g.parts.map { it.first } }.toSortedSet().toList() }
-    val palette = chartPalette(cats.size)
+    val palette = if (couleur != null) cats.map(couleur) else chartPalette(cats.size)
     val totals = groups.map { g -> g.parts.sumOf { it.second } }
     val maxData = max(max(totals.maxOrNull() ?: 0.0, limitLine ?: 0.0), 1.0)
     val step = niceStep(maxData, 4)
@@ -597,11 +606,16 @@ fun StackedBarChart(
             ChartBubble {
                 Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text("${g.label} · ${valueFormat(totals[t])}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                    g.parts.filter { it.second > 0 }.sortedByDescending { it.second }.take(3).forEach { (c, v) ->
+                    if (limitLine != null && limitLine > 0) {
+                        Text(valueFormat(totals[t] - limitLine).let { (if (totals[t] >= limitLine) "+" else "") + it } + " vs moyenne",
+                            style = MaterialTheme.typography.labelMedium, color = TIP_TEXT.copy(alpha = 0.7f))
+                    }
+                    g.parts.filter { it.second > 0 }.sortedByDescending { it.second }.forEach { (c, v) ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Dot(palette[cats.indexOf(c).coerceAtLeast(0)])
                             Spacer(Modifier.width(6.dp))
-                            Text("$c : ${valueFormat(v)}", style = MaterialTheme.typography.labelMedium)
+                            Text("$c : ${valueFormat(v)}" + if (totals[t] > 0) " · " + pct(v / totals[t], sign = false, digits = 0) else "",
+                                style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -620,7 +634,7 @@ fun StackedBarChart(
                 }
             }
             BoxWithConstraints(Modifier.weight(1f)) {
-                val minBar = 36.dp
+                val minBar = 20.dp   // 13 mois tiennent sur un écran de téléphone ; défilement seulement au-delà
                 val contentW = if (minBar * n > maxWidth) minBar * n else maxWidth
                 val scroll = rememberScrollState()
                 LaunchedEffect(n, scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
@@ -681,10 +695,11 @@ fun StackedBarChart(
                             )
                         }
                     }
+                    val etroit = contentW / n < 34.dp   // « mars » ne tient pas : initiale (le mois entier est dans l'infobulle)
                     Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                         groups.forEach { g ->
                             Text(
-                                g.label,
+                                if (etroit) g.label.take(1).uppercase() else g.label,
                                 Modifier.weight(1f),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                 color = scheme.onSurfaceVariant,
@@ -699,7 +714,8 @@ fun StackedBarChart(
         }
         if (limitLine != null) Muted("Ligne pointillée : ${valueFormat(limitLine)}")
         if (cats.size > 1) {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 cats.forEachIndexed { i, c -> LegendItem(c, palette[i]) }
             }
         }
@@ -1000,4 +1016,160 @@ fun RangeBar(
             markers.forEach { m -> LegendItem("${m.label} ${valueFormat(m.value)}", m.color) }
         }
     }
+}
+
+
+// ---------- infobulle détaillée dessinée dans un Canvas ----------
+
+/** Une ligne de l'infobulle : pastille de couleur facultative, libellé à gauche, valeur à droite (alignée). */
+class LigneInfobulle(val libelle: String, val valeur: String? = null, val couleur: Color? = null, val gras: Boolean = false, val teinte: Color? = null)
+
+/** Couleurs de l'infobulle : claire sur le bloc sombre, sombre sur les cartes claires. */
+class StyleInfobulle(val fond: Color, val texte: Color, val bordure: Color?)
+
+val InfobulleClaire = StyleInfobulle(Color.White, Pt.Encre, null)
+val InfobulleSombre = StyleInfobulle(TIP_BG, TIP_TEXT, TIP_BORDER)
+
+/**
+ * Infobulle à plusieurs lignes à côté du point touché ([xTouch]) : à droite du doigt, à gauche si elle déborde. Posée
+ * en haut de la zone [haut] ; [mesure] est le mesureur de texte du Canvas.
+ */
+fun DrawScope.infobulleDetaillee(mesure: TextMeasurer, lignes: List<LigneInfobulle>, xTouch: Float, haut: Float, style: StyleInfobulle) {
+    if (lignes.isEmpty()) return
+    val normal = TextStyle(fontSize = 11.sp, color = style.texte)
+    val gras = TextStyle(fontSize = 11.sp, color = style.texte, fontWeight = FontWeight.SemiBold)
+    val pad = 8.dp.toPx()
+    val pastille = 14.dp.toPx()
+    val inter = 3.dp.toPx()
+    val ecart = 12.dp.toPx()
+    val avecPastille = lignes.any { it.couleur != null }
+    val mesures = lignes.map { l ->
+        val st = if (l.gras) gras else normal
+        mesure.measure(l.libelle, st) to l.valeur?.let { mesure.measure(it, if (l.gras) gras else normal.copy(fontWeight = FontWeight.Medium, color = l.teinte ?: style.texte)) }
+    }
+    val largeurLibelle = mesures.maxOf { it.first.size.width }.toFloat()
+    val largeurValeur = mesures.maxOf { it.second?.size?.width ?: 0 }.toFloat()
+    val w = pad * 2 + (if (avecPastille) pastille else 0f) + largeurLibelle + (if (largeurValeur > 0) 12.dp.toPx() + largeurValeur else 0f)
+    val h = pad * 2 + mesures.sumOf { max(it.first.size.height, it.second?.size?.height ?: 0).toDouble() }.toFloat() + inter * (lignes.size - 1)
+    var x = xTouch + 14.dp.toPx()
+    if (x + w > size.width) x = xTouch - 14.dp.toPx() - w
+    x = x.coerceIn(0f, max(0f, size.width - w))
+    val coin = CornerRadius(10.dp.toPx())
+    drawRoundRect(style.fond, Offset(x, haut), Size(w, h), coin)
+    if (style.bordure != null) drawRoundRect(style.bordure, Offset(x, haut), Size(w, h), coin, style = Stroke(1.dp.toPx()))
+    var y = haut + pad
+    lignes.forEachIndexed { i, l ->
+        val (a, b) = mesures[i]
+        val hl = max(a.size.height, b?.size?.height ?: 0).toFloat()
+        var tx = x + pad
+        if (l.couleur != null) drawCircle(l.couleur, 4.dp.toPx(), Offset(tx + 4.dp.toPx(), y + hl / 2f))
+        if (avecPastille) tx += pastille
+        drawText(a, topLeft = Offset(tx, y + (hl - a.size.height) / 2f))
+        if (b != null) drawText(b, topLeft = Offset(x + w - pad - b.size.width, y + (hl - b.size.height) / 2f))
+        y += hl + inter
+    }
+}
+
+/** Un type de compte de [GraphiquePatrimoine] (valeurs alignées sur les dates du graphique) : détaillé dans l'infobulle. */
+class CoucheEmpilee(val nom: String, val couleur: Color, val valeurs: List<Double>)
+
+private val HAUT_PATRIMOINE = 170.dp
+
+/**
+ * Graphique du bloc sombre de l'écran Patrimoine : courbe du patrimoine net, détaillée par type de compte au toucher. L'axe vertical est ajusté sur
+ * le plus bas et le plus haut total de la période affichée, plus [MARGE_AXE] de chaque côté (jamais plat). Toucher
+ * ou glisser donne la date, le total, chaque type et la variation depuis le début de la période.
+ */
+@Composable
+fun GraphiquePatrimoine(dates: List<String>, couches: List<CoucheEmpilee>, anneeAxe: Boolean, modifier: Modifier = Modifier) {
+    val n = dates.size
+    if (n < 2 || couches.isEmpty()) return
+    // Pas de clé : `dates`/`couches` sont reconstruits à chaque recomposition (listes non mémorisées).
+    var survol by remember { mutableStateOf<Int?>(null) }
+    val mesure = rememberTextMeasurer()
+    val axe = TextStyle(fontSize = 10.sp, color = Pt.NuitSub)
+    val totaux = remember(dates, couches) { DoubleArray(n) { i -> couches.sumOf { it.valeurs.getOrElse(i) { 0.0 } } } }
+    val (lo, hi) = remember(totaux) { bornesAjustees(totaux.toList()) }
+    Canvas(
+        modifier.fillMaxWidth().height(HAUT_PATRIMOINE).pointerInput(dates, couches) {
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                val largeur = size.width - 8.dp.toPx()
+                fun indice(x: Float) = ((x / largeur).coerceIn(0f, 1f) * (n - 1)).roundToInt()
+                survol = indice(down.position.x)
+                do {
+                    val ev = awaitPointerEvent()
+                    val c = ev.changes.first()
+                    survol = indice(c.position.x)
+                    // Glissé horizontal : le graphique le garde ; vertical : la liste défile.
+                    if (abs(c.positionChange().x) > abs(c.positionChange().y)) c.consume()
+                } while (c.pressed)
+                survol = null
+            }
+        },
+    ) {
+        val haut = 10.dp.toPx()
+        val bas = 150.dp.toPx()
+        val l = size.width - 8.dp.toPx()
+        listOf(haut, (haut + bas) / 2, bas).forEach { drawLine(Pt.NuitLigne, Offset(0f, it), Offset(size.width, it), 1.dp.toPx()) }
+        fun x(i: Int) = i.toFloat() / (n - 1) * l
+        fun y(v: Double) = (bas - ((v - lo) / (hi - lo)) * (bas - haut)).toFloat()
+        // Courbe du total, aire dégradée dessous : une pile par type serait coupée par l'axe ajusté (les types du bas
+        // disparaîtraient), le détail par type est dans l'infobulle et la légende.
+        val couleur = if (totaux.last() >= totaux.first()) Pt.HausseNuit else Pt.BaisseNuit
+        val ligne = Path().apply { for (i in 0 until n) if (i == 0) moveTo(x(i), y(totaux[i])) else lineTo(x(i), y(totaux[i])) }
+        val aire = Path().apply { addPath(ligne); lineTo(l, bas); lineTo(0f, bas); close() }
+        drawPath(aire, Brush.verticalGradient(listOf(couleur.copy(alpha = 0.28f), couleur.copy(alpha = 0f)), startY = haut, endY = bas))
+        drawPath(ligne, couleur, style = Stroke(2.dp.toPx(), join = StrokeJoin.Round, cap = StrokeCap.Round))
+        val fin = Offset(l, y(totaux.last()))
+        drawCircle(Pt.Nuit, 6.dp.toPx(), fin)
+        drawCircle(couleur, 4.dp.toPx(), fin)
+        etiquetteAxe(mesure, eurosK(hi), Offset(6.dp.toPx(), haut + 1.dp.toPx()), axe)
+        etiquetteAxe(mesure, eurosK(lo), Offset(6.dp.toPx(), bas - 14.dp.toPx()), axe)
+        val pied = bas + 5.dp.toPx()
+        val premier = dateCourte(dates.first(), anneeAxe)
+        val dernier = dateCourte(dates.last(), anneeAxe)
+        etiquetteAxe(mesure, premier, Offset(6.dp.toPx(), pied), axe)
+        etiquetteAxe(mesure, dernier, Offset(size.width - 6.dp.toPx() - mesure.measure(dernier, axe).size.width, pied), axe)
+
+        survol?.let { i ->
+            val p = Offset(x(i), y(totaux[i]))
+            drawLine(Color.White.copy(alpha = 0.5f), Offset(p.x, haut), Offset(p.x, bas), 1.dp.toPx())
+            drawCircle(Pt.Nuit, 6.5.dp.toPx(), p)
+            drawCircle(Color.White, 4.5.dp.toPx(), p)
+            val debut = totaux[0]
+            val ecartTotal = totaux[i] - debut
+            val lignes = ArrayList<LigneInfobulle>()
+            lignes += LigneInfobulle(dateCourte(dates[i], true), null, gras = true)
+            lignes += LigneInfobulle("Total", euros(totaux[i], cents = false), gras = true)
+            couches.reversed().forEach { c -> lignes += LigneInfobulle(c.nom, euros(c.valeurs.getOrElse(i) { 0.0 }, cents = false), c.couleur) }
+            if (i > 0) {
+                val pc = if (debut > 0) " (" + pct(ecartTotal / debut, digits = 1) + ")" else ""
+                lignes += LigneInfobulle("Depuis le début", euros(ecartTotal, sign = true, cents = false) + pc, teinte = if (ecartTotal >= 0) Pt.Hausse else Pt.Baisse)
+            }
+            infobulleDetaillee(mesure, lignes, p.x, haut, InfobulleClaire)
+        }
+    }
+}
+
+/** Étiquette d'axe sur fond du bloc sombre : reste lisible quand la courbe ou l'aire passe dessous. */
+fun DrawScope.etiquetteAxe(mesure: TextMeasurer, texte: String, pos: Offset, style: TextStyle) {
+    val m = mesure.measure(texte, style)
+    val px = 3.dp.toPx()
+    drawRoundRect(Pt.Nuit.copy(alpha = 0.82f), Offset(pos.x - px, pos.y - 1.dp.toPx()), Size(m.size.width + 2 * px, m.size.height + 2.dp.toPx()), CornerRadius(3.dp.toPx()))
+    drawText(m, topLeft = pos)
+}
+
+/** Marge de l'échelle verticale autour du plus bas et du plus haut de la période affichée. */
+const val MARGE_AXE = 0.08
+
+/** Bornes (bas, haut) d'un axe ajusté sur [valeurs] : min et max élargis de [MARGE_AXE] de l'amplitude, jamais confondus. */
+fun bornesAjustees(valeurs: List<Double>, marge: Double = MARGE_AXE): Pair<Double, Double> {
+    if (valeurs.isEmpty()) return 0.0 to 1.0
+    val lo = valeurs.min()
+    val hi = valeurs.max()
+    val amplitude = hi - lo
+    // Courbe plate : on invente une amplitude de 1 % de la valeur (ou 1) pour qu'elle reste lisible au milieu.
+    val pad = if (amplitude > 0) amplitude * marge else max(abs(hi) * 0.01, 1.0)
+    return (lo - pad) to (hi + pad)
 }
